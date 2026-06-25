@@ -7,7 +7,7 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 
 ## Wo wir stehen
 
-**Akt 3, Schritt 4 abgeschlossen.** Kontakte-Widget live.
+**Akt 3, Schritt 5 abgeschlossen.** Clockodo-Widget live.
 
 | Akt | Status | Inhalt |
 |---|---|---|
@@ -18,7 +18,8 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 | Akt 3, S2 | ✅ | Drive-Widget live (read-only, GoogleDriveClient) |
 | Akt 3, S3 | ✅ | Token-Refresh (GoogleAccessTokenProvider) + Kalender-Widget live |
 | Akt 3, S4 | ✅ | Kontakte-Widget live (GoogleContactsClient, contactsQuery) |
-| Akt 3, S5+ | 🔜 | Mail-Widget (neu, kein WidgetKind bisher), Clockodo live, Drag&Drop, Airtable-Sync |
+| Akt 3, S5 | ✅ | Clockodo-Widget live (API-Key-Auth, Settings-Sektion, ClockodoClient) |
+| Akt 3, S6+ | 🔜 | Mail-Widget (neu, kein WidgetKind bisher), Drag&Drop, Airtable-Sync |
 | Akt 4 | 🔜 | Assistent live (Tool-Use, proaktiver ein-Satz-Dolmetscher) |
 | Akt 5 | 🔜 | Politur, Dark Mode, DMG, Beta |
 
@@ -90,6 +91,8 @@ Sources/
                        #   GoogleAuthService (Akt 3, S1), GoogleDriveClient (S2),
                        #   GoogleAccessTokenProvider + GoogleTokenRefreshService +
                        #   GoogleCalendarClient (Akt 3, S3), GoogleContactsClient (S4)
+                       # Clockodo/ — ClockodoClient, ClockodoAuthService,
+                       #   KeychainClockodoCredentialsStore (Akt 3, S5)
   MykilosWidgets/      # WidgetContainer, WidgetBoardView, SourceChip, SaveStateBar,
                        # Kinds/ (7 Widgets: drive, tasks, contacts, cash, calendar, notes, assistant)
   MykilosApp/          # Shell (Sidebar), Gallery, Detail, Today, Data (AppState, AppDatabase,
@@ -99,10 +102,11 @@ Tests/
   MykilosKitTests/     # Cold-Start-Tests (FileBackedRepository)
   MykilosServicesTests/# WidgetBoardStoreTests (GRDB Cold-Start), GoogleOAuthTests,
                        # GoogleDriveClientTests, GoogleCalendarClientTests,
-                       # GoogleContactsClientTests,
+                       # GoogleContactsClientTests, ClockodoClientTests,
+                       # ClockodoAuthServiceTests,
                        # GoogleAccessTokenProviderTests (Refresh-Logik mit Fake) —
                        # kein echtes Keychain/Netzwerk im Testlauf, siehe
-                       # HANDOFF_AKT3_S1/S2/S3/S4.md
+                       # HANDOFF_AKT3_S1/S2/S3/S4/S5.md
 ```
 
 ---
@@ -132,7 +136,7 @@ Kein Sync-Backend in V1.
 
 ---
 
-## Nächste Schritte (Akt 3, ab Schritt 5)
+## Nächste Schritte (Akt 3, ab Schritt 6)
 
 Jeder Schritt ist eine eigene Session/PR (siehe Prozess-Regel oben):
 
@@ -140,9 +144,8 @@ Jeder Schritt ist eine eigene Session/PR (siehe Prozess-Regel oben):
    eigenes Widget, Platz im Board), dann Gmail live nach demselben Muster wie
    `GoogleDriveClient`/`GoogleCalendarClient`/`GoogleContactsClient` (Scope
    `.gmailReadonly` ist schon in `GoogleOAuthScope.readOnlyDefaults`).
-2. Clockodo-Widget live (ZEITEN-Regel: nur Mapping/Status, nie Buchung)
-3. Drag&Drop im Widget-Board (`WidgetBoardStore.move` existiert bereits, fehlt nur die UI)
-4. Airtable-Sync implementieren (`AirtableRegistry.sync(into:)`)
+2. Drag&Drop im Widget-Board (`WidgetBoardStore.move` existiert bereits, fehlt nur die UI)
+3. Airtable-Sync implementieren (`AirtableRegistry.sync(into:)`)
 
 **Bekannte offene Punkte aus Schritt 1 (noch nicht relevant geworden):**
 - Ob Google "Desktop App"-OAuth-Clients bei PKCE zusätzlich ein `client_secret`
@@ -206,5 +209,6 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_AKT3_S2.md` — Drive-Widget live
 - `docs/handoffs/HANDOFF_AKT3_S3.md` — Token-Refresh + Kalender-Widget live
 - `docs/handoffs/HANDOFF_AKT3_S4.md` — Kontakte-Widget live
+- `docs/handoffs/HANDOFF_AKT3_S5.md` — Clockodo-Widget live
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
 - `docs/codex/WORKFLOW.md` — Session-Regeln für Codex-Sessions in diesem Repo

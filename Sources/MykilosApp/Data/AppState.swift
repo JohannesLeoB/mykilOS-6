@@ -19,6 +19,7 @@ public final class AppState {
 
     // MARK: Integrationen
     public let googleAuth: GoogleAuthService
+    public let clockodoAuth: ClockodoAuthService
 
     // Projekt-Boards on-demand (pro geöffnetem Projekt)
     private var projectBoards: [String: WidgetBoardStore] = [:]
@@ -37,6 +38,7 @@ public final class AppState {
             db: database
         )
         self.googleAuth = GoogleAuthService()
+        self.clockodoAuth = ClockodoAuthService()
     }
 
     // MARK: Projekt-Board (lazy, gecached)
