@@ -27,7 +27,7 @@ public struct AssistantWidget: View {
         }
         .background(
             LinearGradient(
-                colors: [Color(hex: 0x1F1C17), Color(hex: 0x2C2620)],
+                colors: [MykColor.ink.color, MykColor.inkSoft.color.opacity(0.6)],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
         )
@@ -39,7 +39,7 @@ public struct AssistantWidget: View {
         VStack(alignment: .leading, spacing: MykSpace.s5) {
             HStack {
                 SourceChip(kind: .assistant)
-                Text("Assistent").mykWidgetTitle().foregroundStyle(.white.opacity(0.55))
+                Text("Assistent").mykWidgetTitle().foregroundStyle(MykColor.paper.color.opacity(0.55))
                 Spacer()
                 priorityBadge
             }
@@ -78,12 +78,12 @@ public struct AssistantWidget: View {
             Circle().fill(MykColor.positive.color).frame(width: 5, height: 5)
             Text("LIEST: DRIVE · CASH · KALENDER · CLOCKODO · MAIL  ·  SCHREIBT NICHTS OHNE FREIGABE")
                 .font(.mykMono(9.5))
-                .foregroundStyle(.white.opacity(0.4))
+                .foregroundStyle(MykColor.paper.color.opacity(0.4))
             Spacer()
         }
         .padding(.horizontal, MykSpace.s6).padding(.vertical, MykSpace.s4)
         .overlay(alignment: .top) {
-            Divider().overlay(.white.opacity(0.1))
+            Divider().overlay(MykColor.paper.color.opacity(0.1))
         }
     }
 }
@@ -101,12 +101,12 @@ private struct InsightRow: View {
                 priorityDot
                 Text(insight.summary)
                     .font(.mykBody)
-                    .foregroundStyle(.white.opacity(0.96))
+                    .foregroundStyle(MykColor.paper.color.opacity(0.96))
             }
             if let detail = insight.detail {
                 Text(detail)
                     .font(.mykCaption)
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(MykColor.paper.color.opacity(0.6))
             }
             if let action = insight.suggestedAction {
                 actionButtons(action: action)
@@ -137,7 +137,7 @@ private struct InsightRow: View {
                     .foregroundStyle(MykColor.positive.color)
                 Text("Bestätigt — wird im Audit protokolliert")
                     .font(.mykMono(9.5))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(MykColor.paper.color.opacity(0.5))
             }
         } else {
             HStack(spacing: MykSpace.s4) {
@@ -148,7 +148,7 @@ private struct InsightRow: View {
                         .font(.mykSmall).fontWeight(.semibold)
                         .foregroundStyle(MykColor.ink.color)
                         .padding(.horizontal, MykSpace.s5).padding(.vertical, MykSpace.s3)
-                        .background(RoundedRectangle(cornerRadius: MykRadius.sm).fill(.white))
+                        .background(RoundedRectangle(cornerRadius: MykRadius.sm).fill(MykColor.paper.color))
                 }
                 .buttonStyle(.plain)
             }

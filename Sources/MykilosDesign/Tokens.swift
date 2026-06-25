@@ -1,9 +1,11 @@
 import SwiftUI
+import AppKit
 
 // MARK: - mykilOS 6 Farb-Tokens — die warme Palette
 // Die EINE Quelle der Wahrheit für Farbe. Direkte Color(red:green:blue:) ist in
 // Feature-/Widget-Code verboten (SwiftLint erzwingt das). Farbe ist hier eine
 // Sprache: jede Quelle trägt ihren eigenen, gedämpften Ton.
+// Akt 5: Adaptive Light/Dark — die Palette atmet jetzt mit dem System.
 public enum MykColor {
     // Grund & Tinte
     case paper, paper2, card, bone, line, ink, inkSoft, muted, faint
@@ -18,23 +20,34 @@ public enum MykColor {
 
     public var color: Color {
         switch self {
-        case .paper:    Color(hex: 0xFAF8F3)
-        case .paper2:   Color(hex: 0xF2EFE7)
-        case .card:     Color(hex: 0xFFFFFF)
-        case .bone:     Color(hex: 0xE8E3D8)
-        case .line:     Color(hex: 0xE0DACE)
-        case .ink:      Color(hex: 0x1A1814)
-        case .inkSoft:  Color(hex: 0x4A463E)
-        case .muted:    Color(hex: 0x8C8678)
-        case .faint:    Color(hex: 0xB4AEA0)
-        case .drive:    Color(hex: 0xC26B4A)
-        case .people:   Color(hex: 0x6E8B6A)
-        case .tasks:    Color(hex: 0xC99A3E)
-        case .cash:     Color(hex: 0x4C6280)
-        case .personal: Color(hex: 0x8A5B73)
-        case .positive: Color(hex: 0x3E7A4E)
-        case .critical: Color(hex: 0xB4503C)
+        case .paper:    Self.adaptive(light: 0xFAF8F3, dark: 0x1A1814)
+        case .paper2:   Self.adaptive(light: 0xF2EFE7, dark: 0x222019)
+        case .card:     Self.adaptive(light: 0xFFFFFF, dark: 0x2A2721)
+        case .bone:     Self.adaptive(light: 0xE8E3D8, dark: 0x3A362E)
+        case .line:     Self.adaptive(light: 0xE0DACE, dark: 0x3E3A32)
+        case .ink:      Self.adaptive(light: 0x1A1814, dark: 0xF0EDE6)
+        case .inkSoft:  Self.adaptive(light: 0x4A463E, dark: 0xC4BFB4)
+        case .muted:    Self.adaptive(light: 0x8C8678, dark: 0x8C8678)
+        case .faint:    Self.adaptive(light: 0xB4AEA0, dark: 0x5A5548)
+        case .drive:    Self.adaptive(light: 0xC26B4A, dark: 0xD4815E)
+        case .people:   Self.adaptive(light: 0x6E8B6A, dark: 0x82A37E)
+        case .tasks:    Self.adaptive(light: 0xC99A3E, dark: 0xDAAE52)
+        case .cash:     Self.adaptive(light: 0x4C6280, dark: 0x6A849E)
+        case .personal: Self.adaptive(light: 0x8A5B73, dark: 0xA27389)
+        case .positive: Self.adaptive(light: 0x3E7A4E, dark: 0x5A9A68)
+        case .critical: Self.adaptive(light: 0xB4503C, dark: 0xCC6854)
         }
+    }
+
+    private static func adaptive(light: UInt32, dark: UInt32) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let hex = isDark ? dark : light
+            let r: CGFloat = CGFloat((hex >> 16) & 0xFF) / 255
+            let g: CGFloat = CGFloat((hex >> 8) & 0xFF) / 255
+            let b: CGFloat = CGFloat(hex & 0xFF) / 255
+            return NSColor(red: r, green: g, blue: b, alpha: 1)
+        })
     }
 }
 

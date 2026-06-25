@@ -7,7 +7,7 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 
 ## Wo wir stehen
 
-**Akt 4 abgeschlossen.** Assistent live.
+**Akt 5 abgeschlossen.** Politur, Dark Mode, DMG.
 
 | Akt | Status | Inhalt |
 |---|---|---|
@@ -23,7 +23,7 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 | Akt 3, S7 | ✅ | Drag & Drop im Widget-Board (Home + Projekt) |
 | Akt 3, S8 | ✅ | Airtable-Sync live (AirtableClient, Auth, Settings, Registry.sync) |
 | Akt 4 | ✅ | Assistent live (AssistantEngine, Insights, Action-Cards mit Bestätigung) |
-| Akt 5 | 🔜 | Politur, Dark Mode, DMG, Beta |
+| Akt 5 | ✅ | Politur, Dark Mode, DMG, Beta-Vorbereitung |
 
 ---
 
@@ -142,11 +142,16 @@ Kein Sync-Backend in V1.
 
 ---
 
-## Nächste Schritte (Akt 5)
+## Nächste Schritte
 
-Akt 3 + 4 sind abgeschlossen. Nächste große Phase:
+Akt 0–5 sind abgeschlossen. Die App ist feature-complete für Beta.
+Offene Verfeinerungen:
 
-1. Politur, Dark Mode, DMG, Beta
+1. App-Icon (eigenes Asset, nicht macOS-Default)
+2. About-Fenster mit Versionsnummer
+3. Auto-Sync bei App-Start (Airtable)
+4. LLM-Integration im Assistenten (Claude API für natürlichsprachliche Zusammenfassungen)
+5. Audit-Store verdrahten (persistente Protokollierung bestätigter Aktionen)
 
 **Bekannte offene Punkte aus Schritt 1 (noch nicht relevant geworden):**
 - Ob Google "Desktop App"-OAuth-Clients bei PKCE zusätzlich ein `client_secret`
@@ -216,5 +221,6 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_AKT3_S8.md` — Airtable-Sync live
 - `docs/handoffs/HANDOFF_AKT3.md` — Akt 3 Gesamtübersicht
 - `docs/handoffs/HANDOFF_AKT4.md` — Assistent live
+- `docs/handoffs/HANDOFF_AKT5.md` — Politur, Dark Mode, DMG
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
 - `docs/codex/WORKFLOW.md` — Session-Regeln für Codex-Sessions in diesem Repo

@@ -2,6 +2,7 @@ import SwiftUI
 import MykilosKit
 import MykilosDesign
 import MykilosServices
+import MykilosWidgets
 
 @main
 struct MykilOS6App: App {
@@ -61,22 +62,31 @@ struct ContentView: View {
         switch module {
         case .today:     TodayView()
         case .projects:  ProjectGalleryView()
-        case .assistant: AssistantPlaceholderView()
+        case .assistant: AssistantPageView()
         case .settings:  SettingsView()
         default:         ComingSoonView(module: module)
         }
     }
 }
 
-struct AssistantPlaceholderView: View {
+struct AssistantPageView: View {
+    @Environment(StudioContext.self) private var context
+
     var body: some View {
-        ZStack {
-            MykColor.paper.color.ignoresSafeArea()
-            VStack(spacing: MykSpace.s5) {
-                Image(systemName: "sparkles").font(.mykDisplay).foregroundStyle(MykColor.faint.color)
-                Text("Assistent — kommt in Akt 4").font(.mykBody).foregroundStyle(MykColor.muted.color)
+        ScrollView {
+            VStack(alignment: .leading, spacing: MykSpace.s7) {
+                Text("Assistent")
+                    .font(.mykDisplay)
+                    .foregroundStyle(MykColor.ink.color)
+                Text("Der Dolmetscher liest alle Quellen und fasst zusammen, was wichtig ist.")
+                    .font(.mykBody)
+                    .foregroundStyle(MykColor.muted.color)
+                AssistantWidget(projectID: "home")
             }
+            .padding(MykSpace.s9)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .background(MykColor.paper.color)
     }
 }
 
