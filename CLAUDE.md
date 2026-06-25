@@ -7,7 +7,7 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 
 ## Wo wir stehen
 
-**Akt 3, Schritt 1 abgeschlossen.** Google-OAuth-Fundament steht.
+**Akt 3, Schritt 2 abgeschlossen.** Drive-Widget zeigt echte Dateien.
 
 | Akt | Status | Inhalt |
 |---|---|---|
@@ -15,7 +15,8 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 | Akt 1 | ✅ | App-Shell, Galerie, Projekt-Detailseite, 7 Widget-Arten |
 | Akt 2 | ✅ | GRDB live, WidgetBoardStore, NoteStore, Heute-Board, SaveStateBar |
 | Akt 3, S1 | ✅ | Google OAuth/PKCE + Keychain, Settings-Tab mit Verbinden/Trennen |
-| Akt 3, S2+ | 🔜 | Drive/Kalender/Mail live, Clockodo live, Drag&Drop, Airtable-Sync |
+| Akt 3, S2 | ✅ | Drive-Widget live (read-only, GoogleDriveClient) |
+| Akt 3, S3+ | 🔜 | Kalender/Mail live, Clockodo live, Drag&Drop, Airtable-Sync |
 | Akt 4 | 🔜 | Assistent live (Tool-Use, proaktiver ein-Satz-Dolmetscher) |
 | Akt 5 | 🔜 | Politur, Dark Mode, DMG, Beta |
 
@@ -84,7 +85,7 @@ Sources/
   MykilosServices/     # CachedProjectRegistry, AirtableRegistry, GRDBDatabase,
                        # WidgetBoardStore, NoteStore, GRDB-Records
                        # Google/ — OAuth/PKCE, Loopback-Server, Keychain-Store,
-                       #   GoogleAuthService (Akt 3, S1)
+                       #   GoogleAuthService (Akt 3, S1), GoogleDriveClient (Akt 3, S2)
   MykilosWidgets/      # WidgetContainer, WidgetBoardView, SourceChip, SaveStateBar,
                        # Kinds/ (7 Widgets: drive, tasks, contacts, cash, calendar, notes, assistant)
   MykilosApp/          # Shell (Sidebar), Gallery, Detail, Today, Data (AppState, AppDatabase,
@@ -93,8 +94,9 @@ Sources/
 Tests/
   MykilosKitTests/     # Cold-Start-Tests (FileBackedRepository)
   MykilosServicesTests/# WidgetBoardStoreTests (GRDB Cold-Start), GoogleOAuthTests
-                       # (PKCE, Redirect-Parsing, Statusübergänge — kein echtes
-                       #  Keychain/Netzwerk im Testlauf, siehe HANDOFF_AKT3_S1.md)
+                       # (PKCE, Redirect-Parsing, Statusübergänge), GoogleDriveClientTests
+                       # (URL-Aufbau, JSON-Decoding, iconName-Mapping) — kein echtes
+                       #  Keychain/Netzwerk im Testlauf, siehe HANDOFF_AKT3_S1/S2.md
 ```
 
 ---
@@ -124,24 +126,31 @@ Kein Sync-Backend in V1.
 
 ---
 
-## Nächste Schritte (Akt 3, ab Schritt 2)
+## Nächste Schritte (Akt 3, ab Schritt 3)
 
 Jeder Schritt ist eine eigene Session/PR (siehe Prozess-Regel oben):
 
-1. Drive-Ordner-Widget live verdrahten (read-only, nutzt `GoogleAuthService`)
-2. Kalender + Mail read-only
-3. Clockodo-Widget live (ZEITEN-Regel: nur Mapping/Status, nie Buchung)
-4. Drag&Drop im Widget-Board (`WidgetBoardStore.move` existiert bereits, fehlt nur die UI)
-5. Airtable-Sync implementieren (`AirtableRegistry.sync(into:)`)
+1. Kalender + Mail read-only (gleiches Muster wie `GoogleDriveClient`)
+2. Clockodo-Widget live (ZEITEN-Regel: nur Mapping/Status, nie Buchung)
+3. Drag&Drop im Widget-Board (`WidgetBoardStore.move` existiert bereits, fehlt nur die UI)
+4. Airtable-Sync implementieren (`AirtableRegistry.sync(into:)`)
 
-**Bekannte offene Punkte aus Schritt 1:**
+**Bekannte offene Punkte aus Schritt 1 (noch nicht relevant geworden):**
 - Ob Google "Desktop App"-OAuth-Clients bei PKCE zusätzlich ein `client_secret`
   verlangen, ist nicht live getestet (V5 unterstützte es optional, V6 aktuell
   nicht) — falls Google beim ersten echten Verbinden `invalid_client` meldet,
   `clientSecret` Parameter in `GoogleOAuthPKCEService` nachziehen.
 - Token-Refresh bei abgelaufenem Access-Token ist noch nicht verdrahtet
-  (`GoogleTokens.isExpired` existiert, aber niemand ruft einen Refresh-Flow auf) —
-  wird fällig, sobald ein Live-Widget (Schritt 2+) tatsächlich API-Calls macht.
+  (`GoogleTokens.isExpired` existiert, aber niemand ruft einen Refresh-Flow auf).
+  Jetzt mit dem Drive-Widget relevant — bisher nicht aufgefallen, weil noch
+  niemand lange genug verbunden war, um ein Token wirklich ablaufen zu sehen.
+  Wird spätestens beim Kalender/Mail-Schritt zum echten Problem.
+
+**Aus Schritt 2 (Drive-Widget):**
+- `Sources/MykilosWidgets/WidgetBoardView.swift` (öffentlich, seit Akt 2
+  unbenutzt) ist als separater Cleanup-Task geflaggt — falls noch nicht
+  erledigt, vor dem nächsten großen Widget-Umbau aufräumen, sonst pflegt man
+  zwei Kopien des Dispatch-Switches.
 
 ---
 
@@ -168,5 +177,6 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_AKT1.md` — App-Shell, Galerie, Widgets
 - `docs/handoffs/HANDOFF_AKT2.md` — GRDB, Heute-Board, SaveState
 - `docs/handoffs/HANDOFF_AKT3_S1.md` — Google-OAuth-Fundament
+- `docs/handoffs/HANDOFF_AKT3_S2.md` — Drive-Widget live
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
 - `docs/codex/WORKFLOW.md` — Session-Regeln für Codex-Sessions in diesem Repo

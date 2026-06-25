@@ -1,25 +1,45 @@
 import SwiftUI
+import AppKit
 import MykilosKit
 import MykilosDesign
+import MykilosServices
 
 // MARK: - DriveWidget
-// Dateien & Zeichnungen. Mosaikvorschau. Terrakotta.
-// Akt 1: Demo-Daten. Akt 3: echte Drive-API.
+// Dateien & Zeichnungen, lesend aus dem im Projekt verlinkten Drive-Ordner
+// (Project.links.driveFolderID). Nie Schreiben, nie Inhalte herunterladen —
+// nur Metadaten + Link zum Öffnen im Browser.
 public struct DriveWidget: View {
     public let projectID: String
-    public init(projectID: String) { self.projectID = projectID }
+    public let driveFolderID: String?
+
+    public init(projectID: String, driveFolderID: String?) {
+        self.projectID = projectID
+        self.driveFolderID = driveFolderID
+    }
+
+    @State private var loader = DriveFolderLoader()
 
     public var body: some View {
         WidgetContainer(
             kind: .drive,
-            sourceLabel: "DRIVE  ·  ZEICHNUNGEN MEYER  ·  14 DATEIEN",
-            renderState: .content,
+            sourceLabel: sourceLabel,
+            renderState: loader.renderState,
             projectID: projectID
         ) {
             VStack(alignment: .leading, spacing: MykSpace.s5) {
                 widgetHeader
-                mosaic
+                fileList
             }
+        }
+        .task(id: driveFolderID) {
+            await loader.load(folderID: driveFolderID)
+        }
+    }
+
+    private var sourceLabel: String {
+        switch loader.renderState {
+        case .content: "DRIVE  ·  \(loader.files.count) DATEIEN"
+        default:       "DRIVE"
         }
     }
 
@@ -28,52 +48,101 @@ public struct DriveWidget: View {
             SourceChip(kind: .drive)
             Text("Zeichnungen & Pläne").mykWidgetTitle()
             Spacer()
-            newBadge
-        }
-    }
-
-    private var newBadge: some View {
-        Text("1 NEU")
-            .font(.mykMono(9))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 7).padding(.vertical, 3)
-            .background(Capsule().fill(MykColor.drive.color))
-    }
-
-    private var mosaic: some View {
-        LazyVGrid(columns: Array(repeating: .init(.flexible(), spacing: 6), count: 3), spacing: 6) {
-            ForEach(demoTiles, id: \.id) { tile in
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(tile.gradient)
-                    .frame(height: 52)
-                    .overlay(alignment: .topLeading) {
-                        if tile.isNew {
-                            Text("NEU")
-                                .font(.mykMono(8))
-                                .foregroundStyle(.white)
-                                .padding(4)
-                                .background(RoundedRectangle(cornerRadius: 4).fill(MykColor.drive.color))
-                                .padding(5)
-                        }
-                    }
+            if case .error = loader.renderState {
+                retryButton
+            } else if case .permissionRequired = loader.renderState {
+                retryButton
             }
         }
     }
 
-    private struct DemoTile: Identifiable {
-        let id = UUID()
-        let gradient: LinearGradient
-        let isNew: Bool
+    private var retryButton: some View {
+        Button("Erneut versuchen") {
+            Task { await loader.load(folderID: driveFolderID) }
+        }
+        .font(.mykMono(9.5))
+        .buttonStyle(.plain)
+        .foregroundStyle(MykColor.drive.color)
     }
 
-    private var demoTiles: [DemoTile] {
-        [
-            DemoTile(gradient: .init(colors: [Color(hex: 0xEAD9CB), Color(hex: 0xD3BBA6)], startPoint: .topLeading, endPoint: .bottomTrailing), isNew: false),
-            DemoTile(gradient: .init(colors: [Color(hex: 0xE0D3C4), Color(hex: 0xC2A98F)], startPoint: .topLeading, endPoint: .bottomTrailing), isNew: false),
-            DemoTile(gradient: .init(colors: [Color(hex: 0xEFE6DA), Color(hex: 0xDCC8B2)], startPoint: .topLeading, endPoint: .bottomTrailing), isNew: false),
-            DemoTile(gradient: .init(colors: [Color(hex: 0xEFE6DA), Color(hex: 0xDCC8B2)], startPoint: .topLeading, endPoint: .bottomTrailing), isNew: false),
-            DemoTile(gradient: .init(colors: [Color(hex: 0xEAD9CB), Color(hex: 0xD3BBA6)], startPoint: .topLeading, endPoint: .bottomTrailing), isNew: true),
-            DemoTile(gradient: .init(colors: [Color(hex: 0xE0D3C4), Color(hex: 0xC2A98F)], startPoint: .topLeading, endPoint: .bottomTrailing), isNew: false),
-        ]
+    private var fileList: some View {
+        VStack(spacing: 0) {
+            ForEach(loader.files) { file in
+                DriveFileRow(file: file)
+                if file.id != loader.files.last?.id {
+                    Divider().overlay(MykColor.line.color.opacity(0.6))
+                }
+            }
+        }
+    }
+}
+
+// MARK: - DriveFolderLoader
+// Pro Widget-Instanz, kein geteilter Zustand nötig — Drive-Daten sind reine
+// Lesefetches, kein Speichern-Vertrag wie bei NoteStore/WidgetBoardStore.
+@MainActor
+@Observable
+private final class DriveFolderLoader {
+    private(set) var files: [GoogleDriveFile] = []
+    private(set) var renderState: WidgetRenderState = .loading
+
+    private let client: GoogleDriveFetching
+
+    init(client: GoogleDriveFetching = GoogleDriveClient()) {
+        self.client = client
+    }
+
+    func load(folderID: String?) async {
+        guard let folderID, folderID.isEmpty == false else {
+            files = []
+            renderState = .empty
+            return
+        }
+        renderState = .loading
+        do {
+            let result = try await client.listFolder(folderID: folderID)
+            files = result
+            renderState = result.isEmpty ? .empty : .content
+        } catch GoogleDriveError.notConnected {
+            files = []
+            renderState = .permissionRequired
+        } catch {
+            files = []
+            renderState = .error(String(describing: error))
+        }
+    }
+}
+
+// MARK: - DriveFileRow
+private struct DriveFileRow: View {
+    let file: GoogleDriveFile
+
+    var body: some View {
+        Button {
+            if let link = file.webViewLink, let url = URL(string: link) {
+                NSWorkspace.shared.open(url)
+            }
+        } label: {
+            HStack(spacing: MykSpace.s4) {
+                Image(systemName: file.iconName)
+                    .font(.mykCaption)
+                    .foregroundStyle(MykColor.drive.color)
+                    .frame(width: 20)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(file.name)
+                        .font(.mykSmall)
+                        .foregroundStyle(MykColor.ink.color)
+                        .lineLimit(1)
+                    if let modifiedAt = file.modifiedAt {
+                        Text(modifiedAt.formatted(.relative(presentation: .named)))
+                            .font(.mykMono(9.5))
+                            .foregroundStyle(MykColor.muted.color)
+                    }
+                }
+                Spacer()
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.vertical, MykSpace.s3)
     }
 }

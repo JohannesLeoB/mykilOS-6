@@ -41,7 +41,7 @@ public struct WidgetBoardView: View {
     @ViewBuilder
     private func widgetView(for instance: WidgetInstance) -> some View {
         switch instance.kind {
-        case .drive:     DriveWidget(projectID: projectID)
+        case .drive:     DriveWidget(projectID: projectID, driveFolderID: nil)
         case .tasks:     TasksWidget(projectID: projectID)
         case .contacts:  ContactsWidget(projectID: projectID)
         case .cash:      CashWidget(projectID: projectID)

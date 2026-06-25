@@ -66,7 +66,12 @@ struct ProjectDetailView: View {
     private var tabContent: some View {
         switch activeTab {
         case .overview:
-            ProjectWidgetBoardView(boardStore: boardStore, noteStore: noteStore, projectID: project.projectNumber)
+            ProjectWidgetBoardView(
+                boardStore: boardStore,
+                noteStore: noteStore,
+                projectID: project.projectNumber,
+                driveFolderID: project.links.driveFolderID
+            )
                 .padding(.horizontal, MykSpace.s9)
                 .padding(.top, MykSpace.s7)
                 .padding(.bottom, 64)   // Platz für SaveStateBar
@@ -82,6 +87,7 @@ private struct ProjectWidgetBoardView: View {
     let boardStore: WidgetBoardStore
     let noteStore:  NoteStore
     let projectID:  String
+    let driveFolderID: String?
 
     var body: some View {
         Grid(alignment: .topLeading,
@@ -104,7 +110,7 @@ private struct ProjectWidgetBoardView: View {
     @ViewBuilder
     private func projectWidgetView(for instance: WidgetInstance) -> some View {
         switch instance.kind {
-        case .drive:     DriveWidget(projectID: projectID)
+        case .drive:     DriveWidget(projectID: projectID, driveFolderID: driveFolderID)
         case .tasks:     TasksWidget(projectID: projectID)
         case .contacts:  ContactsWidget(projectID: projectID)
         case .cash:      CashWidget(projectID: projectID)
