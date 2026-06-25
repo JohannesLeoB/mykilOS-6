@@ -214,5 +214,6 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_AKT3_S6.md` — Mail-Widget live
 - `docs/handoffs/HANDOFF_AKT3_S7.md` — Drag & Drop im Widget-Board
 - `docs/handoffs/HANDOFF_AKT3_S8.md` — Airtable-Sync live
+- `docs/handoffs/HANDOFF_AKT3.md` — Akt 3 Gesamtübersicht
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
 - `docs/codex/WORKFLOW.md` — Session-Regeln für Codex-Sessions in diesem Repo
