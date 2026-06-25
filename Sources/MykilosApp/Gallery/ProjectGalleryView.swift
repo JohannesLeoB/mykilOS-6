@@ -116,7 +116,7 @@ struct ProjectGalleryView: View {
             Image(systemName: "square.grid.2x2")
                 .font(.mykDisplay)
                 .foregroundStyle(MykColor.faint.color)
-            Text(searchText.isEmpty ? "Noch keine Projekte." : "Keine Treffer für „\(searchText)".")
+            Text(searchText.isEmpty ? "Noch keine Projekte." : "Keine Treffer für „\(searchText)“.")
                 .font(.mykBody)
                 .foregroundStyle(MykColor.muted.color)
             Spacer()

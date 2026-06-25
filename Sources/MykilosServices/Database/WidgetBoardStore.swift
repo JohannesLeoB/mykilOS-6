@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI
 import GRDB
 import MykilosKit
 
@@ -48,13 +49,15 @@ public final class WidgetBoardStore {
     // MARK: Speichern — Der Vertrag (throws, SaveState sichtbar)
     public func save() throws {
         saveState = .saving
+        let boardID = self.boardID
+        let snapshot = instances
         do {
             try db.write { dbConn in
                 // Atomic replace: erst löschen, dann neu schreiben
                 try WidgetInstanceRecord
                     .filter(Column("boardID") == boardID)
                     .deleteAll(dbConn)
-                for instance in instances {
+                for instance in snapshot {
                     try WidgetInstanceRecord(from: instance, boardID: boardID)
                         .insert(dbConn)
                 }

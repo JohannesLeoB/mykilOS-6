@@ -1,6 +1,7 @@
 import SwiftUI
 import MykilosKit
 import MykilosDesign
+import MykilosServices
 
 // MARK: - WidgetBoardView
 // Rendert das Widget-Grid für ein Projekt. Nutzt SwiftUI Grid mit
@@ -10,10 +11,12 @@ import MykilosDesign
 public struct WidgetBoardView: View {
     public let instances: [WidgetInstance]
     public let projectID: String
+    public let noteStore: NoteStore
 
-    public init(instances: [WidgetInstance], projectID: String) {
+    public init(instances: [WidgetInstance], projectID: String, noteStore: NoteStore) {
         self.instances = instances.filter(\.isVisible).sorted { $0.position < $1.position }
         self.projectID = projectID
+        self.noteStore = noteStore
     }
 
     public var body: some View {
@@ -43,8 +46,10 @@ public struct WidgetBoardView: View {
         case .contacts:  ContactsWidget(projectID: projectID)
         case .cash:      CashWidget(projectID: projectID)
         case .calendar:  CalendarWidget(projectID: projectID)
-        case .notes:     NotesWidget(projectID: projectID)
+        case .notes:     NotesWidget(projectID: projectID, noteStore: noteStore)
         case .assistant: AssistantWidget(projectID: projectID)
+        case .focus, .projectFaves, .clockodo, .recentActivity:
+            EmptyView()
         }
     }
 

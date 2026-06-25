@@ -32,9 +32,9 @@ let package = Package(
                 ],
                 path: "Sources/MykilosServices"),
 
-        // Widgets — SwiftUI, kein GRDB
+        // Widgets — SwiftUI. NotesWidget braucht NoteStore aus MykilosServices.
         .target(name: "MykilosWidgets",
-                dependencies: ["MykilosKit", "MykilosDesign"],
+                dependencies: ["MykilosKit", "MykilosDesign", "MykilosServices"],
                 path: "Sources/MykilosWidgets"),
 
         // App-Shell

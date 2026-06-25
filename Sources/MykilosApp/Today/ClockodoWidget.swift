@@ -1,6 +1,7 @@
 import SwiftUI
 import MykilosKit
 import MykilosDesign
+import MykilosWidgets
 
 // MARK: - ClockodoWidget
 // Zeitstatus für Heute. Akt 2: Demo-Daten. Akt 3: echte Clockodo-API.

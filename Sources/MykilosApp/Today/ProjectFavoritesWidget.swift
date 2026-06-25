@@ -1,6 +1,7 @@
 import SwiftUI
 import MykilosKit
 import MykilosDesign
+import MykilosWidgets
 
 // MARK: - ProjectFavoritesWidget
 // Angeheftete Projekte als Mini-Karten. Schnellzugriff auf das Wichtigste.

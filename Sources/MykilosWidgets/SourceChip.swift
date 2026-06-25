@@ -31,31 +31,10 @@ extension WidgetKind {
         case .calendar:  "calendar"
         case .notes:     "note.text"
         case .assistant: "sparkles"
-        }
-    }
-}
-
-// MARK: - Home-Widget-Kind Extensions (Akt 2)
-// Erweiterung für die in WidgetBoard.swift definierten Static-Let-Instanzen.
-// Da die neuen WidgetKinds keine neuen enum-Cases sind, brauchen wir guard-basiertes Matching.
-public extension WidgetKind {
-    var homeIconName: String {
-        switch rawValue {
-        case "focus":          return "scope"
-        case "projectFaves":   return "star"
-        case "clockodo":       return "clock"
-        case "recentActivity": return "bolt"
-        default:               return iconName
-        }
-    }
-
-    var homeSource: WidgetSource {
-        switch rawValue {
-        case "focus":          return .assistant
-        case "projectFaves":   return .tasks
-        case "clockodo":       return .tasks
-        case "recentActivity": return .drive
-        default:               return source
+        case .focus:          "scope"
+        case .projectFaves:   "star"
+        case .clockodo:       "clock"
+        case .recentActivity: "bolt"
         }
     }
 }

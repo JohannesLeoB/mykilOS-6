@@ -29,7 +29,7 @@ public struct TasksWidget: View {
         }
     }
 
-    private struct DemoTask { let title: String; let sub: String; let isCritical: Bool }
+    fileprivate struct DemoTask { let title: String; let sub: String; let isCritical: Bool }
     private var demoTasks: [DemoTask] {[
         DemoTask(title: "Bartresen-Detail freigeben", sub: "FÄLLIG HEUTE  ·  J. BERGER", isCritical: true),
         DemoTask(title: "Korpusmaße an Tischlerei",   sub: "MORGEN  ·  S. ADLER",       isCritical: false),

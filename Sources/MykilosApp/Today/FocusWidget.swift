@@ -1,6 +1,7 @@
 import SwiftUI
 import MykilosKit
 import MykilosDesign
+import MykilosWidgets
 
 // MARK: - FocusWidget
 // "Heute zählt." — kuratiert, klar, kein Lärm.
@@ -101,19 +102,6 @@ private struct FocusItem: View {
                 .font(rank == 0 ? .mykHeadline : .mykBody)
                 .foregroundStyle(rank == 0 ? MykColor.ink.color : MykColor.inkSoft.color)
                 .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
-
-// SourceChip und WidgetContainer-Extension für home-spezifische Kinds
-extension WidgetKind {
-    var iconName: String {
-        switch rawValue {
-        case "focus":          return "scope"
-        case "projectFaves":   return "star"
-        case "clockodo":       return "clock"
-        case "recentActivity": return "bolt"
-        default:               return "square"
         }
     }
 }

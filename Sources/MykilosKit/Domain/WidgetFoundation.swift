@@ -11,7 +11,12 @@ public enum WidgetKind: String, Codable, CaseIterable, Sendable {
     case calendar     // Termine · Salbei
     case notes        // Notiz · Pflaume
     case assistant    // Dolmetscher · Tinte
-    // Akt 3+: clockodo, sevdesk, mail, clockodo…
+    // Home-spezifisch (Akt 2)
+    case focus          // Fokus-Liste · Tinte
+    case projectFaves   // Projekt-Favoriten · Ocker
+    case clockodo       // Zeiterfassung · Ocker
+    case recentActivity // Letzte Aktivität · Terrakotta
+    // Akt 3+: sevdesk, mail…
 }
 
 // MARK: - WidgetSize

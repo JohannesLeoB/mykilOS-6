@@ -175,6 +175,10 @@ extension WidgetKind {
         case .calendar:  .calendar
         case .notes:     .notes
         case .assistant: .assistant
+        case .focus:          .assistant
+        case .projectFaves:   .tasks
+        case .clockodo:       .tasks
+        case .recentActivity: .drive
         }
     }
 }

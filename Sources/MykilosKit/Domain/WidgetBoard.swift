@@ -13,19 +13,6 @@ public enum WidgetBoardID: Hashable, Sendable, CustomStringConvertible {
     public var description: String { rawValue }
 }
 
-// MARK: - Home-Widget-Arten (Akt 2)
-// Ergänzung zu den Projekt-Widgets aus Akt 1.
-extension WidgetKind {
-    // Home-spezifisch
-    public static let focus          = WidgetKind(rawValue: "focus")!
-    public static let projectFaves   = WidgetKind(rawValue: "projectFaves")!
-    public static let clockodo       = WidgetKind(rawValue: "clockodo")!
-    public static let recentActivity = WidgetKind(rawValue: "recentActivity")!
-}
-
-// Da wir new Cases via statics definieren können wir CaseIterable nicht nutzen —
-// daher kein breaking change an WidgetKind.
-
 // MARK: - Home-Default-Layout
 extension WidgetBoardDefault {
     public static var homeLayout: [WidgetInstance] {[
