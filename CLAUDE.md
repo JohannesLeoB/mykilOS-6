@@ -7,8 +7,8 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 
 ## Wo wir stehen
 
-**Akt 5 abgeschlossen.** Politur, Dark Mode, DMG. Post-Akt-5 Aufgabe 3
-ist abgeschlossen: mykilOS 6 hat ein eigenes About-Fenster mit Versionsnummer.
+**Akt 5 abgeschlossen.** Politur, Dark Mode, DMG. Post-Akt-5 Aufgabe 4
+ist abgeschlossen: mykilOS 6 hat ein eigenes App-Icon im App-Bundle.
 
 | Akt | Status | Inhalt |
 |---|---|---|
@@ -28,6 +28,7 @@ ist abgeschlossen: mykilOS 6 hat ein eigenes About-Fenster mit Versionsnummer.
 | Post-Akt 5, Aufgabe 1 | ✅ | Auto-Sync bei App-Start (Airtable nach lokalem Cache-Load) |
 | Post-Akt 5, Aufgabe 2 | ✅ | AuditStore persistent + Assistant-Bestätigungen protokolliert |
 | Post-Akt 5, Aufgabe 3 | ✅ | About-Fenster über App-Menü mit Version 6.0.0 |
+| Post-Akt 5, Aufgabe 4 | ✅ | Eigenes App-Icon (`AppIcon.icns`) im Bundle |
 
 ---
 
@@ -151,8 +152,7 @@ Kein Sync-Backend in V1.
 Akt 0–5 sind abgeschlossen. Die App ist feature-complete für Beta.
 Offene Verfeinerungen:
 
-1. App-Icon (eigenes Asset, nicht macOS-Default)
-2. LLM-Integration im Assistenten (Claude API für natürlichsprachliche Zusammenfassungen)
+1. LLM-Integration im Assistenten (Claude API für natürlichsprachliche Zusammenfassungen)
 
 **Aus Post-Akt-5 Aufgabe 1 (Auto-Sync bei App-Start):**
 - `AppState.bootstrap()` lädt weiterhin zuerst lokale Boards und Registry
@@ -174,6 +174,12 @@ Offene Verfeinerungen:
   macOS-AppInfo-Menüeintrag durch "Über mykilOS 6".
 - Das Fenster zeigt App-Name, Version `6.0.0`, Copyright `MYKILOS` und einen
   kurzen Einzeiler mit `MykColor`/`Font.myk...` Design-Tokens.
+
+**Aus Post-Akt-5 Aufgabe 4 (App-Icon):**
+- `Sources/MykilosApp/Resources/AppIcon.icns` ist das Bundle-Icon; die
+  editierbare 1024px-Quelle liegt daneben als `AppIconSource.png`.
+- `script/build_and_run.sh` kopiert das Icon nach `Contents/Resources` und
+  schreibt `CFBundleIconFile` in die generierte `Info.plist`.
 
 **Bekannte offene Punkte aus Schritt 1 (noch nicht relevant geworden):**
 - Ob Google "Desktop App"-OAuth-Clients bei PKCE zusätzlich ein `client_secret`
@@ -247,5 +253,6 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_POST_AKT5_1.md` — Auto-Sync bei App-Start (Airtable)
 - `docs/handoffs/HANDOFF_POST_AKT5_2.md` — AuditStore + Assistant-Protokollierung
 - `docs/handoffs/HANDOFF_POST_AKT5_3.md` — About-Fenster mit Versionsnummer
+- `docs/handoffs/HANDOFF_POST_AKT5_4.md` — Eigenes App-Icon im Bundle
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
 - `docs/codex/WORKFLOW.md` — Session-Regeln für Codex-Sessions in diesem Repo

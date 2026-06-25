@@ -41,7 +41,8 @@ let package = Package(
         .executableTarget(
             name: "MykilosApp",
             dependencies: ["MykilosKit", "MykilosDesign", "MykilosServices", "MykilosWidgets"],
-            path: "Sources/MykilosApp"
+            path: "Sources/MykilosApp",
+            resources: [.copy("Resources")]
         ),
 
         // Tests
