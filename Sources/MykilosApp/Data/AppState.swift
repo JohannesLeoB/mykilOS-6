@@ -17,6 +17,9 @@ public final class AppState {
     public let homeBoard:  WidgetBoardStore
     public let homeNotes:  NoteStore
 
+    // MARK: Integrationen
+    public let googleAuth: GoogleAuthService
+
     // Projekt-Boards on-demand (pro geöffnetem Projekt)
     private var projectBoards: [String: WidgetBoardStore] = [:]
     private var projectNotes:  [String: NoteStore]        = [:]
@@ -33,6 +36,7 @@ public final class AppState {
             boardID: WidgetBoardID.home.rawValue,
             db: database
         )
+        self.googleAuth = GoogleAuthService()
     }
 
     // MARK: Projekt-Board (lazy, gecached)

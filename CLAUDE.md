@@ -7,38 +7,33 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 
 ## Wo wir stehen
 
-**Akt 2 abgeschlossen.** Die Werkbank lebt.
+**Akt 3, Schritt 1 abgeschlossen.** Google-OAuth-Fundament steht.
 
 | Akt | Status | Inhalt |
 |---|---|---|
 | Akt 0 | ✅ | Fundament: GRDB, Repository, Cold-Start-Tests, Signal-Engine |
 | Akt 1 | ✅ | App-Shell, Galerie, Projekt-Detailseite, 7 Widget-Arten |
 | Akt 2 | ✅ | GRDB live, WidgetBoardStore, NoteStore, Heute-Board, SaveStateBar |
-| Akt 3 | 🔜 | Google OAuth, Drive/Kalender/Mail live, Clockodo, Airtable-Sync |
+| Akt 3, S1 | ✅ | Google OAuth/PKCE + Keychain, Settings-Tab mit Verbinden/Trennen |
+| Akt 3, S2+ | 🔜 | Drive/Kalender/Mail live, Clockodo live, Drag&Drop, Airtable-Sync |
 | Akt 4 | 🔜 | Assistent live (Tool-Use, proaktiver ein-Satz-Dolmetscher) |
 | Akt 5 | 🔜 | Politur, Dark Mode, DMG, Beta |
 
 ---
 
-## Bekannte Build-Fixes (zuerst erledigen!)
+## Build-Fixes aus Akt 2 (erledigt, Commit `553414b`)
 
-Vier Stellen aus Akt 2 die beim ersten `swift build` auffallen können:
-
-1. **`SaveState: Equatable`** fehlt — `NotesWidget` nutzt `!=` auf SaveState.
-   Fix: `Sources/MykilosKit/Persistence/SaveState.swift` → `enum SaveState: Equatable`
-   (Date ist Equatable, alle Cases sind vergleichbar ✓)
-
-2. **`SourceChip` für Home-Widget-Kinds** — `SourceChip(kind: .focus)` ruft `kind.iconName` auf,
-   das nur Original-Cases kennt.
-   Fix: In `WidgetContainer.swift` + `SourceChip.swift` den switch-default auf `homeIconName` zeigen
-   oder `iconName` mit Home-Cases ergänzen.
-
-3. **`Color(hex:)` mehrfach definiert** — in `ProjectCard.swift`, `NotesWidget.swift`, `DriveWidget.swift`.
-   Fix: Alle `private extension Color { init(hex:) }` löschen. Stattdessen `public` in
-   `Sources/MykilosDesign/Tokens.swift` exportieren (ist dort bereits als `init(hex:)` vorhanden).
-
-4. **`GridTexture` doppelt** — in `ProjectCard.swift` und `ProjectHeroView.swift`.
-   Fix: Eine löschen, oder nach `Sources/MykilosDesign/` als `public struct GridTexture` auslagern.
+Die 4 ursprünglich dokumentierten Stellen (SaveState-Equatable, SourceChip-
+Home-Kinds, doppeltes `Color(hex:)`, doppeltes `GridTexture`) sind gefixt.
+Beim ersten echten Build kamen weitere reale Bugs hinzu, die hier nicht
+dokumentiert waren — Details in [HANDOFF_AKT2.md](docs/handoffs/HANDOFF_AKT2.md)
+Nachtrag bzw. im Commit selbst: ein garantierter Laufzeitcrash durch
+`WidgetKind(rawValue:)!` auf nicht existierenden Rohwerten, ein Sendable-
+Closure-Capture-Fehler in `WidgetBoardStore.save()`, fehlende Modul-
+Abhängigkeiten (`MykilosWidgets → MykilosServices`), und ein Datum-Rundtrip-
+Bug in `FileBackedRepository` (`.iso8601`/`.secondsSince1970` verlieren beide
+Präzision über die Unix-Epoch-Konvertierung — nur `timeIntervalSinceReferenceDate`
+ist bitgenau roundtrip-sicher).
 
 ---
 
@@ -88,6 +83,8 @@ Sources/
   MykilosDesign/       # Tokens (MykColor, MykSpace, MykRadius), Typography, SourceColor
   MykilosServices/     # CachedProjectRegistry, AirtableRegistry, GRDBDatabase,
                        # WidgetBoardStore, NoteStore, GRDB-Records
+                       # Google/ — OAuth/PKCE, Loopback-Server, Keychain-Store,
+                       #   GoogleAuthService (Akt 3, S1)
   MykilosWidgets/      # WidgetContainer, WidgetBoardView, SourceChip, SaveStateBar,
                        # Kinds/ (7 Widgets: drive, tasks, contacts, cash, calendar, notes, assistant)
   MykilosApp/          # Shell (Sidebar), Gallery, Detail, Today, Data (AppState, AppDatabase,
@@ -95,7 +92,9 @@ Sources/
 
 Tests/
   MykilosKitTests/     # Cold-Start-Tests (FileBackedRepository)
-  MykilosServicesTests/# WidgetBoardStoreTests (GRDB Cold-Start, 5+ Tests)
+  MykilosServicesTests/# WidgetBoardStoreTests (GRDB Cold-Start), GoogleOAuthTests
+                       # (PKCE, Redirect-Parsing, Statusübergänge — kein echtes
+                       #  Keychain/Netzwerk im Testlauf, siehe HANDOFF_AKT3_S1.md)
 ```
 
 ---
@@ -125,15 +124,24 @@ Kein Sync-Backend in V1.
 
 ---
 
-## Nächste Schritte (Akt 3)
+## Nächste Schritte (Akt 3, ab Schritt 2)
 
-1. `swift test` — alle Tests müssen grün sein
-2. Die 4 Build-Fixes oben erledigen
-3. Google OAuth/PKCE + Keychain portieren (aus V5 `KeychainGoogleTokenStore`)
-4. Drive-Ordner-Widget live verdrahten (read-only)
-5. Kalender + Mail read-only
-6. Clockodo-Widget live (ZEITEN-Regel: nur Mapping/Status, nie Buchung)
-7. Airtable-Sync implementieren (`AirtableRegistry.sync(into:)`)
+Jeder Schritt ist eine eigene Session/PR (siehe Prozess-Regel oben):
+
+1. Drive-Ordner-Widget live verdrahten (read-only, nutzt `GoogleAuthService`)
+2. Kalender + Mail read-only
+3. Clockodo-Widget live (ZEITEN-Regel: nur Mapping/Status, nie Buchung)
+4. Drag&Drop im Widget-Board (`WidgetBoardStore.move` existiert bereits, fehlt nur die UI)
+5. Airtable-Sync implementieren (`AirtableRegistry.sync(into:)`)
+
+**Bekannte offene Punkte aus Schritt 1:**
+- Ob Google "Desktop App"-OAuth-Clients bei PKCE zusätzlich ein `client_secret`
+  verlangen, ist nicht live getestet (V5 unterstützte es optional, V6 aktuell
+  nicht) — falls Google beim ersten echten Verbinden `invalid_client` meldet,
+  `clientSecret` Parameter in `GoogleOAuthPKCEService` nachziehen.
+- Token-Refresh bei abgelaufenem Access-Token ist noch nicht verdrahtet
+  (`GoogleTokens.isExpired` existiert, aber niemand ruft einen Refresh-Flow auf) —
+  wird fällig, sobald ein Live-Widget (Schritt 2+) tatsächlich API-Calls macht.
 
 ---
 
@@ -154,4 +162,5 @@ swiftlint --strict              # Token-Disziplin prüfen
 - `docs/handoffs/HANDOFF_AKT0.md` — Fundament
 - `docs/handoffs/HANDOFF_AKT1.md` — App-Shell, Galerie, Widgets
 - `docs/handoffs/HANDOFF_AKT2.md` — GRDB, Heute-Board, SaveState
+- `docs/handoffs/HANDOFF_AKT3_S1.md` — Google-OAuth-Fundament
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität

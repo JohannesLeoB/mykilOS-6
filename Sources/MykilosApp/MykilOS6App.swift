@@ -62,6 +62,7 @@ struct ContentView: View {
         case .today:     TodayView()
         case .projects:  ProjectGalleryView()
         case .assistant: AssistantPlaceholderView()
+        case .settings:  SettingsView()
         default:         ComingSoonView(module: module)
         }
     }
