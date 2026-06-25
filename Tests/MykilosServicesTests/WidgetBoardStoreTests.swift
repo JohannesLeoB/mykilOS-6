@@ -75,6 +75,34 @@ struct WidgetBoardStoreTests {
         #expect(storeB.body == "Meyer mag warme Eiche")
     }
 
+    // MARK: AuditStore Cold-Start
+    @Test func auditEntryUeberlebtNeustart() throws {
+        let db = try GRDBDatabase.inMemory()
+        let entry = AuditEntry(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            timestamp: Date(timeIntervalSince1970: 1_806_086_400),
+            actorUserID: "local-user",
+            projectID: "ME-24",
+            action: .offerImported,
+            summary: "Arbeitsplatte als Angebot markiert"
+        )
+
+        let storeA = AuditStore(db: db)
+        try storeA.load()
+        try storeA.append(entry)
+
+        let storeB = AuditStore(db: db)
+        try storeB.load()
+
+        #expect(storeB.entries.count == 1)
+        #expect(storeB.entries.first?.id == entry.id)
+        #expect(storeB.entries.first?.timestamp == entry.timestamp)
+        #expect(storeB.entries.first?.actorUserID == entry.actorUserID)
+        #expect(storeB.entries.first?.projectID == entry.projectID)
+        #expect(storeB.entries.first?.action == entry.action)
+        #expect(storeB.entries.first?.summary == entry.summary)
+    }
+
     // MARK: Mehrere Projekt-Boards unabhängig
     @Test func projektBoardsUnabhaengig() throws {
         let db = try GRDBDatabase.inMemory()

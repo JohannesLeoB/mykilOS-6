@@ -16,6 +16,7 @@ public final class AppState {
     // MARK: Boards
     public let homeBoard:  WidgetBoardStore
     public let homeNotes:  NoteStore
+    public let audit:      AuditStore
 
     // MARK: Integrationen
     public let googleAuth: GoogleAuthService
@@ -38,6 +39,7 @@ public final class AppState {
             boardID: WidgetBoardID.home.rawValue,
             db: database
         )
+        self.audit = AuditStore(db: database)
         self.googleAuth = GoogleAuthService()
         self.clockodoAuth = ClockodoAuthService()
         self.airtableAuth = AirtableAuthService()
@@ -70,6 +72,11 @@ public final class AppState {
         // DB-Stores laden
         try? homeBoard.load()
         try? homeNotes.load()
+        do {
+            try audit.load()
+        } catch {
+            // AuditStore macht den Fehler über saveState sichtbar.
+        }
         // Registry seeden/laden
         await registry.seedIfEmpty()
         await registry.load()

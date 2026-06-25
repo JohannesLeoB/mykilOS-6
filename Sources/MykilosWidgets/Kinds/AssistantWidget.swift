@@ -8,10 +8,16 @@ import MykilosServices
 // Dunkel, dominant, 3 Spalten breit. Schreibt NIE ohne Freigabe.
 public struct AssistantWidget: View {
     public let projectID: String
-    public init(projectID: String) { self.projectID = projectID }
+    public let auditStore: AuditStore?
+
+    public init(projectID: String, auditStore: AuditStore? = nil) {
+        self.projectID = projectID
+        self.auditStore = auditStore
+    }
 
     @Environment(StudioContext.self) private var context
     @State private var confirmedIDs: Set<UUID> = []
+    @State private var auditError: String?
 
     private var insights: [AssistantInsight] {
         AssistantEngine().generateInsights(
@@ -67,9 +73,31 @@ public struct AssistantWidget: View {
                 InsightRow(
                     insight: insight,
                     isConfirmed: confirmedIDs.contains(insight.id),
-                    onConfirm: { confirmedIDs.insert(insight.id) }
+                    auditState: auditStore?.saveState ?? .idle,
+                    auditError: auditError,
+                    onConfirm: { action in confirm(insight: insight, action: action) }
                 )
             }
+        }
+    }
+
+    private func confirm(insight: AssistantInsight, action: SuggestedAction) {
+        auditError = nil
+        do {
+            if let auditStore {
+                let entry = AuditEntry(
+                    actorUserID: "local-user",
+                    projectID: projectID,
+                    action: action.auditAction,
+                    summary: action.auditSummary
+                )
+                try auditStore.append(entry)
+            }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                _ = confirmedIDs.insert(insight.id)
+            }
+        } catch {
+            auditError = error.localizedDescription
         }
     }
 
@@ -93,7 +121,9 @@ public struct AssistantWidget: View {
 private struct InsightRow: View {
     let insight: AssistantInsight
     let isConfirmed: Bool
-    let onConfirm: () -> Void
+    let auditState: SaveState
+    let auditError: String?
+    let onConfirm: (SuggestedAction) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: MykSpace.s3) {
@@ -135,14 +165,14 @@ private struct InsightRow: View {
             HStack(spacing: 6) {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(MykColor.positive.color)
-                Text("Bestätigt — wird im Audit protokolliert")
+                Text(auditStatusText)
                     .font(.mykMono(9.5))
                     .foregroundStyle(MykColor.paper.color.opacity(0.5))
             }
         } else {
             HStack(spacing: MykSpace.s4) {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { onConfirm() }
+                    onConfirm(action)
                 } label: {
                     Text(action.label)
                         .font(.mykSmall).fontWeight(.semibold)
@@ -152,6 +182,24 @@ private struct InsightRow: View {
                 }
                 .buttonStyle(.plain)
             }
+        }
+        if let auditError {
+            Text(auditError)
+                .font(.mykMono(9.5))
+                .foregroundStyle(MykColor.critical.color)
+        }
+    }
+
+    private var auditStatusText: String {
+        switch auditState {
+        case .idle:
+            "Bestätigt"
+        case .saving:
+            "Bestätigt — Audit speichert…"
+        case .saved:
+            "Bestätigt — Audit gespeichert"
+        case .failed:
+            "Bestätigt — Audit fehlgeschlagen"
         }
     }
 }

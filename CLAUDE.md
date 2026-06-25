@@ -7,9 +7,9 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 
 ## Wo wir stehen
 
-**Akt 5 abgeschlossen.** Politur, Dark Mode, DMG. Post-Akt-5 Aufgabe 1
-ist abgeschlossen: Airtable synchronisiert beim App-Start automatisch, sobald
-gespeicherte Keychain-Credentials vorhanden sind.
+**Akt 5 abgeschlossen.** Politur, Dark Mode, DMG. Post-Akt-5 Aufgabe 2
+ist abgeschlossen: bestätigte Assistant-Aktionen werden persistent im AuditStore
+protokolliert.
 
 | Akt | Status | Inhalt |
 |---|---|---|
@@ -27,6 +27,7 @@ gespeicherte Keychain-Credentials vorhanden sind.
 | Akt 4 | ✅ | Assistent live (AssistantEngine, Insights, Action-Cards mit Bestätigung) |
 | Akt 5 | ✅ | Politur, Dark Mode, DMG, Beta-Vorbereitung |
 | Post-Akt 5, Aufgabe 1 | ✅ | Auto-Sync bei App-Start (Airtable nach lokalem Cache-Load) |
+| Post-Akt 5, Aufgabe 2 | ✅ | AuditStore persistent + Assistant-Bestätigungen protokolliert |
 
 ---
 
@@ -151,9 +152,8 @@ Akt 0–5 sind abgeschlossen. Die App ist feature-complete für Beta.
 Offene Verfeinerungen:
 
 1. App-Icon (eigenes Asset, nicht macOS-Default)
-2. Audit-Store verdrahten (persistente Protokollierung bestätigter Aktionen)
-3. About-Fenster mit Versionsnummer
-4. LLM-Integration im Assistenten (Claude API für natürlichsprachliche Zusammenfassungen)
+2. About-Fenster mit Versionsnummer
+3. LLM-Integration im Assistenten (Claude API für natürlichsprachliche Zusammenfassungen)
 
 **Aus Post-Akt-5 Aufgabe 1 (Auto-Sync bei App-Start):**
 - `AppState.bootstrap()` lädt weiterhin zuerst lokale Boards und Registry
@@ -161,6 +161,14 @@ Offene Verfeinerungen:
   bestehenden `RegistryStore.syncFromAirtable` mit der gespeicherten Base-ID an.
 - Der echte Startup-Sync mit Live-Airtable-Credentials bleibt ein manueller
   Beta-Check, weil automatisierte Tests kein echtes Keychain/Netzwerk nutzen.
+
+**Aus Post-Akt-5 Aufgabe 2 (AuditStore):**
+- `AuditStore` ist GRDB-backed, `@MainActor @Observable`, nutzt sichtbaren
+  `SaveState` und schreibt Audit-Einträge ausschließlich über `append(_:)`.
+- `AssistantWidget` schreibt bestätigte `SuggestedAction`s nun als
+  `AuditEntry` und zeigt den Audit-Speicherstatus direkt an der Action-Card.
+- Der neue Cold-Start-Test `auditEntryUeberlebtNeustart` beweist:
+  schreiben → neue Store-Instanz → lesen → identische Audit-Daten.
 
 **Bekannte offene Punkte aus Schritt 1 (noch nicht relevant geworden):**
 - Ob Google "Desktop App"-OAuth-Clients bei PKCE zusätzlich ein `client_secret`
@@ -232,5 +240,6 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_AKT4.md` — Assistent live
 - `docs/handoffs/HANDOFF_AKT5.md` — Politur, Dark Mode, DMG
 - `docs/handoffs/HANDOFF_POST_AKT5_1.md` — Auto-Sync bei App-Start (Airtable)
+- `docs/handoffs/HANDOFF_POST_AKT5_2.md` — AuditStore + Assistant-Protokollierung
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
 - `docs/codex/WORKFLOW.md` — Session-Regeln für Codex-Sessions in diesem Repo

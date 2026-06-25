@@ -71,6 +71,7 @@ struct ContentView: View {
 
 struct AssistantPageView: View {
     @Environment(StudioContext.self) private var context
+    @Environment(AppState.self) private var appState
 
     var body: some View {
         ScrollView {
@@ -81,7 +82,7 @@ struct AssistantPageView: View {
                 Text("Der Dolmetscher liest alle Quellen und fasst zusammen, was wichtig ist.")
                     .font(.mykBody)
                     .foregroundStyle(MykColor.muted.color)
-                AssistantWidget(projectID: "home")
+                AssistantWidget(projectID: "home", auditStore: appState.audit)
             }
             .padding(MykSpace.s9)
             .frame(maxWidth: .infinity, alignment: .leading)

@@ -69,6 +69,7 @@ struct ProjectDetailView: View {
             ProjectWidgetBoardView(
                 boardStore: boardStore,
                 noteStore: noteStore,
+                auditStore: appState.audit,
                 projectID: project.projectNumber,
                 driveFolderID: project.links.driveFolderID,
                 calendarQuery: project.links.calendarQuery,
@@ -88,6 +89,7 @@ struct ProjectDetailView: View {
 private struct ProjectWidgetBoardView: View {
     let boardStore: WidgetBoardStore
     let noteStore:  NoteStore
+    let auditStore: AuditStore
     let projectID:  String
     let driveFolderID: String?
     let calendarQuery: String?
@@ -152,7 +154,7 @@ private struct ProjectWidgetBoardView: View {
         case .cash:      CashWidget(projectID: projectID)
         case .calendar:  CalendarWidget(projectID: projectID, calendarQuery: calendarQuery)
         case .notes:     NotesWidget(projectID: projectID, noteStore: noteStore)
-        case .assistant: AssistantWidget(projectID: projectID)
+        case .assistant: AssistantWidget(projectID: projectID, auditStore: auditStore)
         case .mail:      MailWidget(projectID: projectID, mailQuery: mailQuery)
         default:         EmptyView()
         }

@@ -78,4 +78,17 @@ struct AuditRecord: Codable, FetchableRecord, PersistableRecord {
         self.action      = entry.action.rawValue
         self.summary     = entry.summary
     }
+
+    var toDomain: AuditEntry? {
+        guard let id = UUID(uuidString: id),
+              let action = AuditEntry.Action(rawValue: action) else { return nil }
+        return AuditEntry(
+            id: id,
+            timestamp: Date(timeIntervalSince1970: timestamp),
+            actorUserID: actorUserID,
+            projectID: projectID,
+            action: action,
+            summary: summary
+        )
+    }
 }

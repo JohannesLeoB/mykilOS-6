@@ -12,11 +12,13 @@ public struct WidgetBoardView: View {
     public let instances: [WidgetInstance]
     public let projectID: String
     public let noteStore: NoteStore
+    public let auditStore: AuditStore?
 
-    public init(instances: [WidgetInstance], projectID: String, noteStore: NoteStore) {
+    public init(instances: [WidgetInstance], projectID: String, noteStore: NoteStore, auditStore: AuditStore? = nil) {
         self.instances = instances.filter(\.isVisible).sorted { $0.position < $1.position }
         self.projectID = projectID
         self.noteStore = noteStore
+        self.auditStore = auditStore
     }
 
     public var body: some View {
@@ -47,7 +49,7 @@ public struct WidgetBoardView: View {
         case .cash:      CashWidget(projectID: projectID)
         case .calendar:  CalendarWidget(projectID: projectID, calendarQuery: nil)
         case .notes:     NotesWidget(projectID: projectID, noteStore: noteStore)
-        case .assistant: AssistantWidget(projectID: projectID)
+        case .assistant: AssistantWidget(projectID: projectID, auditStore: auditStore)
         case .mail:      MailWidget(projectID: projectID, mailQuery: nil)
         case .focus, .projectFaves, .clockodo, .recentActivity:
             EmptyView()
