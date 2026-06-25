@@ -7,9 +7,8 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 
 ## Wo wir stehen
 
-**Akt 5 abgeschlossen.** Politur, Dark Mode, DMG. Post-Akt-5 Aufgabe 2
-ist abgeschlossen: bestätigte Assistant-Aktionen werden persistent im AuditStore
-protokolliert.
+**Akt 5 abgeschlossen.** Politur, Dark Mode, DMG. Post-Akt-5 Aufgabe 3
+ist abgeschlossen: mykilOS 6 hat ein eigenes About-Fenster mit Versionsnummer.
 
 | Akt | Status | Inhalt |
 |---|---|---|
@@ -28,6 +27,7 @@ protokolliert.
 | Akt 5 | ✅ | Politur, Dark Mode, DMG, Beta-Vorbereitung |
 | Post-Akt 5, Aufgabe 1 | ✅ | Auto-Sync bei App-Start (Airtable nach lokalem Cache-Load) |
 | Post-Akt 5, Aufgabe 2 | ✅ | AuditStore persistent + Assistant-Bestätigungen protokolliert |
+| Post-Akt 5, Aufgabe 3 | ✅ | About-Fenster über App-Menü mit Version 6.0.0 |
 
 ---
 
@@ -152,8 +152,7 @@ Akt 0–5 sind abgeschlossen. Die App ist feature-complete für Beta.
 Offene Verfeinerungen:
 
 1. App-Icon (eigenes Asset, nicht macOS-Default)
-2. About-Fenster mit Versionsnummer
-3. LLM-Integration im Assistenten (Claude API für natürlichsprachliche Zusammenfassungen)
+2. LLM-Integration im Assistenten (Claude API für natürlichsprachliche Zusammenfassungen)
 
 **Aus Post-Akt-5 Aufgabe 1 (Auto-Sync bei App-Start):**
 - `AppState.bootstrap()` lädt weiterhin zuerst lokale Boards und Registry
@@ -169,6 +168,12 @@ Offene Verfeinerungen:
   `AuditEntry` und zeigt den Audit-Speicherstatus direkt an der Action-Card.
 - Der neue Cold-Start-Test `auditEntryUeberlebtNeustart` beweist:
   schreiben → neue Store-Instanz → lesen → identische Audit-Daten.
+
+**Aus Post-Akt-5 Aufgabe 3 (About-Fenster):**
+- `MykilOS6App` besitzt ein About-Window (`id: "about"`) und ersetzt den
+  macOS-AppInfo-Menüeintrag durch "Über mykilOS 6".
+- Das Fenster zeigt App-Name, Version `6.0.0`, Copyright `MYKILOS` und einen
+  kurzen Einzeiler mit `MykColor`/`Font.myk...` Design-Tokens.
 
 **Bekannte offene Punkte aus Schritt 1 (noch nicht relevant geworden):**
 - Ob Google "Desktop App"-OAuth-Clients bei PKCE zusätzlich ein `client_secret`
@@ -241,5 +246,6 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_AKT5.md` — Politur, Dark Mode, DMG
 - `docs/handoffs/HANDOFF_POST_AKT5_1.md` — Auto-Sync bei App-Start (Airtable)
 - `docs/handoffs/HANDOFF_POST_AKT5_2.md` — AuditStore + Assistant-Protokollierung
+- `docs/handoffs/HANDOFF_POST_AKT5_3.md` — About-Fenster mit Versionsnummer
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
 - `docs/codex/WORKFLOW.md` — Session-Regeln für Codex-Sessions in diesem Repo

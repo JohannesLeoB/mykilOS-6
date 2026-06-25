@@ -19,6 +19,12 @@ struct MykilOS6App: App {
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1340, height: 860)
         .commands { AppCommands() }
+
+        WindowGroup("Über mykilOS 6", id: "about") {
+            AboutMykilOSView()
+        }
+        .defaultSize(width: 440, height: 300)
+        .windowResizability(.contentSize)
     }
 }
 
@@ -102,8 +108,56 @@ struct ComingSoonView: View {
     }
 }
 
+struct AboutMykilOSView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: MykSpace.s6) {
+            HStack(alignment: .center, spacing: MykSpace.s5) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: MykRadius.md)
+                        .fill(MykColor.ink.color)
+                    Text("6")
+                        .font(.mykDisplay)
+                        .foregroundStyle(MykColor.paper.color)
+                }
+                .frame(width: 64, height: 64)
+
+                VStack(alignment: .leading, spacing: MykSpace.s2) {
+                    Text("mykilOS 6")
+                        .font(.mykDisplay)
+                        .foregroundStyle(MykColor.ink.color)
+                    Text("Version 6.0.0")
+                        .font(.mykMono(11))
+                        .foregroundStyle(MykColor.muted.color)
+                }
+            }
+
+            Text("Das local-first Studio-Cockpit für Projektplanung, Quellen und Entscheidungen.")
+                .font(.mykBody)
+                .foregroundStyle(MykColor.inkSoft.color)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Divider().overlay(MykColor.line.color)
+
+            Text("Copyright MYKILOS")
+                .font(.mykCaption)
+                .foregroundStyle(MykColor.muted.color)
+        }
+        .padding(MykSpace.s7)
+        .frame(width: 440, alignment: .leading)
+        .background(MykColor.paper.color)
+    }
+}
+
 struct AppCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
     var body: some Commands {
         CommandGroup(replacing: .newItem) {}
+        CommandGroup(replacing: .appInfo) {
+            Button("Über mykilOS 6") {
+                openWindow(id: "about")
+            }
+            .keyboardShortcut(",", modifiers: .command)
+        }
     }
 }
