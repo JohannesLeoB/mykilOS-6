@@ -73,5 +73,13 @@ public final class AppState {
         // Registry seeden/laden
         await registry.seedIfEmpty()
         await registry.load()
+
+        guard airtableAuth.status == .connected else { return }
+        do {
+            guard let credentials = try airtableAuth.storedCredentials() else { return }
+            await registry.syncFromAirtable(baseID: credentials.baseID, auth: airtableAuth)
+        } catch {
+            airtableAuth.setError(String(describing: error))
+        }
     }
 }
