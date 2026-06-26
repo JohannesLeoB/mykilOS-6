@@ -120,12 +120,15 @@ public struct WidgetContainer<Content: View>: View {
     }
 
     private var permissionView: some View {
-        VStack(spacing: MykSpace.s4) {
+        VStack(spacing: MykSpace.s3) {
             Image(systemName: "lock")
                 .foregroundStyle(MykColor.faint.color)
             Text("Berechtigung nötig")
                 .font(.mykCaption)
                 .foregroundStyle(MykColor.muted.color)
+            Text("In den Einstellungen verbinden")
+                .font(.mykMono(9.5))
+                .foregroundStyle(MykColor.faint.color)
         }
         .frame(maxWidth: .infinity)
         .padding(MykSpace.s8)

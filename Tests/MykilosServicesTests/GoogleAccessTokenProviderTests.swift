@@ -73,4 +73,24 @@ struct GoogleAccessTokenProviderTests {
         // Kein neues Refresh-Token in der Antwort → das alte bleibt erhalten.
         #expect(store.tokens?.refreshToken == "refresh-1")
     }
+
+    @Test func reichtRefreshFehlerBeiWiderrufenemTokenWeiter() async {
+        let store = InMemoryGoogleTokenStore()
+        store.tokens = GoogleTokens(accessToken: "abgelaufen", refreshToken: "widerrufen", expiresAt: Date().addingTimeInterval(-10))
+        store.clientID = "client-1"
+        let refresher = FakeTokenRefreshing()
+        // Google antwortet auf einen widerrufenen Refresh-Token mit HTTP 400.
+        refresher.errorToThrow = GoogleOAuthError.httpError(400)
+        let provider = GoogleAccessTokenProvider(tokenStore: store, refreshing: refresher)
+
+        do {
+            _ = try await provider.validAccessToken()
+            Issue.record("sollte werfen")
+        } catch {
+            #expect(error as? GoogleOAuthError == .httpError(400))
+        }
+        #expect(refresher.callCount == 1)
+        // Das alte (abgelaufene) Token bleibt unangetastet — kein stilles Überschreiben.
+        #expect(store.tokens?.accessToken == "abgelaufen")
+    }
 }

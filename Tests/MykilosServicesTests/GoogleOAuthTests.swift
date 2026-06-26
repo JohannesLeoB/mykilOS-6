@@ -18,6 +18,15 @@ final class InMemoryGoogleTokenStore: GoogleTokenStoring, @unchecked Sendable {
     func loadClientID() throws -> String? { clientID }
 }
 
+// MARK: - ThrowingTokenProvider
+// Test-Double für den Fall „Token-Refresh schlägt fehl" (z. B. widerrufenes
+// Refresh-Token). Beweist, dass die Live-Clients jeden Provider-Fehler auf
+// ihren eigenen .notConnected-Zustand mappen statt ihn durchzureichen.
+struct ThrowingTokenProvider: GoogleAccessTokenProviding {
+    let error: Error
+    func validAccessToken() async throws -> String { throw error }
+}
+
 struct GoogleOAuthTests {
 
     @Test func pkceChallengeHatKorrektesFormat() {

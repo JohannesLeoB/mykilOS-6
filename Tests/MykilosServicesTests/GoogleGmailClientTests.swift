@@ -96,4 +96,15 @@ struct GoogleGmailClientTests {
             #expect(error as? GoogleGmailError == .notConnected)
         }
     }
+
+    @Test func searchMessagesMapptRefreshFehlerAufNotConnected() async {
+        let client = GoogleGmailClient(tokenProvider: ThrowingTokenProvider(error: GoogleOAuthError.httpError(400)))
+
+        do {
+            _ = try await client.searchMessages(query: "Meyer", maxResults: 5)
+            Issue.record("sollte werfen")
+        } catch {
+            #expect(error as? GoogleGmailError == .notConnected)
+        }
+    }
 }

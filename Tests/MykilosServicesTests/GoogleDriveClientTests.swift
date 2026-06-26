@@ -54,6 +54,20 @@ struct GoogleDriveClientTests {
         }
     }
 
+    @Test func listFolderMapptRefreshFehlerAufNotConnected() async {
+        // Widerrufenes Refresh-Token → Provider wirft httpError(400). Der Client
+        // darf das nicht als generischen Fehler durchreichen, sondern als
+        // .notConnected (→ Widget zeigt „Berechtigung nötig").
+        let client = GoogleDriveClient(tokenProvider: ThrowingTokenProvider(error: GoogleOAuthError.httpError(400)))
+
+        do {
+            _ = try await client.listFolder(folderID: "ABC123")
+            Issue.record("sollte werfen")
+        } catch {
+            #expect(error as? GoogleDriveError == .notConnected)
+        }
+    }
+
     @Test func iconNameMapptMimeTypes() {
         #expect(GoogleDriveFile(id: "1", name: "a", mimeType: "application/vnd.google-apps.folder", modifiedAt: nil, webViewLink: nil).iconName == "folder")
         #expect(GoogleDriveFile(id: "2", name: "b", mimeType: "application/pdf", modifiedAt: nil, webViewLink: nil).iconName == "doc.richtext")

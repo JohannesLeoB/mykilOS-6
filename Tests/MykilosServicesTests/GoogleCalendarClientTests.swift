@@ -68,4 +68,15 @@ struct GoogleCalendarClientTests {
             #expect(error as? GoogleCalendarError == .notConnected)
         }
     }
+
+    @Test func listUpcomingEventsMapptRefreshFehlerAufNotConnected() async {
+        let client = GoogleCalendarClient(tokenProvider: ThrowingTokenProvider(error: GoogleOAuthError.httpError(400)))
+
+        do {
+            _ = try await client.listUpcomingEvents(query: "ME-24", withinDays: 14)
+            Issue.record("sollte werfen")
+        } catch {
+            #expect(error as? GoogleCalendarError == .notConnected)
+        }
+    }
 }

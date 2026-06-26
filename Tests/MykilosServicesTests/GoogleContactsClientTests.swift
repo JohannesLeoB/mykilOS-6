@@ -67,4 +67,15 @@ struct GoogleContactsClientTests {
             #expect(error as? GoogleContactsError == .notConnected)
         }
     }
+
+    @Test func searchContactsMapptRefreshFehlerAufNotConnected() async {
+        let client = GoogleContactsClient(tokenProvider: ThrowingTokenProvider(error: GoogleOAuthError.httpError(400)))
+
+        do {
+            _ = try await client.searchContacts(query: "Meyer")
+            Issue.record("sollte werfen")
+        } catch {
+            #expect(error as? GoogleContactsError == .notConnected)
+        }
+    }
 }
