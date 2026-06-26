@@ -211,7 +211,7 @@ private struct ComingTabView: View {
     let tab: ProjectTab
     var body: some View {
         VStack { Spacer().frame(height: 80)
-            Text("\(tab.rawValue) — kommt in Akt 3").font(.mykBody).foregroundStyle(MykColor.muted.color)
+            Text("\(tab.rawValue) — in Vorbereitung").font(.mykBody).foregroundStyle(MykColor.muted.color)
         }.frame(maxWidth: .infinity).padding(MykSpace.s9)
     }
 }

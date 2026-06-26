@@ -51,7 +51,7 @@ public struct CashWidget: View {
                 .foregroundStyle(MykColor.ink.color)
             Button {
                 withAnimation(.easeInOut(duration: 0.25)) { reviewAccepted = true }
-                // Audit-Eintrag würde hier ausgelöst — Akt 2+
+                // Demo-Slot für Sevdesk: echte Übernahme läuft später über Action-Card → Audit.
             } label: {
                 Text("In Review übernehmen →")
                     .font(.mykSmall).fontWeight(.semibold)
@@ -81,7 +81,7 @@ public struct CashWidget: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule().fill(MykColor.bone.color).frame(height: 4)
-                    Capsule().fill(MykColor.tasks.color).frame(width: geo.size.width * 0.72, height: 4)
+                    Capsule().fill(MykColor.cash.color).frame(width: geo.size.width * 0.72, height: 4)
                 }
             }.frame(height: 4)
         }

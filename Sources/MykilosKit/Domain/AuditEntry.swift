@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - AuditEntry
 // Jede externe Aktion hinterlässt einen Audit-Eintrag.
-// Akt 1: Modell da, Tabelle kommt mit GRDB in Akt 2.
+// Persistiert via AuditStore in der GRDB-Tabelle `auditEntries`.
 public struct AuditEntry: Codable, Identifiable, Sendable {
     public enum Action: String, Codable, Sendable {
         case offerImported, draftCreated, draftSent, projectLinked, noteUpdated

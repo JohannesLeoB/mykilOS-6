@@ -72,7 +72,7 @@ struct FocusWidget: View {
         if active.contains(where: { if case .reviewSuggested = $0 { return true }; return false }) {
             items.append("Angebot Küche Meyer prüfen → Cash-Widget")
         }
-        if active.contains(where: { if case .deadlineNear(let pid, let days) = $0, days <= 2 { return true }; return false }) {
+        if active.contains(where: { if case .deadlineNear(_, let days) = $0, days <= 2 { return true }; return false }) {
             items.append("Abnahme Meyer in 2 Tagen — Bartresen freigeben")
         }
         if active.contains(where: { if case .budgetThresholdCrossed(_, let r) = $0, r > 0.7 { return true }; return false }) {
