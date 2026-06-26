@@ -13,6 +13,11 @@ struct ProjectDetailView: View {
     @Environment(StudioContext.self) private var context
     @Environment(AppState.self)      private var appState
     @State private var activeTab: ProjectTab = .overview
+    @State private var offerWatcher = DriveOfferWatcher()
+
+    // Wie oft der Drive-Ordner auf neue Angebots-PDFs gepollt wird, solange das
+    // Projekt offen ist. Bewusst gemächlich — read-only, schont API-Quota.
+    private static let offerPollInterval: Duration = .seconds(60)
 
     private var boardStore: WidgetBoardStore { appState.board(for: project.projectNumber, kind: project.kind) }
     private var noteStore:  NoteStore        { appState.notes(for: project.projectNumber) }
@@ -44,6 +49,18 @@ struct ProjectDetailView: View {
             context.focus(project: project.projectNumber)
             try? boardStore.load()
             try? noteStore.load()
+        }
+        // Live-Quelle für offerDetected: solange das Projekt offen ist, pollt der
+        // Watcher den verlinkten Drive-Ordner. Der erste Lauf legt nur die
+        // Baseline an (meldet nichts); danach erzeugt jedes neu aufgetauchte
+        // Angebots-PDF ein Signal → Mediator → CashWidget-Review-Vorschlag.
+        .task(id: project.links.driveFolderID) {
+            guard let folderID = project.links.driveFolderID, folderID.isEmpty == false else { return }
+            while Task.isCancelled == false {
+                let signals = await offerWatcher.poll(projectID: project.projectNumber, folderID: folderID)
+                for signal in signals { context.emit(signal) }
+                try? await Task.sleep(for: Self.offerPollInterval)
+            }
         }
     }
 

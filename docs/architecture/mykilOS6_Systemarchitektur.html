@@ -100,9 +100,10 @@
         <span class="mono">sevdeskRef</span>) gegen das Soll-Budget aus Airtable. Kein Stub-Widget mehr.</div>
       </div>
       <div class="card"><div class="accent" style="background:var(--muted)"></div>
-        <h3>1 geplanter Anschluss</h3>
-        <div class="kv">Drive-Webhook als Live-Quelle für <span class="mono">offerDetected</span> — heute feuert das
-        Signal noch per Demo-Button. Alle anderen Handles sind verdrahtet.</div>
+        <h3>Signal-Quelle live</h3>
+        <div class="kv">Der <span class="mono">DriveOfferWatcher</span> pollt den Drive-Ordner und feuert
+        <span class="mono">offerDetected</span>, sobald ein neues Angebots-PDF auftaucht → Cash-Review-Vorschlag.
+        Integrations-Landkarte vollständig.</div>
       </div>
     </div>
 
@@ -162,8 +163,8 @@
     <!-- Claude <-> hub (round trip) -->
     <line x1="918" y1="350" x2="730" y2="318" stroke="#7A5CA0" stroke-width="2" marker-end="url(#arC)"/>
     <line x1="730" y1="332" x2="912" y2="364" stroke="#7A5CA0" stroke-width="2" stroke-dasharray="1 0" marker-end="url(#arC)"/>
-    <!-- Planned: Drive webhook -> signal/hub -->
-    <line x1="250" y1="470" x2="500" y2="360" stroke="#8d8474" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arP)"/>
+    <!-- Live: Drive-Offer-Watcher -> signal/hub -->
+    <line x1="250" y1="470" x2="500" y2="360" stroke="#3A352E" stroke-width="2" marker-end="url(#ar)"/>
     <!-- Live: ClickUp -> hub -->
     <line x1="585" y1="470" x2="575" y2="372" stroke="#3A352E" stroke-width="2" marker-end="url(#ar)"/>
     <!-- Live: Sevdesk -> hub -->
@@ -235,12 +236,13 @@
 
     <!-- PLANNED band -->
     <g>
-      <text x="40" y="436" font-size="9.5" letter-spacing="2" font-weight="700" fill="#8d8474">RESERVIERTE SLOTS — 2 LIVE · 1 GEPLANT</text>
+      <text x="40" y="436" font-size="9.5" letter-spacing="2" font-weight="700" fill="#8d8474">RESERVIERTE SLOTS — 3 LIVE</text>
       <line x1="250" y1="431" x2="1150" y2="431" stroke="#E2DBCB" stroke-width="1"/>
-      <rect x="70" y="470" width="200" height="74" rx="12" fill="#F2EEE4" stroke="#b6ab95" stroke-width="1.6" stroke-dasharray="6 5"/>
-      <text x="86" y="494" font-size="13" font-weight="700" fill="#6F685C">Drive-Webhook</text>
-      <text x="86" y="510" font-size="8.5" fill="#8d8474">files.watch / changes</text>
-      <text x="86" y="524" font-size="8.5" fill="#8d8474">→ speist Signale (heute Demo)</text>
+      <rect x="70" y="470" width="200" height="74" rx="12" fill="#fff" stroke="#C26B4A" stroke-width="2"/>
+      <rect x="212" y="478" width="48" height="16" rx="5" fill="#3E7A4E"/><text x="236" y="490" font-size="8.5" font-weight="700" fill="#fff" text-anchor="middle">LIVE</text>
+      <text x="86" y="494" font-size="13" font-weight="700" fill="#C26B4A">Drive-Offer-Watcher</text>
+      <text x="86" y="510" font-size="8.5" fill="#6F685C">Polling files.list · neue Angebots-PDFs</text>
+      <text x="86" y="524" font-size="8.5" fill="#6F685C">→ emit(offerDetected) → Cash-Review</text>
 
       <rect x="488" y="470" width="194" height="74" rx="12" fill="#fff" stroke="#C99A3E" stroke-width="2"/>
       <rect x="624" y="478" width="48" height="16" rx="5" fill="#3E7A4E"/><text x="648" y="490" font-size="8.5" font-weight="700" fill="#fff" text-anchor="middle">LIVE</text>
@@ -392,11 +394,11 @@
   <div class="pnum">4 / 9</div>
 </section>
 
-<!-- ============================ PAGE 5 — CLAUDE + GEPLANT ============================ -->
+<!-- ============================ PAGE 5 — CLAUDE + SIGNAL-QUELLE ============================ -->
 <section class="page">
   <div class="pagehead">
-    <div><div class="kick">Steckbriefe · Live + Geplant</div><h2>Anthropic Claude, ClickUp, Sevdesk &amp; geplanter Anschluss</h2></div>
-    <div class="sub">Der einzige OUT-Dienst · ClickUp &amp; Sevdesk jetzt live · reservierter Slot Drive-Webhook</div>
+    <div><div class="kick">Steckbriefe · Alle live</div><h2>Anthropic Claude, ClickUp, Sevdesk &amp; Drive-Offer-Watcher</h2></div>
+    <div class="sub">Der einzige OUT-Dienst · ClickUp &amp; Sevdesk live · Drive-Offer-Watcher als Live-Signalquelle</div>
   </div>
 
   <div class="grid2">
@@ -431,8 +433,8 @@
         <b>Handle:</b> <span class="mono">sevdeskRef</span> + <span class="mono">budget</span> (beide in Airtable gemappt) · <b>Keychain:</b> <span class="mono">com.mykilos6.sevdesk</span>. Read-only; mykilOS bucht nie nach sevdesk.</div>
       </div>
       <div class="card tinted"><div class="accent" style="background:var(--muted)"></div>
-        <h3>Drive-Webhook <span class="chip c-plan">GEPLANT</span></h3>
-        <div class="kv">Echtes Drive-Änderungs-Event (<span class="mono">files.watch</span>/<span class="mono">changes</span>) soll künftig das Signal <span class="mono">offerDetected</span> feuern (Drive findet Rechnungs-PDF → Cash fragt). Heute wird dieses Signal nur vom Demo-Button erzeugt; im lokalen Desktop-Kontext vermutlich als Polling von <span class="mono">changes.list</span>.</div>
+        <h3>Drive-Offer-Watcher <span class="chip c-live">LIVE</span></h3>
+        <div class="kv">Der <span class="mono">DriveOfferWatcher</span> pollt den verlinkten Drive-Ordner (read-only <span class="mono">files.list</span> über den bestehenden Client) und feuert <span class="mono">offerDetected</span>, sobald ein neues Angebots-/Rechnungs-PDF auftaucht. Ein echter Push-Webhook bräuchte eine öffentliche Callback-URL — mykilOS ist local-first, daher Polling. Erster Lauf = Baseline (meldet nichts), danach nur wirklich Neues.</div>
       </div>
     </div>
   </div>
@@ -530,7 +532,7 @@
 
   <div class="card tinted" style="margin-top:10px;">
     <h3>Invariante</h3>
-    <div class="kv">Mediator-Regeln sind azyklisch (abgeleitete Signale lösen keine weitere Ableitung aus). <span class="mono">AssistantEngine</span> ist synchron &amp; testbar; Netzwerk passiert außerhalb. Heute feuert <span class="mono">offerDetected</span> nur per Demo-Button — die Live-Quelle (Drive-Webhook) ist geplant.</div>
+    <div class="kv">Mediator-Regeln sind azyklisch (abgeleitete Signale lösen keine weitere Ableitung aus). <span class="mono">AssistantEngine</span> ist synchron &amp; testbar; Netzwerk passiert außerhalb. <span class="mono">offerDetected</span> hat jetzt eine echte Live-Quelle: der <span class="mono">DriveOfferWatcher</span> pollt den Drive-Ordner; der Demo-Button bleibt als sofort auslösbarer Showcase.</div>
   </div>
   <div class="foot mono">mykilOS 6 — Systemarchitektur</div>
   <div class="pnum">6 / 9</div>
@@ -678,7 +680,8 @@
       <tr><td><b>Clockodo/Claude verbinden</b></td><td>connect(...) → Keychain → status .connected (Validierung)</td><td>API-Key / x-api-key</td></tr>
       <tr><td><b>Kachel ziehen (Board)</b></td><td>draggable UUID → handleDrop → boardStore.move → SaveStateBar zeigt Speicherzustand</td><td>lokal (GRDB)</td></tr>
       <tr><td><b>Notiz tippen</b></td><td>0,8 s Debounce → NoteStore.save (throws) → SaveState</td><td>lokal (GRDB)</td></tr>
-      <tr><td><b>Signal-Demo-Button</b></td><td>emit(offerDetected/budgetThresholdCrossed/deadlineNear) → Mediator → AssistantEngine</td><td>intern</td></tr>
+      <tr><td><b>Neues Angebots-PDF in Drive</b></td><td>DriveOfferWatcher pollt files.list (60 s) → erkennt neues PDF → emit(offerDetected) → Mediator → CashWidget-Review</td><td>Drive REST (read-only)</td></tr>
+      <tr><td><b>Signal-Demo-Button</b></td><td>emit(offerDetected/budgetThresholdCrossed/deadlineNear) → Mediator → AssistantEngine (Showcase)</td><td>intern</td></tr>
       <tr><td><b>„Bestätigen" am Insight</b></td><td>AuditEntry → AuditStore.append → GRDB (der einzige Write des Assistenten)</td><td>lokal (GRDB)</td></tr>
       <tr><td><b>Assistent lädt</b> (Signale ändern sich)</td><td><span class="mono">.task(id: hash(signals))</span> → Claude-POST → Zusammenfassung (read-only)</td><td>HTTPS POST</td></tr>
     </tbody>

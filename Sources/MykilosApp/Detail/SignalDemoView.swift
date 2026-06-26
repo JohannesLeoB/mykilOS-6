@@ -5,7 +5,9 @@ import MykilosDesign
 // MARK: - SignalDemoView
 // Sichtbare Demo der Widget-Kommunikation in der Detailseite.
 // "Drive meldet Angebot" — der Nutzer sieht, wie das Cash-Widget reagiert.
-// In Akt 3 ersetzt durch echte Drive-Webhook-Events.
+// Die echte Live-Quelle ist jetzt `DriveOfferWatcher` (pollt den Drive-Ordner);
+// dieser Button bleibt als sofort auslösbarer Showcase erhalten — er erzeugt
+// dasselbe `offerDetected`-Signal ohne auf ein echtes neues PDF zu warten.
 struct SignalDemoView: View {
     let projectID: String
     @Environment(StudioContext.self) private var context

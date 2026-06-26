@@ -7,13 +7,14 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 
 ## Wo wir stehen
 
-**Akt 5 abgeschlossen.** Politur, Dark Mode, DMG. Post-Akt-5 Aufgabe 8 ist
-abgeschlossen: das Cash-Widget liest jetzt **live** aus Sevdesk — Ist-Umsatz
-(Summe der Rechnungen für `sevdeskRef`) gegen das Soll-Budget aus Airtable als
-Balken; eigener Client, Auth, Keychain und Settings-Sektion (109 Tests). Damit
-sind beide reservierten Stub-Slots (ClickUp = Aufgabe 7, Sevdesk = Aufgabe 8)
-live; alle Widgets sind echt. Einziger noch geplanter Anschluss: der
-Drive-Webhook als Live-Quelle für `offerDetected`.
+**Akt 5 abgeschlossen.** Politur, Dark Mode, DMG. Post-Akt-5 Aufgabe 9 ist
+abgeschlossen: der `DriveOfferWatcher` ist die echte Live-Quelle für
+`offerDetected` — er pollt den verlinkten Drive-Ordner (read-only `files.list`)
+und feuert ein Signal, sobald ein neues Angebots-/Rechnungs-PDF auftaucht
+(Baseline beim ersten Lauf, danach nur Neues). Damit ist auch der letzte
+geplante Anschluss live: alle Widgets sind echt, die Integrations-Landkarte ist
+vollständig (114 Tests). Der Signal-Demo-Button bleibt als sofort auslösbarer
+Showcase erhalten.
 
 | Akt | Status | Inhalt |
 |---|---|---|
@@ -38,6 +39,7 @@ Drive-Webhook als Live-Quelle für `offerDetected`.
 | Post-Akt 5, Aufgabe 6 | ✅ | Systemarchitektur-PDF, Code-Cleanup & Refresh-Pfad-Härtung (97 Tests) |
 | Post-Akt 5, Aufgabe 7 | ✅ | ClickUp-Integration live (Tasks-Widget, ClickUpClient/Auth/Keychain, Settings, 103 Tests) |
 | Post-Akt 5, Aufgabe 8 | ✅ | Sevdesk-Integration live (Cash-Widget, Ist-Umsatz vs. Budget-Balken, 109 Tests) |
+| Post-Akt 5, Aufgabe 9 | ✅ | Drive-Offer-Watcher live (Polling → `offerDetected`, Baseline-Semantik, 114 Tests) |
 
 ---
 
@@ -107,7 +109,8 @@ Sources/
                        #   GoogleAuthService (Akt 3, S1), GoogleDriveClient (S2),
                        #   GoogleAccessTokenProvider + GoogleTokenRefreshService +
                        #   GoogleCalendarClient (Akt 3, S3), GoogleContactsClient (S4),
-                       #   GoogleGmailClient (Akt 3, S6)
+                       #   GoogleGmailClient (Akt 3, S6),
+                       #   DriveOfferWatcher (Post-Akt 5, Aufgabe 9 — Polling → offerDetected)
                        # Clockodo/ — ClockodoClient, ClockodoAuthService,
                        #   KeychainClockodoCredentialsStore (Akt 3, S5)
                        # Airtable/ — AirtableClient, AirtableAuthService,
@@ -130,6 +133,7 @@ Tests/
                        # AirtableClientTests, AirtableAuthServiceTests,
                        # ClickUpClientTests (URL/Parser/notConnected),
                        # SevdeskClientTests (URL/Parser/double/notConnected),
+                       # DriveOfferWatcherTests (Erkennung/Baseline/Poll-Semantik mit Fake),
                        # GoogleAccessTokenProviderTests (Refresh-Logik mit Fake) —
                        # kein echtes Keychain/Netzwerk im Testlauf, siehe
                        # HANDOFF_AKT3_S1/S2/S3/S4/S5/S6.md
@@ -166,12 +170,38 @@ Kein Sync-Backend in V1.
 
 Akt 0–5 und alle dokumentierten Post-Akt-5-Verfeinerungen sind abgeschlossen.
 Die App ist feature-complete für Beta. **Beide ursprünglichen Stub-Widgets sind
-jetzt live** — Tasks (ClickUp, Aufgabe 7) und Cash (Sevdesk, Aufgabe 8). Alle
-Widgets lesen echte Daten.
+jetzt live** — Tasks (ClickUp, Aufgabe 7) und Cash (Sevdesk, Aufgabe 8) — und
+mit Aufgabe 9 hat auch `offerDetected` eine echte Live-Quelle. Alle Widgets
+lesen echte Daten, die Integrations-Landkarte ist vollständig.
 
-**Nächster offensichtlicher Schritt nach Plan:** der letzte geplante Anschluss
-ist der **Drive-Webhook** als Live-Quelle für `offerDetected` (heute feuert das
-Signal nur per Demo-Button). Danach ist die Integrations-Landkarte vollständig.
+**Was nach Plan noch offen ist:** kein verdrahteter Integrations-Anschluss mehr.
+Verbleibende GEPLANT-Punkte sind reine App-Feature-Seiten (Marken & Daten,
+Angebote, Timeline, Material) — eigene Oberflächen, keine Datenquellen.
+
+**Aus Post-Akt-5 Aufgabe 9 (Drive-Offer-Watcher):**
+- `DriveOfferWatcher` (`@MainActor @Observable`, in `Services/Google/`) ist die
+  echte Live-Quelle für `offerDetected`. Ein echter Google-Push-Webhook bräuchte
+  eine öffentliche Callback-URL und damit ein Backend — mykilOS ist local-first,
+  daher **Polling** des verlinkten Drive-Ordners (read-only `files.list` über den
+  bestehenden `GoogleDriveClient`).
+- **Baseline-Semantik:** der erste `poll(...)` markiert alle vorhandenen Treffer
+  als „gesehen" und meldet NICHTS (sonst flutete jedes alte Angebot beim Öffnen).
+  Danach erzeugt nur ein wirklich neu aufgetauchtes Angebots-/Rechnungs-PDF ein
+  Signal. Ein „Angebot" = PDF mit Schlüsselwort im Namen (angebot/rechnung/
+  kostenvoranschlag/offer/invoice) — bewusst konservativ.
+- `ProjectDetailView` startet einen `.task(id: driveFolderID)`-Loop, der solange
+  das Projekt offen ist alle 60 s pollt und neue Signale über `context.emit(...)`
+  in den bestehenden Mediator-/CashWidget-Pfad gibt. Fehler werden im Hintergrund-
+  Poll bewusst geschluckt (Fehlerzustände zeigt das DriveWidget selbst).
+- Signale bleiben VORSCHLÄGE: `offerDetected` → Mediator `reviewSuggested` →
+  CashWidget-Hinweis. Es wird nie geschrieben. Der `SignalDemoView`-Button bleibt
+  als sofort auslösbarer Showcase (gleiches Signal ohne echtes neues PDF).
+- Tests: `DriveOfferWatcherTests` (Erkennungslogik, Baseline meldet nichts,
+  zweiter Poll meldet nur Neues, kein Doppel-Report, Fehler/leer → leer) mit
+  `FakeDriveClient` — 114 Tests grün.
+- **Nicht live getestet:** echter Drive-Abruf mit verbundenem Account + realem
+  neuen PDF bleibt ein manueller Beta-Check (Tests nutzen kein echtes Keychain/
+  Netzwerk). Das Poll-Intervall (60 s) ist bewusst gemächlich gewählt.
 
 **Aus Post-Akt-5 Aufgabe 8 (Sevdesk-Integration):**
 - `SevdeskClient` liest die Rechnungen eines sevdesk-Kontakts
@@ -334,6 +364,7 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_POST_AKT5_6.md` — Systemarchitektur-PDF, Cleanup & Refresh-Härtung
 - `docs/handoffs/HANDOFF_POST_AKT5_7.md` — ClickUp-Integration live (Tasks-Widget)
 - `docs/handoffs/HANDOFF_POST_AKT5_8.md` — Sevdesk-Integration live (Cash-Widget, Ist vs. Budget)
+- `docs/handoffs/HANDOFF_POST_AKT5_9.md` — Drive-Offer-Watcher live (Polling → offerDetected)
 - `docs/architecture/mykilOS6_Systemarchitektur.pdf` — Systemarchitektur (9 S., A4 quer): Integrations-Landkarte, Steckbriefe (Google/Clockodo/Airtable/ClickUp/Sevdesk/Claude), Signal-Nervensystem, GRDB-Persistenz, Funktionsbaum, Trigger-/Handle-Matrix; Quelle `.html` + `build_pdf.sh` daneben
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
 - `docs/codex/WORKFLOW.md` — Session-Regeln für Codex-Sessions in diesem Repo
