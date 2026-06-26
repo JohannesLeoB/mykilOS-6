@@ -117,6 +117,11 @@ public final class NoteStore {
 
     private let db: GRDBDatabase
     private var noteID: UUID = UUID()
+    private var hasLoaded = false
+    private var dirty = false
+
+    /// Gibt es ungespeicherte Änderungen? Für günstige, idempotente Flushes.
+    public var hasUnsavedChanges: Bool { dirty }
 
     public init(boardID: String, db: GRDBDatabase) {
         self.boardID = boardID
@@ -124,6 +129,11 @@ public final class NoteStore {
     }
 
     public func load() throws {
+        // Nur EINMAL aus der DB laden. Sonst überschreibt ein erneutes load()
+        // (onAppear/.task feuern wiederholt) die noch nicht gespeicherte
+        // Eingabe mit dem alten DB-Stand → stiller Datenverlust. Lokal,
+        // Single-Writer → ein Reload bringt ohnehin nichts Neues.
+        guard !hasLoaded else { return }
         if let record = try db.read({ dbConn in
             try NoteRecord
                 .filter(Column("boardID") == boardID)
@@ -132,11 +142,13 @@ public final class NoteStore {
             body   = record.body
             noteID = UUID(uuidString: record.id) ?? UUID()
         }
+        hasLoaded = true
     }
 
     public func update(_ newBody: String) {
         body      = newBody
         saveState = .idle
+        dirty     = true
     }
 
     public func save() throws {
@@ -147,6 +159,7 @@ public final class NoteStore {
                 try record.save(dbConn)   // INSERT OR REPLACE
             }
             saveState = .saved(Date())
+            dirty = false
         } catch {
             saveState = .failed(error.localizedDescription)
             throw error

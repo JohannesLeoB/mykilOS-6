@@ -83,12 +83,16 @@ private final class MailLoader {
     private(set) var renderState: WidgetRenderState = .loading
 
     private let client: GoogleGmailFetching
+    // Generation-Token: nur das jüngste load() committet (Projektwechsel/Retry).
+    private var loadGeneration = 0
 
     init(client: GoogleGmailFetching = GoogleGmailClient()) {
         self.client = client
     }
 
     func load(query: String?) async {
+        loadGeneration &+= 1
+        let generation = loadGeneration
         guard let query, query.isEmpty == false else {
             messages = []
             renderState = .empty
@@ -97,12 +101,15 @@ private final class MailLoader {
         renderState = .loading
         do {
             let result = try await client.searchMessages(query: query, maxResults: 10)
+            guard generation == loadGeneration else { return }
             messages = result
             renderState = result.isEmpty ? .empty : .content
         } catch GoogleGmailError.notConnected {
+            guard generation == loadGeneration else { return }
             messages = []
             renderState = .permissionRequired
         } catch {
+            guard generation == loadGeneration else { return }
             messages = []
             renderState = .error(String(describing: error))
         }

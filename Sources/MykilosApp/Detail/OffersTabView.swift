@@ -91,12 +91,16 @@ private final class OffersLoader {
     private(set) var renderState: WidgetRenderState = .loading
 
     private let client: GoogleDriveFetching
+    // Generation-Token: nur das jüngste load() committet (Projektwechsel/Retry).
+    private var loadGeneration = 0
 
     init(client: GoogleDriveFetching = GoogleDriveClient()) {
         self.client = client
     }
 
     func load(folderID: String?) async {
+        loadGeneration &+= 1
+        let generation = loadGeneration
         guard let folderID, folderID.isEmpty == false else {
             offers = []
             renderState = .empty
@@ -105,12 +109,15 @@ private final class OffersLoader {
         renderState = .loading
         do {
             let files = try await client.listFolder(folderID: folderID)
+            guard generation == loadGeneration else { return }
             offers = DriveOfferWatcher.detectOffers(in: files)
             renderState = offers.isEmpty ? .empty : .content
         } catch GoogleDriveError.notConnected {
+            guard generation == loadGeneration else { return }
             offers = []
             renderState = .permissionRequired
         } catch {
+            guard generation == loadGeneration else { return }
             offers = []
             renderState = .error(String(describing: error))
         }

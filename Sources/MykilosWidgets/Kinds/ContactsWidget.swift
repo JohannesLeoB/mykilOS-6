@@ -78,12 +78,16 @@ private final class ContactsLoader {
     private(set) var renderState: WidgetRenderState = .loading
 
     private let client: GoogleContactsFetching
+    // Generation-Token: nur das jüngste load() committet (Projektwechsel/Retry).
+    private var loadGeneration = 0
 
     init(client: GoogleContactsFetching = GoogleContactsClient()) {
         self.client = client
     }
 
     func load(query: String?) async {
+        loadGeneration &+= 1
+        let generation = loadGeneration
         guard let query, query.isEmpty == false else {
             contacts = []
             renderState = .empty
@@ -92,12 +96,15 @@ private final class ContactsLoader {
         renderState = .loading
         do {
             let result = try await client.searchContacts(query: query)
+            guard generation == loadGeneration else { return }
             contacts = result
             renderState = result.isEmpty ? .empty : .content
         } catch GoogleContactsError.notConnected {
+            guard generation == loadGeneration else { return }
             contacts = []
             renderState = .permissionRequired
         } catch {
+            guard generation == loadGeneration else { return }
             contacts = []
             renderState = .error(String(describing: error))
         }

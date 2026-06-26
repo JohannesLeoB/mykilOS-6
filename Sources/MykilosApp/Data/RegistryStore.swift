@@ -7,6 +7,11 @@ import MykilosServices
 // @Observable Wrapper um CachedProjectRegistry. Lädt lokal, zeigt
 // Ladezustand sauber, exponiert keine Exceptions nach außen — sie landen
 // in `errorMessage` und können in der UI angezeigt werden.
+// @MainActor: load()/seedIfEmpty()/syncFromAirtable() mutieren @Observable-Zustand,
+// den SwiftUI auf dem Main-Thread liest. Ohne MainActor liefen die async-Methoden
+// auf dem generischen Executor → isLoading/projects wurden OFF-MAIN geschrieben,
+// SwiftUI verpasste das Update → Galerie hing (sporadisch) auf „Lade Projekte…".
+@MainActor
 @Observable
 public final class RegistryStore {
     public var projects:  [Project]  = []
@@ -50,7 +55,6 @@ public final class RegistryStore {
     }
 
     // MARK: Airtable-Sync
-    @MainActor
     public func syncFromAirtable(baseID: String, auth: AirtableAuthService) async {
         guard !isLoading, let reg = registry else { return }
         isLoading = true
@@ -59,6 +63,10 @@ public final class RegistryStore {
             let airtable = AirtableRegistry()
             try await airtable.sync(baseID: baseID, into: reg)
             auth.setSynced()
+            // Flag VOR load() freigeben, sonst kehrt dessen `guard !isLoading`
+            // sofort um → isLoading bliebe ewig true (Galerie hängt auf „Lade
+            // Projekte…") und die frisch gesyncten Projekte würden nie geladen.
+            isLoading = false
             await load()
         } catch {
             auth.setError(String(describing: error))

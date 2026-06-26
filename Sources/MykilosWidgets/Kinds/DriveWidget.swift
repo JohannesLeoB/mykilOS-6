@@ -87,12 +87,18 @@ private final class DriveFolderLoader {
     private(set) var renderState: WidgetRenderState = .loading
 
     private let client: GoogleDriveFetching
+    // Generation-Token: nur das jüngste load() darf committen. Schützt gegen
+    // ein langsames altes Ergebnis (Projektwechsel) UND gegen den Retry-Button,
+    // dessen Task nie gecancelt wird. (Task.isCancelled reichte nicht.)
+    private var loadGeneration = 0
 
     init(client: GoogleDriveFetching = GoogleDriveClient()) {
         self.client = client
     }
 
     func load(folderID: String?) async {
+        loadGeneration &+= 1
+        let generation = loadGeneration
         guard let folderID, folderID.isEmpty == false else {
             files = []
             renderState = .empty
@@ -101,12 +107,15 @@ private final class DriveFolderLoader {
         renderState = .loading
         do {
             let result = try await client.listFolder(folderID: folderID)
+            guard generation == loadGeneration else { return }
             files = result
             renderState = result.isEmpty ? .empty : .content
         } catch GoogleDriveError.notConnected {
+            guard generation == loadGeneration else { return }
             files = []
             renderState = .permissionRequired
         } catch {
+            guard generation == loadGeneration else { return }
             files = []
             renderState = .error(String(describing: error))
         }

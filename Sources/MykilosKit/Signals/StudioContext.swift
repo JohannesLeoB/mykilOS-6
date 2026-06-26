@@ -12,10 +12,20 @@ public final class StudioContext {
 
     public init() {}
 
+    // Obergrenze für den Signal-Log. Verhindert unbegrenztes Wachstum über eine
+    // lange Sitzung (jedes onAppear/Poll hängte bisher an). Alle Konsumenten
+    // lesen via `.contains(where:)`/`.filter` — das Trimmen vom Anfang ändert
+    // nichts an deren Ergebnis, hält aber Speicher und Filterkosten konstant.
+    private static let maxSignals = 200
+
     /// Ein Tap auf "Meyer" → alle projektbezogenen Widgets färben sich an.
     public func focus(project id: String) {
+        // Nur emittieren, wenn sich der Fokus wirklich ändert — sonst hängt
+        // jedes erneute onAppear desselben Projekts ein weiteres
+        // `.projectFocused` an (Signal-Leck + unnötige LLM-Re-Trigger).
+        let changed = focusedProjectID != id
         focusedProjectID = id
-        emit(.projectFocused(projectID: id))
+        if changed { emit(.projectFocused(projectID: id)) }
     }
 
     /// Ein Widget meldet ein Ereignis. Der Mediator leitet ggf. einen
@@ -24,6 +34,9 @@ public final class StudioContext {
         signals.append(signal)
         if let derived = Mediator.derive(from: signal) {
             signals.append(derived)
+        }
+        if signals.count > Self.maxSignals {
+            signals.removeFirst(signals.count - Self.maxSignals)
         }
     }
 

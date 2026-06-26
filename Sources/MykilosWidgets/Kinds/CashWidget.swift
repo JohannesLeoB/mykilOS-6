@@ -191,12 +191,16 @@ private final class SevdeskInvoicesLoader {
     private(set) var renderState: WidgetRenderState = .loading
 
     private let client: SevdeskFetching
+    // Generation-Token: nur das jüngste load() committet (Projektwechsel/Retry).
+    private var loadGeneration = 0
 
     init(client: SevdeskFetching = SevdeskClient()) {
         self.client = client
     }
 
     func load(contactRef: String?) async {
+        loadGeneration &+= 1
+        let generation = loadGeneration
         guard let contactRef, contactRef.isEmpty == false else {
             ist = 0
             renderState = .empty
@@ -205,12 +209,15 @@ private final class SevdeskInvoicesLoader {
         renderState = .loading
         do {
             let invoices = try await client.invoices(contactRef: contactRef)
+            guard generation == loadGeneration else { return }
             ist = invoices.reduce(0) { $0 + $1.sumGross }
             renderState = .content
         } catch SevdeskError.notConnected {
+            guard generation == loadGeneration else { return }
             ist = 0
             renderState = .permissionRequired
         } catch {
+            guard generation == loadGeneration else { return }
             ist = 0
             renderState = .error(String(describing: error))
         }

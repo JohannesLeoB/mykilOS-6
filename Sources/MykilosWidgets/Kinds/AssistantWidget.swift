@@ -38,7 +38,11 @@ public struct AssistantWidget: View {
     }
 
     private var llmTaskID: String {
-        signals.map(String.init(describing:)).joined(separator: "|")
+        // Über die DISTINKTEN Signale schlüsseln, nicht über den rohen Log:
+        // sonst löst jedes erneute Öffnen (zusätzliches `.projectFocused`) eine
+        // neue, kostenpflichtige Claude-Anfrage aus, obwohl sich inhaltlich
+        // nichts geändert hat. Set + sortiert = stabil bei gleichem Inhalt.
+        Set(signals.map(String.init(describing:))).sorted().joined(separator: "|")
     }
 
     public var body: some View {

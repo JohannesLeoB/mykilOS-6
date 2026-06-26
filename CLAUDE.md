@@ -7,16 +7,21 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 
 ## Wo wir stehen
 
-**Akt 5 abgeschlossen.** Politur, Dark Mode, DMG. Post-Akt-5 Aufgabe 9 ist
-abgeschlossen: der `DriveOfferWatcher` ist die echte Live-Quelle für
-`offerDetected` — er pollt den verlinkten Drive-Ordner (read-only `files.list`)
-und feuert ein Signal, sobald ein neues Angebots-/Rechnungs-PDF auftaucht
-(Baseline beim ersten Lauf, danach nur Neues). Damit ist auch der letzte
-geplante Anschluss live: alle Widgets sind echt, die Integrations-Landkarte ist
-vollständig (114 Tests). Der Signal-Demo-Button bleibt als sofort auslösbarer
-Showcase erhalten. Aufgabe 10 baut darauf auf: die Projekt-Tab **Angebote** ist
-live und listet die Belege aus dem Drive-Ordner über dieselbe Erkennung wie das
-Signal (`DriveOfferWatcher.detectOffers`).
+**Akt 5 abgeschlossen.** Politur, Dark Mode, DMG. Aufgabe 9/10: `DriveOfferWatcher`
+als Live-Quelle für `offerDetected` + Angebote-Tab. **Aufgabe 11 (Stabilisierung)**
+ist abgeschlossen: ein zuvor 100%iger Crash beim Öffnen jeder Projektseite
+(content-dimensioniertes Fenster + `.move`-Transition → Update-Constraints-
+Endlosschleife auf macOS 26) und der sporadische Galerie-Hang („Lade Projekte…",
+Ursache: `RegistryStore` lief nicht auf dem MainActor) sind behoben und **live
+verifiziert**. Dazu kam ein Multi-Agent-Bug-Audit mit Fixes (Notiz-Datenverlust,
+Signal-Leck, Loader-Races u. a.). **118 Tests grün.** Details in
+[HANDOFF_POST_AKT5_11.md](docs/handoffs/HANDOFF_POST_AKT5_11.md).
+
+**⚠️ Externe Daten — harte NO-GOs (User, 2026-06-27):** Sevdesk nie lesen/schreiben;
+die geteilte Airtable-Base nie schreiben/editieren/löschen/verschieben; der
+verlinkte Google-Drive-Ordner (`0AOeReQBQKkKBUk9PVA`) **read-only** — Kopie nur zu
+ausdrücklich genanntem Ziel, Änderung nur per schriftlicher Chat-Erlaubnis. Externe
+Daten sind heilig; bei Datenverlust-Gefahr warnen.
 
 | Akt | Status | Inhalt |
 |---|---|---|
@@ -43,6 +48,7 @@ Signal (`DriveOfferWatcher.detectOffers`).
 | Post-Akt 5, Aufgabe 8 | ✅ | Sevdesk-Integration live (Cash-Widget, Ist-Umsatz vs. Budget-Balken, 109 Tests) |
 | Post-Akt 5, Aufgabe 9 | ✅ | Drive-Offer-Watcher live (Polling → `offerDetected`, Baseline-Semantik, 114 Tests) |
 | Post-Akt 5, Aufgabe 10 | ✅ | Angebote-Tab live (Belege aus Drive via `DriveOfferWatcher.detectOffers`, read-only) |
+| Post-Akt 5, Aufgabe 11 | ✅ | Stabilisierung: Projektdetail-Crash + Galerie-Hang behoben, Multi-Agent-Bug-Audit-Fixes (118 Tests, live verifiziert) |
 
 ---
 
@@ -389,6 +395,7 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_POST_AKT5_8.md` — Sevdesk-Integration live (Cash-Widget, Ist vs. Budget)
 - `docs/handoffs/HANDOFF_POST_AKT5_9.md` — Drive-Offer-Watcher live (Polling → offerDetected)
 - `docs/handoffs/HANDOFF_POST_AKT5_10.md` — Angebote-Tab live (Belege aus Drive, geteilte Erkennung)
+- `docs/handoffs/HANDOFF_POST_AKT5_11.md` — Stabilisierung: Projektdetail-Crash + Galerie-Hang + Bug-Audit-Fixes (live verifiziert, 118 Tests)
 - `docs/architecture/mykilOS6_Systemarchitektur.pdf` — Systemarchitektur (9 S., A4 quer): Integrations-Landkarte, Steckbriefe (Google/Clockodo/Airtable/ClickUp/Sevdesk/Claude), Signal-Nervensystem, GRDB-Persistenz, Funktionsbaum, Trigger-/Handle-Matrix; Quelle `.html` + `build_pdf.sh` daneben
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
 - `docs/codex/WORKFLOW.md` — Session-Regeln für Codex-Sessions in diesem Repo

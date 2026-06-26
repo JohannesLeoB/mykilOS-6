@@ -8,6 +8,7 @@ import MykilosWidgets
 struct MykilOS6App: App {
     @State private var appState = AppState(database: AppDatabase.production)
     @State private var context  = StudioContext()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -15,9 +16,21 @@ struct MykilOS6App: App {
                 .environment(appState)
                 .environment(context)
                 .task { await appState.bootstrap() }
+                // Beim Wechsel in den Hintergrund / vor App-Quit (macOS geht über
+                // .background) alle ungespeicherten Notizen sichern — sonst kann
+                // Cmd-Q eine im Debounce-Fenster hängende Eingabe verlieren.
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .background { appState.flushAllNotes() }
+                }
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1340, height: 860)
+        // Fenster-Mindestgröße EXPLIZIT setzen. Ohne das gilt .automatic, wobei
+        // der Inhalt die Fenster-Mindestbreite treibt; in Kombination mit der
+        // Detail-Transition oszilliert AppKit dann die Update-Constraints-Pässe
+        // bis die Breite explodiert (NSGenericException, ~4 Mio pt). Eine feste
+        // Mindestgröße gibt der NSHostingView einen stabilen unteren Anker.
+        .windowResizability(.contentMinSize)
         .commands { AppCommands() }
 
         WindowGroup("Über mykilOS 6", id: "about") {
@@ -59,8 +72,15 @@ struct ContentView: View {
             SidebarView(selection: $module)
             Divider().overlay(MykColor.line.color)
             moduleView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(MykColor.paper.color)
+        // Stabiler, endlicher Mindestrahmen für den Fensterinhalt. Zusammen mit
+        // .windowResizability(.contentMinSize) bekommt die NSHostingView eine
+        // feste untere Schranke → die Fenster-Extrema-Berechnung konvergiert,
+        // statt der Detail-Transition in eine Endlosschleife zu folgen.
+        .frame(minWidth: 1100, idealWidth: 1340, maxWidth: .infinity,
+               minHeight: 720, idealHeight: 860, maxHeight: .infinity)
     }
 
     @ViewBuilder

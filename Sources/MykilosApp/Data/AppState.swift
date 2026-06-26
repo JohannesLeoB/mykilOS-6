@@ -30,6 +30,10 @@ public final class AppState {
     // Projekt-Boards on-demand (pro geöffnetem Projekt)
     private var projectBoards: [String: WidgetBoardStore] = [:]
     private var projectNotes:  [String: NoteStore]        = [:]
+    // Pro Projekt EIN langlebiger Watcher: so überlebt die Baseline/„seen"-Menge
+    // die Navigation (sonst re-baselined jede neue Detailseite und neue Angebote
+    // werden nie gemeldet).
+    private var projectOfferWatchers: [String: DriveOfferWatcher] = [:]
 
     public init(database: GRDBDatabase) {
         self.database = database
@@ -74,6 +78,27 @@ public final class AppState {
         )
         projectNotes[projectNumber] = store
         return store
+    }
+
+    // MARK: Offer-Watcher (lazy, gecached) — langlebige Live-Quelle je Projekt
+    public func offerWatcher(for projectNumber: String) -> DriveOfferWatcher {
+        if let existing = projectOfferWatchers[projectNumber] { return existing }
+        let watcher = DriveOfferWatcher()
+        projectOfferWatchers[projectNumber] = watcher
+        return watcher
+    }
+
+    // MARK: Notizen-Flush (App-Quit / Hintergrund)
+    /// Sichert alle Notiz-Stores mit ungespeicherten Änderungen. Aufzurufen bei
+    /// scenePhase == .background, damit Cmd-Q keine offene Notiz verliert.
+    public func flushAllNotes() {
+        for store in projectNotes.values where store.hasUnsavedChanges {
+            // try? gerechtfertigt: App fährt herunter, keine UI mehr für Fehler.
+            try? store.save()
+        }
+        if homeNotes.hasUnsavedChanges {
+            try? homeNotes.save()
+        }
     }
 
     // MARK: Bootstrap

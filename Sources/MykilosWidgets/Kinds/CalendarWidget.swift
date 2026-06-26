@@ -78,12 +78,16 @@ private final class CalendarEventLoader {
     private(set) var renderState: WidgetRenderState = .loading
 
     private let client: GoogleCalendarFetching
+    // Generation-Token: nur das jüngste load() committet (Projektwechsel/Retry).
+    private var loadGeneration = 0
 
     init(client: GoogleCalendarFetching = GoogleCalendarClient()) {
         self.client = client
     }
 
     func load(query: String?) async {
+        loadGeneration &+= 1
+        let generation = loadGeneration
         guard let query, query.isEmpty == false else {
             events = []
             renderState = .empty
@@ -92,12 +96,15 @@ private final class CalendarEventLoader {
         renderState = .loading
         do {
             let result = try await client.listUpcomingEvents(query: query, withinDays: 14)
+            guard generation == loadGeneration else { return }
             events = result
             renderState = result.isEmpty ? .empty : .content
         } catch GoogleCalendarError.notConnected {
+            guard generation == loadGeneration else { return }
             events = []
             renderState = .permissionRequired
         } catch {
+            guard generation == loadGeneration else { return }
             events = []
             renderState = .error(String(describing: error))
         }

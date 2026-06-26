@@ -13,7 +13,6 @@ struct ProjectDetailView: View {
     @Environment(StudioContext.self) private var context
     @Environment(AppState.self)      private var appState
     @State private var activeTab: ProjectTab = .overview
-    @State private var offerWatcher = DriveOfferWatcher()
 
     // Wie oft der Drive-Ordner auf neue Angebots-PDFs gepollt wird, solange das
     // Projekt offen ist. Bewusst gemächlich — read-only, schont API-Quota.
@@ -56,6 +55,10 @@ struct ProjectDetailView: View {
         // Angebots-PDF ein Signal → Mediator → CashWidget-Review-Vorschlag.
         .task(id: project.links.driveFolderID) {
             guard let folderID = project.links.driveFolderID, folderID.isEmpty == false else { return }
+            // Gecachten, projektweiten Watcher holen — seine Baseline/„seen"-Menge
+            // überlebt so Navigation, statt bei jeder neuen Detailseite zu
+            // re-baselinen (was neue Angebote unsichtbar machte).
+            let offerWatcher = appState.offerWatcher(for: project.projectNumber)
             while Task.isCancelled == false {
                 let signals = await offerWatcher.poll(projectID: project.projectNumber, folderID: folderID)
                 for signal in signals { context.emit(signal) }
@@ -206,7 +209,13 @@ private struct ProjectWidgetBoardView: View {
 }
 
 private struct RowLayout: Identifiable {
-    let id = UUID(); let items: [WidgetInstance]; let totalColumns: Int
+    let items: [WidgetInstance]; let totalColumns: Int
+    // Stabile Identität aus dem ersten Widget der Zeile. Mit `id = UUID()` bekam
+    // jede Zeile bei JEDEM Re-Render (z. B. wenn der SaveState wechselt) eine
+    // neue Identität → SwiftUI riss alle Widgets ab und baute sie neu auf
+    // (Loader-Churn + Mit-Ursache des Notiz-Datenverlusts).
+    var id: UUID { items.first?.id ?? Self.emptyRowID }
+    private static let emptyRowID = UUID()
     var usedSpan: Int { items.reduce(0) { $0 + $1.size.columnSpan } }
     var fillerSpan: Int { totalColumns - usedSpan }
     var needsFiller: Bool { fillerSpan > 0 }

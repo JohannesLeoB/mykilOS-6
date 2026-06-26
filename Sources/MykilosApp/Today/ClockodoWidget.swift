@@ -143,9 +143,12 @@ private struct TimeBar: View {
                 Text(String(format: "%.1f h", value)).font(.mykMono(9.5)).foregroundStyle(MykColor.ink.color)
             }
             GeometryReader { geo in
+                // total kann 0 sein (z. B. nur ein laufender Timer → duration 0):
+                // value/total wäre dann NaN/∞ → ungültige Frame-Breite. Clampen.
+                let ratio = total > 0 ? min(max(value / total, 0), 1) : 0
                 ZStack(alignment: .leading) {
                     Capsule().fill(MykColor.bone.color).frame(height: 4)
-                    Capsule().fill(color).frame(width: geo.size.width * (value / total), height: 4)
+                    Capsule().fill(color).frame(width: geo.size.width * ratio, height: 4)
                 }
             }.frame(height: 4)
         }

@@ -86,12 +86,16 @@ private final class ClickUpTasksLoader {
     private(set) var renderState: WidgetRenderState = .loading
 
     private let client: ClickUpFetching
+    // Generation-Token: nur das jüngste load() committet (Projektwechsel/Retry).
+    private var loadGeneration = 0
 
     init(client: ClickUpFetching = ClickUpClient()) {
         self.client = client
     }
 
     func load(listID: String?) async {
+        loadGeneration &+= 1
+        let generation = loadGeneration
         guard let listID, listID.isEmpty == false else {
             tasks = []
             renderState = .empty
@@ -100,12 +104,15 @@ private final class ClickUpTasksLoader {
         renderState = .loading
         do {
             let result = try await client.tasks(listID: listID)
+            guard generation == loadGeneration else { return }
             tasks = result
             renderState = result.isEmpty ? .empty : .content
         } catch ClickUpError.notConnected {
+            guard generation == loadGeneration else { return }
             tasks = []
             renderState = .permissionRequired
         } catch {
+            guard generation == loadGeneration else { return }
             tasks = []
             renderState = .error(String(describing: error))
         }

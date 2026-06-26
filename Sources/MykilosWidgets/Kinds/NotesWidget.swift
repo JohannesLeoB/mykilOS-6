@@ -60,13 +60,29 @@ public struct NotesWidget: View {
             }
         }
         .task { try? noteStore.load() }
+        .onDisappear {
+            // Beim Verschwinden (Tab-/Projektwechsel, Board-Re-Render) den
+            // Debounce-Timer abbrechen und ausstehende Eingaben sofort sichern —
+            // sonst stirbt der @State-Timer und die letzte Notiz geht verloren.
+            editTimer?.invalidate()
+            editTimer = nil
+            // try? gerechtfertigt: View ist weg, keine UI mehr für eine
+            // Fehleranzeige; hasUnsavedChanges vermeidet No-Op-Writes.
+            if noteStore.hasUnsavedChanges { try? noteStore.save() }
+        }
     }
 
     // MARK: Autosave (debounced, 0.8 s Pause)
     private func scheduleAutosave() {
         editTimer?.invalidate()
         editTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: false) { _ in
-            try? noteStore.save()
+            // Expliziter Hop auf den MainActor: NoteStore.save() ist @MainActor,
+            // der Timer-Callback ist nonisolated.
+            Task { @MainActor in
+                // try? gerechtfertigt: Debounce-Autosave; Fehler erscheint beim
+                // nächsten manuellen Speichern bzw. über die SaveStateBar.
+                try? noteStore.save()
+            }
         }
     }
 

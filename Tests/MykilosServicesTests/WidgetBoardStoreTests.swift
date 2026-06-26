@@ -75,6 +75,30 @@ struct WidgetBoardStoreTests {
         #expect(storeB.body == "Meyer mag warme Eiche")
     }
 
+    // MARK: NoteStore: erneutes load() darf ungespeicherte Eingaben nicht killen
+    // Regression: onAppear/.task feuerten load() wiederholt und überschrieben den
+    // gerade getippten Text mit dem alten DB-Stand (stiller Datenverlust).
+    @Test func loadClobbertKeineUngespeichertenEingaben() throws {
+        let db = try GRDBDatabase.inMemory()
+
+        // Vorbestand in der DB: "alt"
+        let seed = NoteStore(boardID: "proj_ME-24", db: db)
+        try seed.load()
+        seed.update("alter Stand")
+        try seed.save()
+
+        // Frische Instanz wie beim Öffnen: lädt "alt", User tippt "neu",
+        // dann feuert load() erneut (Board-Re-Render / onAppear).
+        let store = NoteStore(boardID: "proj_ME-24", db: db)
+        try store.load()
+        #expect(store.body == "alter Stand")
+        #expect(store.hasUnsavedChanges == false)
+        store.update("frisch getippt, noch nicht gespeichert")
+        #expect(store.hasUnsavedChanges == true)
+        try store.load()   // darf NICHT zurück auf "alter Stand" springen
+        #expect(store.body == "frisch getippt, noch nicht gespeichert")
+    }
+
     // MARK: AuditStore Cold-Start
     @Test func auditEntryUeberlebtNeustart() throws {
         let db = try GRDBDatabase.inMemory()

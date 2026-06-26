@@ -20,20 +20,25 @@ struct ProjectGalleryView: View {
         ZStack {
             MykColor.paper.color.ignoresSafeArea()
             if let project = selectedProject {
+                // Bewusst KEINE .move-Transition: der Transform-Offset trieb in
+                // einem inhalts-dimensionierten Fenster die Fensterbreite hoch
+                // (Backtrace lief durch updateTransform → invalidateTransform →
+                // Endlosschleife der Update-Constraints-Pässe → Crash). Ein reiner
+                // Opacity-Übergang hat keinen Transform und ist crash-sicher.
                 ProjectDetailView(project: project) {
                     withAnimation(.easeInOut(duration: 0.22)) {
                         selectedProject = nil
                     }
                 }
-                .transition(.asymmetric(
-                    insertion: .move(edge: .trailing).combined(with: .opacity),
-                    removal:   .move(edge: .trailing).combined(with: .opacity)
-                ))
+                .transition(.opacity)
             } else {
                 galleryContent
                     .transition(.opacity)
             }
         }
+        // Clipping verhindert zusätzlich, dass eine transiente Größe/Position
+        // während des Übergangs die gemessenen Fensterbounds aufbläht.
+        .clipped()
         .animation(.easeInOut(duration: 0.22), value: selectedProject?.id)
         .task { await registry.load() }
     }
@@ -43,7 +48,9 @@ struct ProjectGalleryView: View {
         VStack(spacing: 0) {
             commandBar
             Divider().overlay(MykColor.line.color)
-            if registry.isLoading {
+            if registry.isLoading && registry.projects.isEmpty {
+                // Spinner NUR wenn noch nichts da ist. Liegt ein Cache vor, zeigen
+                // wir ihn sofort weiter (ein laufender Refresh blockiert nicht).
                 loadingView
             } else if filtered.isEmpty {
                 emptyView
