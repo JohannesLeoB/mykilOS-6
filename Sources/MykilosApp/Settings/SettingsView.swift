@@ -14,6 +14,9 @@ struct SettingsView: View {
     @State private var airtablePAT: String = ""
     @State private var airtableBaseID: String = ""
     @State private var airtableError: String?
+    @State private var claudeApiKey: String = ""
+    @State private var claudeModel: String = ClaudeAuthService.defaultModel
+    @State private var claudeError: String?
 
     var body: some View {
         ScrollView {
@@ -24,6 +27,7 @@ struct SettingsView: View {
                 googleSection
                 clockodoSection
                 airtableSection
+                claudeSection
                 Spacer()
             }
             .padding(MykSpace.s9)
@@ -39,6 +43,10 @@ struct SettingsView: View {
             if let creds = try? appState.airtableAuth.storedCredentials() {
                 airtablePAT = creds.pat
                 airtableBaseID = creds.baseID
+            }
+            if let creds = try? appState.claudeAuth.storedCredentials() {
+                claudeApiKey = creds.apiKey
+                claudeModel = creds.model
             }
         }
     }
@@ -313,6 +321,91 @@ struct SettingsView: View {
             airtableBaseID = ""
         } catch {
             airtableError = "Trennen fehlgeschlagen: \(error)"
+        }
+    }
+
+    // MARK: - Claude
+
+    private var claudeSection: some View {
+        VStack(alignment: .leading, spacing: MykSpace.s5) {
+            Text("Claude Assistent")
+                .font(.mykHeadline)
+                .foregroundStyle(MykColor.ink.color)
+            claudeStatusBadge
+            SecureField("Anthropic API-Key", text: $claudeApiKey)
+                .textFieldStyle(.roundedBorder)
+                .font(.mykMono(12))
+            TextField("Modell", text: $claudeModel)
+                .textFieldStyle(.roundedBorder)
+                .font(.mykMono(12))
+            HStack(spacing: MykSpace.s4) {
+                Button(claudeConnectLabel) { connectClaude() }
+                if appState.claudeAuth.status == .connected {
+                    Button("Trennen", role: .destructive) { disconnectClaude() }
+                }
+            }
+            if let claudeError {
+                Text(claudeError)
+                    .font(.mykMono(10))
+                    .foregroundStyle(MykColor.critical.color)
+            }
+            Text("Nutzt den Keychain. Der Assistent erzeugt nur Zusammenfassungen; Schreibaktionen bleiben bestätigungspflichtig.")
+                .font(.mykMono(9.5))
+                .foregroundStyle(MykColor.faint.color)
+        }
+        .padding(MykSpace.s6)
+        .background(
+            RoundedRectangle(cornerRadius: MykRadius.md).fill(MykColor.card.color)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: MykRadius.md).stroke(MykColor.line.color, lineWidth: 1)
+        )
+    }
+
+    private var claudeStatusBadge: some View {
+        HStack(spacing: 6) {
+            Circle().fill(claudeStatusColor).frame(width: 7, height: 7)
+            Text(claudeStatusText).font(.mykMono(10)).foregroundStyle(MykColor.muted.color)
+        }
+    }
+
+    private var claudeStatusColor: Color {
+        switch appState.claudeAuth.status {
+        case .connected:    MykColor.positive.color
+        case .disconnected: MykColor.faint.color
+        case .error:        MykColor.critical.color
+        }
+    }
+
+    private var claudeStatusText: String {
+        switch appState.claudeAuth.status {
+        case .connected:          "VERBUNDEN"
+        case .disconnected:       "NICHT VERBUNDEN"
+        case .error(let message): "FEHLER · \(message)"
+        }
+    }
+
+    private var claudeConnectLabel: String {
+        appState.claudeAuth.status == .connected ? "Erneut verbinden" : "Verbinden"
+    }
+
+    private func connectClaude() {
+        claudeError = nil
+        do {
+            try appState.claudeAuth.connect(apiKey: claudeApiKey, model: claudeModel)
+            claudeModel = (try appState.claudeAuth.storedCredentials())?.model ?? ClaudeAuthService.defaultModel
+        } catch {
+            claudeError = "Verbindung fehlgeschlagen: \(error)"
+        }
+    }
+
+    private func disconnectClaude() {
+        do {
+            try appState.claudeAuth.disconnect()
+            claudeApiKey = ""
+            claudeModel = ClaudeAuthService.defaultModel
+        } catch {
+            claudeError = "Trennen fehlgeschlagen: \(error)"
         }
     }
 }

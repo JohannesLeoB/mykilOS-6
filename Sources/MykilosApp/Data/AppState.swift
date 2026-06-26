@@ -22,6 +22,8 @@ public final class AppState {
     public let googleAuth: GoogleAuthService
     public let clockodoAuth: ClockodoAuthService
     public let airtableAuth: AirtableAuthService
+    public let claudeAuth: ClaudeAuthService
+    public let assistantLLM: any AssistantLLMProviding
 
     // Projekt-Boards on-demand (pro geöffnetem Projekt)
     private var projectBoards: [String: WidgetBoardStore] = [:]
@@ -43,6 +45,9 @@ public final class AppState {
         self.googleAuth = GoogleAuthService()
         self.clockodoAuth = ClockodoAuthService()
         self.airtableAuth = AirtableAuthService()
+        let claudeCredentials = KeychainClaudeCredentialsStore()
+        self.claudeAuth = ClaudeAuthService(credentialsStore: claudeCredentials)
+        self.assistantLLM = ClaudeMessagesClient(credentialsStore: claudeCredentials)
     }
 
     // MARK: Projekt-Board (lazy, gecached)

@@ -7,8 +7,9 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 
 ## Wo wir stehen
 
-**Akt 5 abgeschlossen.** Politur, Dark Mode, DMG. Post-Akt-5 Aufgabe 4
-ist abgeschlossen: mykilOS 6 hat ein eigenes App-Icon im App-Bundle.
+**Akt 5 abgeschlossen.** Politur, Dark Mode, DMG. Post-Akt-5 Aufgabe 5
+ist abgeschlossen: Der Assistent kann Claude-Zusammenfassungen aus Signalen
+und regelbasierten Insights erzeugen.
 
 | Akt | Status | Inhalt |
 |---|---|---|
@@ -29,6 +30,7 @@ ist abgeschlossen: mykilOS 6 hat ein eigenes App-Icon im App-Bundle.
 | Post-Akt 5, Aufgabe 2 | ✅ | AuditStore persistent + Assistant-Bestätigungen protokolliert |
 | Post-Akt 5, Aufgabe 3 | ✅ | About-Fenster über App-Menü mit Version 6.0.0 |
 | Post-Akt 5, Aufgabe 4 | ✅ | Eigenes App-Icon (`AppIcon.icns`) im Bundle |
+| Post-Akt 5, Aufgabe 5 | ✅ | Claude-LLM-Integration im Assistenten (Keychain + Messages API) |
 
 ---
 
@@ -149,10 +151,8 @@ Kein Sync-Backend in V1.
 
 ## Nächste Schritte
 
-Akt 0–5 sind abgeschlossen. Die App ist feature-complete für Beta.
-Offene Verfeinerungen:
-
-1. LLM-Integration im Assistenten (Claude API für natürlichsprachliche Zusammenfassungen)
+Akt 0–5 und alle dokumentierten Post-Akt-5-Verfeinerungen sind abgeschlossen.
+Die App ist feature-complete für Beta.
 
 **Aus Post-Akt-5 Aufgabe 1 (Auto-Sync bei App-Start):**
 - `AppState.bootstrap()` lädt weiterhin zuerst lokale Boards und Registry
@@ -180,6 +180,17 @@ Offene Verfeinerungen:
   editierbare 1024px-Quelle liegt daneben als `AppIconSource.png`.
 - `script/build_and_run.sh` kopiert das Icon nach `Contents/Resources` und
   schreibt `CFBundleIconFile` in die generierte `Info.plist`.
+
+**Aus Post-Akt-5 Aufgabe 5 (Claude-LLM-Integration):**
+- `ClaudeAuthService` speichert Anthropic API-Key und Modell ausschließlich im
+  Keychain. Default-Modell: `claude-sonnet-4-6`.
+- `ClaudeMessagesClient` ruft die Anthropic Messages API testbar über einen
+  injizierbaren HTTP-Client auf; automatisierte Tests prüfen Request-Header,
+  Payload und Response-Parsing ohne echten Netzwerkzugriff.
+- `AssistantWidget` zeigt weiterhin sofort die regelbasierten Insights und
+  lädt nur bei verbundener Claude-Konfiguration zusätzlich eine natürliche
+  Zusammenfassung. Schreibaktionen bleiben bestätigungspflichtig und laufen
+  weiter über Action-Card → Audit.
 
 **Bekannte offene Punkte aus Schritt 1 (noch nicht relevant geworden):**
 - Ob Google "Desktop App"-OAuth-Clients bei PKCE zusätzlich ein `client_secret`
@@ -254,5 +265,6 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_POST_AKT5_2.md` — AuditStore + Assistant-Protokollierung
 - `docs/handoffs/HANDOFF_POST_AKT5_3.md` — About-Fenster mit Versionsnummer
 - `docs/handoffs/HANDOFF_POST_AKT5_4.md` — Eigenes App-Icon im Bundle
+- `docs/handoffs/HANDOFF_POST_AKT5_5.md` — Claude-LLM-Integration im Assistenten
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
 - `docs/codex/WORKFLOW.md` — Session-Regeln für Codex-Sessions in diesem Repo

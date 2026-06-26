@@ -70,6 +70,7 @@ struct ProjectDetailView: View {
                 boardStore: boardStore,
                 noteStore: noteStore,
                 auditStore: appState.audit,
+                llmProvider: appState.claudeAuth.status == .connected ? appState.assistantLLM : nil,
                 projectID: project.projectNumber,
                 driveFolderID: project.links.driveFolderID,
                 calendarQuery: project.links.calendarQuery,
@@ -90,6 +91,7 @@ private struct ProjectWidgetBoardView: View {
     let boardStore: WidgetBoardStore
     let noteStore:  NoteStore
     let auditStore: AuditStore
+    let llmProvider: (any AssistantLLMProviding)?
     let projectID:  String
     let driveFolderID: String?
     let calendarQuery: String?
@@ -154,7 +156,7 @@ private struct ProjectWidgetBoardView: View {
         case .cash:      CashWidget(projectID: projectID)
         case .calendar:  CalendarWidget(projectID: projectID, calendarQuery: calendarQuery)
         case .notes:     NotesWidget(projectID: projectID, noteStore: noteStore)
-        case .assistant: AssistantWidget(projectID: projectID, auditStore: auditStore)
+        case .assistant: AssistantWidget(projectID: projectID, auditStore: auditStore, llmProvider: llmProvider)
         case .mail:      MailWidget(projectID: projectID, mailQuery: mailQuery)
         default:         EmptyView()
         }

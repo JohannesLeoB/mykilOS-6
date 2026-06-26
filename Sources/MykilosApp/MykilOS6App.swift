@@ -88,7 +88,11 @@ struct AssistantPageView: View {
                 Text("Der Dolmetscher liest alle Quellen und fasst zusammen, was wichtig ist.")
                     .font(.mykBody)
                     .foregroundStyle(MykColor.muted.color)
-                AssistantWidget(projectID: "home", auditStore: appState.audit)
+                AssistantWidget(
+                    projectID: "home",
+                    auditStore: appState.audit,
+                    llmProvider: appState.claudeAuth.status == .connected ? appState.assistantLLM : nil
+                )
             }
             .padding(MykSpace.s9)
             .frame(maxWidth: .infinity, alignment: .leading)

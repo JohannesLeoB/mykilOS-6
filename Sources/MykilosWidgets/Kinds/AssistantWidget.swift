@@ -9,21 +9,36 @@ import MykilosServices
 public struct AssistantWidget: View {
     public let projectID: String
     public let auditStore: AuditStore?
+    public let llmProvider: (any AssistantLLMProviding)?
 
-    public init(projectID: String, auditStore: AuditStore? = nil) {
+    public init(
+        projectID: String,
+        auditStore: AuditStore? = nil,
+        llmProvider: (any AssistantLLMProviding)? = nil
+    ) {
         self.projectID = projectID
         self.auditStore = auditStore
+        self.llmProvider = llmProvider
     }
 
     @Environment(StudioContext.self) private var context
     @State private var confirmedIDs: Set<UUID> = []
     @State private var auditError: String?
+    @State private var llmSummaryState: LLMSummaryState = .idle
+
+    private var signals: [WidgetSignal] {
+        context.signals(for: projectID)
+    }
 
     private var insights: [AssistantInsight] {
         AssistantEngine().generateInsights(
             projectID: projectID,
-            signals: context.signals(for: projectID)
+            signals: signals
         )
+    }
+
+    private var llmTaskID: String {
+        signals.map(String.init(describing:)).joined(separator: "|")
     }
 
     public var body: some View {
@@ -49,9 +64,13 @@ public struct AssistantWidget: View {
                 Spacer()
                 priorityBadge
             }
+            llmSummary
             insightsList
         }
         .padding(MykSpace.s6)
+        .task(id: llmTaskID) {
+            await loadLLMSummary()
+        }
     }
 
     @ViewBuilder
@@ -78,6 +97,58 @@ public struct AssistantWidget: View {
                     onConfirm: { action in confirm(insight: insight, action: action) }
                 )
             }
+        }
+    }
+
+    @ViewBuilder
+    private var llmSummary: some View {
+        if llmProvider != nil {
+            switch llmSummaryState {
+            case .idle:
+                EmptyView()
+            case .loading:
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Claude fasst die Signale zusammen…")
+                        .font(.mykMono(9.5))
+                        .foregroundStyle(MykColor.paper.color.opacity(0.45))
+                }
+            case .loaded(let summary):
+                Text(summary)
+                    .font(.mykBody)
+                    .foregroundStyle(MykColor.paper.color.opacity(0.88))
+                    .padding(MykSpace.s4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: MykRadius.sm)
+                            .fill(MykColor.paper.color.opacity(0.08))
+                    )
+            case .failed(let message):
+                Text(message)
+                    .font(.mykMono(9.5))
+                    .foregroundStyle(MykColor.tasks.color)
+            }
+        }
+    }
+
+    private func loadLLMSummary() async {
+        guard let llmProvider else {
+            llmSummaryState = .idle
+            return
+        }
+        let currentInsights = insights
+        let currentSignals = signals
+        llmSummaryState = .loading
+        do {
+            let summary = try await llmProvider.summarize(
+                projectID: projectID,
+                signals: currentSignals,
+                insights: currentInsights
+            )
+            llmSummaryState = .loaded(summary)
+        } catch {
+            llmSummaryState = .failed("Claude-Zusammenfassung gerade nicht verfügbar")
         }
     }
 
@@ -114,6 +185,15 @@ public struct AssistantWidget: View {
             Divider().overlay(MykColor.paper.color.opacity(0.1))
         }
     }
+}
+
+// MARK: - LLMSummaryState
+
+private enum LLMSummaryState: Equatable {
+    case idle
+    case loading
+    case loaded(String)
+    case failed(String)
 }
 
 // MARK: - InsightRow
