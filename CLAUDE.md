@@ -89,6 +89,8 @@ Daten sind heilig; bei Datenverlust-Gefahr warnen.
 | Live-Wiring, Session 1 | ✅ | Angebote-Tab-Bugfix, Airtable-Base "mykilOS Mastermind" (Schema + 69 Records live), ClickUp-Sandbox-Space, DemoSeed → 31 echte Projekte, hartkodierte Bugs gefixt, Force-Poll-Buttons. Details: [HANDOFF_LIVE_WIRING_1.md](docs/handoffs/HANDOFF_LIVE_WIRING_1.md) |
 | Live-Wiring, Session 2 | 🟡 | Google-Login client_secret-Fix, Fenster-Drift-Guard, Projekt-Favoriten klickbar, Drive-Routing über alle 31 Projekte (alle code-fertig, **Live-Verifikation ausstehend**), Assistent-Ausbauplan (nur geplant). Details: [HANDOFF_LIVE_WIRING_2.md](docs/handoffs/HANDOFF_LIVE_WIRING_2.md) |
 | Live-Wiring, Session 3 | ✅ | BrandsView-Navigationsbug behoben (`@FocusedBinding` nil → `onNavigateToSettings`-Callback), Live-App-Tour, OAuth-Handshake gesammelt. 169 Tests. Details: [HANDOFF_LIVE_WIRING_3.md](docs/handoffs/HANDOFF_LIVE_WIRING_3.md) |
+| Live-Wiring, Session 4 | 📋 | Clockodo Zuhörer + Partner-App Schema: 7 Airtable-Tabellen, Stundensätze, Kalkulationen/Positionen, Ownership-Modell, Merge-Plan. Details: [HANDOFF_LIVE_WIRING_4.md](docs/handoffs/HANDOFF_LIVE_WIRING_4.md) |
+| Live-Wiring, Session 5 | 📋 | mykilO$$ Vollintegration: `KalkulationsEngineProviding`-Protokoll, `AppState.kalkulationsEngine`-Slot, Airtable-Tabelle `Eingehende-Angebote` (tbliKfs5FnufjdB36), Integrationsplan. |
 
 ---
 
@@ -407,6 +409,64 @@ Angebote und Marken & Daten. Noch „ComingSoon": Projekt-Tabs Timeline und Mate
   Übersetzungsregistry in Airtable (Alt-Name ↔ neues `JJJJ-NR`-Schema),
   nicht direkt in mykilOS-Core.
 
+**Aus der Live-Wiring-Session 4 (2026-06-28) — Clockodo Zuhörer Architektur:**
+- Ziel: Natürliche Sprache im Assistenten-Chat → Clockodo-Zeitbuchung.
+  "habe grad 4h CAD für Heinz gemacht" → Draft → Wochenabschluss → POST.
+- **Kernregel:** Jeder angemeldete User bucht, sieht und editiert **ausschließlich
+  seine eigenen** Zeiteinträge. `ClockodoDraftEntry.clockodoUserID` filtert
+  auf GRDB-Ebene; Clockodo-API-Credentials pro User im Keychain.
+- **Airtable-Schema (live in `appuVMh3KDfKw4OoQ`):**
+  - `Clockodo-Nutzer` (`tblPbly2br8mR2kaU`): Name, E-Mail, Clockodo-User-ID,
+    Aktiv, **Airtable-Entwurf-Tabelle** (Feld `fldsoeQHWDmbBt7FM` — zeigt auf
+    die persönliche Entwurfstabelle des Users, selbstreferenziell).
+    4 Records mit allen User-IDs und Entwurfs-Tabellen-IDs.
+  - `Clockodo-EW-Johannes` (`tbl4vZ2UFyeTRD8hd`) — persönl. Arbeitstabelle.
+  - `Clockodo-EW-Jilliana` (`tblXQIDrvPVN9ijI9`) — persönl. Arbeitstabelle.
+  - `Clockodo-EW-Daniel`   (`tblNDVve3jjJ9s8HB`) — persönl. Arbeitstabelle.
+  - `Clockodo-EW-Frauke`   (`tblRrqIQZmm2DosJT`) — persönl. Arbeitstabelle.
+    Felder je EW-Tabelle: Datum, Von, Bis, Dauer-h, Projekt, Kunden-ID,
+    Leistung, Leistungs-ID, Notiz, Billable, KW, Quelle, Status.
+  - `Clockodo-Buchungen` (`tblYQxlauwej7FD1w`): Master-Audit-Log nach Bestätigung.
+  - `Clockodo-Leistungen` (`tblRtsegocdpM8CJd`): bereits befüllt (8 Services).
+  - `Kunden.Clockodo-Kunden-ID`: bereits gemappt (10 von 30 Kunden).
+- **6-Schichten-Architektur (Code noch nicht implementiert):**
+  1. Intent Layer: `ClaudeConversationEngine` erkennt `clockodoDraft`-Intent,
+     extrahiert Dauer, Leistungstyp, Kunden-/Projektreferenz.
+  2. Resolution Layer: `ClockodoDraftResolver` mappt Freitext auf echte IDs
+     (Airtable-Lookup, Fallback auf "Mykilos GmbH intern").
+  3. Draft Store: `ClockodoDraftEntry` (GRDB lokal) + Sync → persönliche
+     Airtable-EW-Tabelle (ID aus `Clockodo-Nutzer.Airtable-Entwurf-Tabelle`).
+  4. **Zwei UI-Orte (beide live):** ClockodoWidget (Heute-Seite, kompakt,
+     Wochenbalken + Quick-Add) UND Zeiten-Tab im Chat-Assistenten (voll,
+     editierbar, mit NLP-Eingabe). Beide lesen denselben Draft-Store.
+  5. Confirm → POST: `POST /api/v2/entries` mit User-Credentials →
+     AuditEntry (GRDB) + Record in `Clockodo-Buchungen` (Airtable-Master).
+     EW-Tabelle-Eintrag wechselt Status auf "Gebucht".
+  6. Mail/Kalender-Vorschläge: Claude liest Gmail + GCal → schlägt Drafts vor
+     (quelle: `.calendar` / `.mail`, Bestätigung erforderlich).
+- `POST /api/v2/entries` benötigt: `customers_id`, `services_id`, `time_since`,
+  `time_until`, `billable`. Endpoint ist aktiv (nicht deprecated).
+
+**Aus der Live-Wiring-Session 5 (2026-06-28) — mykilO$$ Vollintegration:**
+- **Entscheidung:** mykilO$$ ist keine eigenständige App mehr. Alle Kalkulations-
+  fähigkeiten (EvidenceBasedEstimator, BottomUpCostEngine, LearningStore,
+  ReviewCenter 815 Positionen, DeviceCatalog 13.419 Preise, PDF-Import-Pipeline)
+  werden als Modul in mykilOS 6 integriert. Alle Schreibrechte bei mykilOS 6.
+- **Protokoll:** `KalkulationsEngineProviding` + Typen (`KostenSchaetzung`,
+  `PriceEvidence`) in `Sources/MykilosKit/Domain/KalkulationsEngineProviding.swift`.
+  `AppState.kalkulationsEngine: (any KalkulationsEngineProviding)?` gesetzt (nil
+  bis Engine integriert ist).
+- **Airtable:** Alle 3 Kalkulations-Tabellen live in `appuVMh3KDfKw4OoQ`:
+  `Kalkulationen` (`tblO3y2jdmxDnuiZj`), `Kalkulations-Positionen`
+  (`tblNamx3cHTus6gtk`), **`Eingehende-Angebote`** (`tbliKfs5FnufjdB36`, neu —
+  SHA256-dedup, Lieferant, Netto-Summe, Status, Lern-Gewicht, Importiert-am).
+- **Vollständiger Merge-Plan:** [KALKULATION_INTEGRATION.md](docs/KALKULATION_INTEGRATION.md)
+  (10 Schritte, GRDB-Migration-Plan, UI-Slots, 59 Tests, Drive-Integration).
+- **Offener Punkt:** Stundensätze in `Clockodo-Leistungen` (Feld
+  `fld4NBokj4MoOy8Uq`) sind noch leer — manuell einzutragen.
+- **Offener Punkt:** Naming der `05 eingehende Angebote`-Kategorie-Unterordner
+  (Tischler, Stein + was noch?) — nur Johannes kann bestätigen.
+
 **Bekannte offene Punkte aus Schritt 1 (noch nicht relevant geworden):**
 - Ob Google "Desktop App"-OAuth-Clients bei PKCE zusätzlich ein `client_secret`
   verlangen, ist nicht live getestet (V5 unterstützte es optional, V6 aktuell
@@ -499,7 +559,10 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_LIVE_WIRING_1.md` — Airtable Mastermind-Base live (Schema + 69 Records), ClickUp-Testspace, Angebote-Tab-Bugfix, DemoSeed → echte Projekte, hartkodierte Bugs + Force-Poll erledigt
 - `docs/handoffs/HANDOFF_LIVE_WIRING_2.md` — Google-Login-Fix, Fenster-Drift-Guard, Projekt-Favoriten klickbar, Drive-Routing über alle Projekte, Assistent-Ausbauplan, Startprompt für Session 3
 - `docs/handoffs/HANDOFF_LIVE_WIRING_3.md` — BrandsView-Navigationsbug, Live-Tour-Befunde, OAuth-Handshake, Startprompt für Session 4
+- `docs/handoffs/HANDOFF_LIVE_WIRING_4.md` — Clockodo Zuhörer: Architektur, Airtable-Schema live, User-Scoping-Constraint, Startprompt für Implementierungs-Session
 - `docs/registry/README.md` — 3-Kopien-Redundanzmodell (Airtable/lokaler Cache/Git-JSON) für die Projekt-/Kunden-Registry
 - `docs/architecture/mykilOS6_Systemarchitektur.pdf` — Systemarchitektur (9 S., A4 quer): Integrations-Landkarte, Steckbriefe (Google/Clockodo/Airtable/ClickUp/Sevdesk/Claude), Signal-Nervensystem, GRDB-Persistenz, Funktionsbaum, Trigger-/Handle-Matrix; Quelle `.html` + `build_pdf.sh` daneben
+- `docs/PARTNER_APP_SCHEMA.md` — Airtable-Gesamtschema mykilOS 6 (nach Vollintegrations-Entscheidung aktualisiert): alle Tabellen-IDs, Clockodo-Nutzer-Records, Stundensatz-Priorität
+- `docs/KALKULATION_INTEGRATION.md` — mykilO$$ Vollintegrations-Plan: Modulstruktur, GRDB-Migration, UI-Slots, Tests, Drive-Integration, Merge-Reihenfolge
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
 - `docs/codex/WORKFLOW.md` — Session-Regeln für Codex-Sessions in diesem Repo

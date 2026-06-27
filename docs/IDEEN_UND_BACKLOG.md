@@ -62,6 +62,102 @@ Google Kontakten und aus dem gesamten Mail-Verlauf. Er kennt:
 
 ---
 
+## Clockodo Zuhörer — Smart Time Logger
+
+### 📋 Clockodo Zeitbuchung aus Assistent-Chat + Kalender/Mail-Vorschlägen
+**Quelle:** User-Wunsch 2026-06-28. Architektur definiert, Airtable-Schema live,
+Code-Implementierung steht noch aus (nächste Session).
+
+**Kernregel — User-Scoping:**
+Jeder angemeldete User bucht, sieht und editiert **ausschließlich seine eigenen**
+Zeiteinträge. `ClockodoDraftEntry` hat `clockodoUserID: Int`, alle GRDB-Queries
+filtern darauf. Clockodo-API-Credentials (E-Mail + API-Key) liegen per User im
+Keychain — wer die Creds nicht hat, kann nicht buchen. Clockodo erzwingt dies
+auch serverseitig (POST als eigener User-Account).
+
+**Airtable-Schema (live in `appuVMh3KDfKw4OoQ` seit 2026-06-28):**
+- `Clockodo-Nutzer` (`tblPbly2br8mR2kaU`) — 4 Records mit Feld
+  `Airtable-Entwurf-Tabelle` (`fldsoeQHWDmbBt7FM`) → zeigt auf persönl. EW-Tabelle.
+- `Clockodo-EW-Johannes` (`tbl4vZ2UFyeTRD8hd`) — persönliche Arbeitstabelle.
+- `Clockodo-EW-Jilliana` (`tblXQIDrvPVN9ijI9`) — persönliche Arbeitstabelle.
+- `Clockodo-EW-Daniel`   (`tblNDVve3jjJ9s8HB`) — persönliche Arbeitstabelle.
+- `Clockodo-EW-Frauke`   (`tblRrqIQZmm2DosJT`) — persönliche Arbeitstabelle.
+  Felder je EW-Tabelle: Datum, Von, Bis, Dauer-h, Projekt, Kunden-ID,
+  Leistung, Leistungs-ID, Notiz, Billable, KW, Quelle, Status.
+- `Clockodo-Buchungen` (`tblYQxlauwej7FD1w`) — Master-Audit-Log nach Bestätigung.
+- `Clockodo-Leistungen` (`tblRtsegocdpM8CJd`) — bereits befüllt (8 Services).
+- `Kunden.Clockodo-Kunden-ID` — gemappt für 10 von 30 Kunden.
+
+**6-Schichten-Architektur (Code pending):**
+1. **Intent Layer**: `ClaudeConversationEngine` neuer Intent `clockodoDraft`,
+   extrahiert Dauer + Leistungstyp + Kunden-/Projektreferenz aus Freitext.
+2. **Resolution Layer**: `ClockodoDraftResolver` → Airtable-Lookup → echte IDs.
+   Fallback bei unbekanntem Kunden: "Mykilos GmbH intern" + Freitext.
+   Mehrdeutigkeit → Assistent fragt nach, kein stilles Raten.
+3. **Draft Store — Dual**: `ClockodoDraftEntry` (GRDB lokal, user-scoped) +
+   Sync → persönliche `Clockodo-EW-{Name}`-Tabelle in Airtable.
+   EW-Tabellen-ID kommt aus `Clockodo-Nutzer.Airtable-Entwurf-Tabelle`.
+4. **Zwei UI-Orte (beides)**:
+   - ClockodoWidget (Heute-Seite): Quick-Add-Sheet + Wochenbalken, kompakt.
+   - Zeiten-Tab (Chat-Assistent): NLP-Eingabe, Detailansicht KW, Wochenabschluss.
+5. **Confirm → POST**: Bestätigung → `POST /api/v2/entries` mit User-Creds →
+   `AuditEntry` (GRDB) + Record in `Clockodo-Buchungen` (Airtable Master-Log).
+   EW-Tabelle-Status → "Gebucht". Nie automatisch buchen.
+6. **Mail/Kalender-Vorschläge**: Claude liest Gmail + GCal → schlägt Drafts vor
+   (quelle: `.calendar`/`.mail`). Gleicher Bestätigungs-Pfad.
+
+**API-Status:** `POST /api/v2/entries` aktiv. `GET /api/v2/clock` aktiv (Timer-Check).
+Pflichtfelder POST: `customers_id`, `services_id`, `time_since`, `time_until`, `billable`.
+
+**Offene Entscheidungen vor Implementierung:**
+- Wo sitzt die Wochenvorschau? (Neuer Chat-Tab "Zeiten" vs. ClockodoWidget-Erweiterung)
+- Format `time_since`/`time_until`: UTC oder lokale TZ? (Clockodo-Dokumentation prüfen)
+- Airtable-Schreibrecht für `Clockodo-Buchungen` nach Confirm: welcher Client?
+  (Bestehender `AirtableClient` kann Records anlegen — testen)
+
+---
+
+## Partner-App: Kalkulation & Preisschätzung
+
+### 📋 Shared-Airtable-Schema + Merge-Plan (KalkulationsApp)
+**Quelle:** User-Entscheidung 2026-06-28. Eine Partner-App für Kalkulation
+und Preisschätzung soll gleichberechtigt auf dieselbe Airtable-Base schreiben.
+Ein späterer Merge beider Apps ist geplant.
+
+**Status:** Schema vollständig in Airtable angelegt und dokumentiert.
+Details: [PARTNER_APP_SCHEMA.md](PARTNER_APP_SCHEMA.md)
+
+**Ownership-Modell (wer schreibt wohin):**
+- mykilOS SCHREIBT: Kunden, Projekte, Kontakte, Clockodo-* (alle)
+- KalkulationsApp SCHREIBT: Kalkulationen, Kalkulations-Positionen
+- BEIDE LESEN: alles
+
+**Neue Airtable-Tabellen (live seit 2026-06-28):**
+- `Kalkulationen` (`tblO3y2jdmxDnuiZj`) — Projektkostenrahmen und Angebote.
+  Felder: Bezeichnung, Projekt-Nr, Datum, Gültig bis, Status, Gesamt-netto,
+  Mehrwertsteuer, Gesamt-brutto, Notiz, App-Quelle.
+- `Kalkulations-Positionen` (`tblNamx3cHTus6gtk`) — Einzelpositionen je Kalkulation.
+  Felder: Bezeichnung, Kalkulation (Link), Kategorie (Honorar/Material/…),
+  Leistung (Link → Clockodo-Leistungen), Menge, Einheit, Stundensatz-Snapshot,
+  Einzelpreis, Gesamt, Notiz.
+
+**Neue Felder in bestehenden Tabellen:**
+- `Clockodo-Leistungen.Stundensatz (€/h)` (`fld4NBokj4MoOy8Uq`) — von beiden Apps gelesen.
+  **Noch leer — Büro-Stundensätze eintragen.**
+- `Clockodo-Nutzer.Stundensatz-Override (€/h)` (`fld9Ljvdo20qCwKIe`) — user-spezifische Rate.
+  Priorität: Override > Leistungs-Stundensatz.
+
+**Merge-Readiness:**
+- Keine App-Präfixe in Tabellennamen nötig (schon merge-fähig)
+- Linked Records über echte Airtable-IDs
+- Keine Datenmigration beim Merge — Code liest beide Tabellensätze
+
+**Noch offen:**
+- Stundensätze für die 8 Leistungsarten manuell eintragen (Bürogeheimnis).
+- Architektur der KalkulationsApp selbst (separates Repo/Projekt).
+
+---
+
 ## Assistent-Ausbau (großer Block, eigenes Dokument)
 
 ### 📋 Vollständiger Such-/Schreib-Ausbau des Assistenten
