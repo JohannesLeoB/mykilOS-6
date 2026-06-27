@@ -262,15 +262,24 @@ Die App ist feature-complete für Beta.
   - `Kalkulations-Positionen` (`tblNamx3cHTus6gtk`)
   - `Eingehende-Angebote` (`tbliKfs5FnufjdB36`) — SHA256, Lieferant,
     Netto-Summe, Anker-Anzahl, Status, Lern-Gewicht, Importiert-am
-- **Noch offen (10-Schritte-Merge-Plan in KALKULATION_INTEGRATION.md):**
-  - `KalkulationsEngine` aus mykilO$$ in `MykilosServices/Kalkulation/` portieren
-  - `KalkulationsLearningStore` GRDB-backed (Cold-Start-Test Pflicht)
-  - `PDFImportPipeline` (Drive → SHA256-Dedup → Airtable)
-  - `KalkulationsView` als Projekt-Tab, `KalkulationsActionCard` im Assistenten
-  - 59 Tests migrieren (LearningStore Cold-Start nicht optional)
+- **Verifizierte Architektur (2026-06-28, nach Lesung des echten mykilO$$-Codes):**
+  - `KalkulationsCore` (10 Dateien) importiert nur Foundation → eigenes Target
+    **`MykilosKalkulationsCore`** (NICHT `MykilosServices/Kalkulation/`, das hat GRDB).
+  - Zweistufig: `parse(_:) -> EstimateRequest` (Semantik) dann `estimate(_:)` (Preis).
+  - LearningStore in eigener `learning.sqlite` (nicht Haupt-GRDB-Migration).
+  - `AirtableSyncService.swift` löschen (ENV-Secrets, fremde Base `appkPzoEiI5eSMkNK`, Blocking).
+  - `CostModel.stages` hardcoded → leere Stundensatz-Spalte blockiert Kostenboden nicht.
+  - Vollständig + Port-Reihenfolge: [HANDOFF_LIVE_WIRING_5.md → Teil 2](docs/handoffs/HANDOFF_LIVE_WIRING_5.md).
+- **HARTER BLOCKER:** Geschwister-Typen (`CarryforwardRule`, `CalibrationFactor`,
+  `CalibrationTarget`, `AppliedCalibrationFactor`, `GermanNumberParser`) sind in
+  `Estimation.swift` referenziert aber nicht in den Core-Dateien — Pfade von mykilO$$
+  ausstehend, sonst kein Compile.
+- **Korpus-Entscheidung (V4_MoneyObservations, 3.383 Beobachtungen):** beides —
+  Tabelle `Preis-Beobachtungen` in Mastermind-Base + destilliertes Seed-`sqlite` zur
+  Laufzeit; alte Base `appkPzoEiI5eSMkNK` wird stillgelegt.
 - **Offene Datenfragen:**
   - Stundensätze in `Clockodo-Leistungen.Stundensatz (€/h)` (`fld4NBokj4MoOy8Uq`)
-    noch leer — manuell einzutragen.
+    noch leer — manuell einzutragen (blockiert Kostenboden aber NICHT, siehe oben).
   - Welche Kategorie-Unterordner unter `05 eingehende Angebote`? (Tischler,
     Stein + was noch?) — nur Johannes kann bestätigen.
 
