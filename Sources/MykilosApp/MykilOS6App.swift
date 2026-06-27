@@ -106,7 +106,11 @@ struct ContentView: View {
 
     private var shell: some View {
         HStack(spacing: 0) {
-            SidebarView(selection: $module, onOpenProfile: { showOnboarding = true })
+            SidebarView(selection: $module, onOpenProfile: {
+                // Profil vollständig → direkt zu Einstellungen; sonst Wizard.
+                if appState.profile.profile?.isComplete == true { module = .settings }
+                else { showOnboarding = true }
+            })
             Divider().overlay(MykColor.line.color)
             moduleView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
