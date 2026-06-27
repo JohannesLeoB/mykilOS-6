@@ -194,7 +194,7 @@ struct ChatMessageBubble: View {
             .padding(.horizontal, MykSpace.s5).padding(.vertical, MykSpace.s4)
             .background(RoundedRectangle(cornerRadius: MykRadius.md).fill(MykColor.card.color))
         } else {
-            Text(message.text)
+            Text(Self.rendered(message.text))
                 .font(.mykBody)
                 .foregroundStyle(message.role == .user ? MykColor.paper.color : MykColor.ink.color)
                 .textSelection(.enabled)
@@ -204,5 +204,15 @@ struct ChatMessageBubble: View {
                         .fill(message.role == .user ? MykColor.ink.color : MykColor.card.color)
                 )
         }
+    }
+
+    // Markdown des Assistenten interpretieren (fett/kursiv/Code/Links), Zeilen-
+    // umbrüche erhalten. Block-Elemente (Tabellen/Überschriften) bleiben als Text
+    // lesbar — kein Roh-`**`/`|` mehr.
+    static func rendered(_ raw: String) -> AttributedString {
+        (try? AttributedString(
+            markdown: raw,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        )) ?? AttributedString(raw)
     }
 }

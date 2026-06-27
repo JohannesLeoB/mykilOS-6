@@ -32,7 +32,7 @@ struct ClaudeChatRequestPayload: Encodable, Equatable {
 // Multi-Turn-Chat über die Anthropic Messages API. Parallel zum bestehenden
 // ClaudeMessagesClient (Einmal-Summary bleibt unangetastet). Teilt
 // Keychain-Credentials + injizierbaren HTTP-Client → testbar ohne Netz/Keychain.
-public struct ClaudeChatClient {
+public struct ClaudeChatClient: AssistantChatProviding {
     private let credentialsStore: ClaudeCredentialsStoring
     private let httpClient: ClaudeHTTPClient
     private let baseURL: URL

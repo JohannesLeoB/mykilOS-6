@@ -3,11 +3,11 @@ import MykilosKit
 
 // MARK: - AssistantChatProviding
 // Abstrahiert den Chat-Aufruf, damit die Engine ohne Netz/Keychain testbar ist.
+// (ClaudeChatClient erklärt seine Konformität in seiner eigenen Datei, sonst
+// wäre die Sendable-Konformität „retroactive" → Swift-6-Fehler.)
 public protocol AssistantChatProviding: Sendable {
     func chat(messages: [ChatMessage], system: String, maxTokens: Int) async throws -> String
 }
-
-extension ClaudeChatClient: AssistantChatProviding {}
 
 // MARK: - ConversationEngine
 // Orchestriert einen Chat-Turn: User-Nachricht anhängen → Platzhalter-Antwort
