@@ -270,10 +270,14 @@ Die App ist feature-complete für Beta.
   - `AirtableSyncService.swift` löschen (ENV-Secrets, fremde Base `appkPzoEiI5eSMkNK`, Blocking).
   - `CostModel.stages` hardcoded → leere Stundensatz-Spalte blockiert Kostenboden nicht.
   - Vollständig + Port-Reihenfolge: [HANDOFF_LIVE_WIRING_5.md → Teil 2](docs/handoffs/HANDOFF_LIVE_WIRING_5.md).
-- **HARTER BLOCKER:** Geschwister-Typen (`CarryforwardRule`, `CalibrationFactor`,
-  `CalibrationTarget`, `AppliedCalibrationFactor`, `GermanNumberParser`) sind in
-  `Estimation.swift` referenziert aber nicht in den Core-Dateien — Pfade von mykilO$$
-  ausstehend, sonst kein Compile.
+- **✅ BLOCKER GELÖST (2026-06-28):** Alle Geschwister-Typen liegen in den 10
+  KalkulationsCore-Dateien (`CarryforwardRule`=Review.swift:33, `GermanNumberParser`=Parsing.swift:3,
+  Calibration-Typen in LearningModels.swift). Kompletter verbatim Port der 10 Dateien.
+  Reconciliation: `EstimateSession.id` ist `String` → `KostenSchaetzung.id` + `recordAdjustment`
+  auf String umstellen. Port-Reihenfolge in Handoff Teil 3.
+- **⚠️ NEUE OFFENE ENTSCHEIDUNG — Destillation:** `activeAnchors()` liest CSVs, nicht die sqlite;
+  die 3.383→204-Destillation ist externer Python-Code, nicht reproduzierbar in Swift. V2-Pipeline
+  nachbauen oder extern+manuell triggern? Plus: `gen_lexicon.py` fehlt → MaterialLexicon manuell.
 - **Korpus-Entscheidung (V4_MoneyObservations, 3.383 Beobachtungen):** beides —
   Tabelle `Preis-Beobachtungen` in Mastermind-Base + destilliertes Seed-`sqlite` zur
   Laufzeit; alte Base `appkPzoEiI5eSMkNK` wird stillgelegt.
