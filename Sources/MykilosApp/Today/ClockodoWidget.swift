@@ -156,53 +156,17 @@ private struct TimeBar: View {
 }
 
 // MARK: - RecentActivityWidget
+// Platzhalter bis Drive-Change-Tracking und ClickUp-Listen-IDs implementiert sind.
+// Zeigt kein Demo-Material — sauberer Empty-State statt erfundener Einträge.
 struct RecentActivityWidget: View {
     var body: some View {
         WidgetContainer(
             kind: .recentActivity,
             sourceLabel: "DRIVE + CLICKUP  ·  LETZTE AKTIVITÄT",
-            renderState: .content,
+            renderState: .empty,
             projectID: "home"
         ) {
-            VStack(alignment: .leading, spacing: MykSpace.s5) {
-                HStack {
-                    SourceChip(kind: .recentActivity)
-                    Text("Letzte Aktivität").mykWidgetTitle()
-                    Spacer()
-                }
-                VStack(spacing: 0) {
-                    ForEach(demoActivity, id: \.title) { item in
-                        ActivityRow(item: item)
-                        if item.title != demoActivity.last?.title {
-                            Divider().overlay(MykColor.line.color.opacity(0.5))
-                        }
-                    }
-                }
-            }
+            EmptyView()
         }
-    }
-
-    struct ActivityItem { let icon: String; let title: String; let sub: String; let color: Color }
-    var demoActivity: [ActivityItem] {[
-        ActivityItem(icon: "folder",    title: "Zeichnung Bartresen_v3.pdf", sub: "DRIVE · MEYER · vor 2 Std", color: MykColor.drive.color),
-        ActivityItem(icon: "checklist", title: "Korpusmaße an Tischlerei",   sub: "CLICKUP · MEYER · vor 4 Std", color: MykColor.tasks.color),
-        ActivityItem(icon: "folder",    title: "Moodboard Loft Küche.pdf",   sub: "DRIVE · LOFT · gestern",     color: MykColor.drive.color),
-    ]}
-}
-
-private struct ActivityRow: View {
-    let item: RecentActivityWidget.ActivityItem
-    var body: some View {
-        HStack(spacing: MykSpace.s4) {
-            Image(systemName: item.icon)
-                .font(.mykCaption)
-                .foregroundStyle(item.color)
-                .frame(width: 20)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title).font(.mykSmall).foregroundStyle(MykColor.ink.color).lineLimit(1)
-                Text(item.sub).font(.mykMono(9.5)).foregroundStyle(MykColor.muted.color)
-            }
-        }
-        .padding(.vertical, MykSpace.s3)
     }
 }

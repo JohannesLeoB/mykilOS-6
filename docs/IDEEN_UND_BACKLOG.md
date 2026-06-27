@@ -153,22 +153,26 @@ ProjectKind" (oben) steht und die Datenqualität dafür ausreicht.
 
 ## Bugs (real, kein Feature-Wunsch)
 
-### 📋 Hartkodierte Demo-Werte in drei Widgets
-**Quelle:** Code-Audit in Live-Wiring-Session 1.
-- `ProjectHeroView.swift` — Budget-Balken fix auf 72 % für jedes Projekt.
-- `FocusWidget.swift` — Text ignoriert das echte `projectID` des Signals.
-- `CashWidget.swift` — Angebotstext hartkodiert, "In Review übernehmen"
-  persistiert nichts (nur `@State`, kein Audit-Eintrag).
+### ✅ Hartkodierte Demo-Werte in drei Widgets — behoben
+**Quelle:** Code-Audit in Live-Wiring-Session 1. **Behoben 2026-06-27.**
+- `ProjectHeroView.swift` — Budget-Balken zeigt jetzt echtes Airtable-Budget
+  oder gar nichts (kein Fake-72-%-Wert mehr).
+- `FocusWidget.swift` — nutzt echte `projectID` + Registry-Lookup für Titel.
+- `CashWidget.swift` — liest echten Signal-Label aus `.reviewSuggested`,
+  "In Review übernehmen" schreibt in `AuditStore` (persistiert über Neustarts).
 
-Details mit exakten Zeilennummern:
-[HANDOFF_LIVE_WIRING_1.md](handoffs/HANDOFF_LIVE_WIRING_1.md) Abschnitt 5a,
-Schritt B.
+### ✅ Demo-Signal-Buttons emittieren Fake-Signale — behoben
+**Quelle:** Code-Audit. **Behoben 2026-06-27.**
+`SignalDemoView.swift` (Projektdetail) und `HomeForcePollButton` (Heute-Board)
+lösen jetzt echten `DriveOfferWatcher.poll(...)` mit echter `projectID` aus
+statt ein hartkodiertes Fake-Signal für `"ME-24"` zu emittieren.
 
-### 📋 Demo-Signal-Buttons emittieren Fake-Signale statt echten Poll
-**Quelle:** Code-Audit. `SignalDemoView.swift` + `TodayView.swift` (Zeile
-144–146, feste Projekt-ID `"ME-24"` — bricht, sobald DemoSeed ersetzt
-wird). Soll `DriveOfferWatcher.poll(...)` für das echte Projekt sofort
-auslösen statt ein Fake-Signal zu emittieren.
+### ✅ RecentActivityWidget zeigt Demo-Daten — behoben
+**Quelle:** Code-Audit 2026-06-27. **Behoben 2026-06-27.**
+Das Widget zeigte immer dieselben drei erfundenen Einträge ("Zeichnung
+Bartresen_v3.pdf · MEYER" etc.) ohne reale Datenquelle. Fix: sauberer
+Empty-State statt Demo-Content; echte Implementierung folgt sobald
+Drive-Change-Tracking und ClickUp-Listen-IDs umgesetzt sind.
 
 ---
 
