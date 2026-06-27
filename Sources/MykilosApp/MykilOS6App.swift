@@ -69,12 +69,10 @@ struct ContentView: View {
     @AppStorage("onboarding.hasCompleted") private var hasCompleted = false
     @State private var showOnboarding = false
 
-    // Direkt nutzbar (ohne Setup-Zwang): der Wizard erzwingt sich beim ersten
-    // Start NUR, wenn die App noch nicht einsatzbereit ist — also Claude (das
-    // Gehirn) nicht verbunden. Ist Claude bereits da (z. B. eingerichtete
-    // Maschine), öffnet die App direkt. Der Wizard bleibt über den Sidebar-
-    // Profil-Eintrag (showOnboarding) jederzeit manuell erreichbar. hasCompleted
-    // = reiner Erst-Start-Marker; erneutes Öffnen NIE über hasCompleted-Reset.
+    // Direkt nutzbar: der Wizard erzwingt sich beim ersten Start NUR, wenn Claude
+    // fehlt (= Assistent stumm). Google ist "empfohlen", nicht Pflicht — wer nur
+    // Claude verbindet, bekommt den vollen Chat-Assistenten, nur ohne Live-Tools.
+    // Konsistent mit Wizard-Copy und doneReady in OnboardingWizardView.
     private var essentialsConnected: Bool { appState.claudeAuth.status == .connected }
     private var isOnboardingUp: Bool {
         showOnboarding || (hasCompleted == false && essentialsConnected == false)

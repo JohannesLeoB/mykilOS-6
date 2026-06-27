@@ -91,11 +91,11 @@ struct OnboardingWizardView: View {
         VStack(alignment: .leading, spacing: MykSpace.s5) {
             Text("Willkommen.")
                 .font(.mykDisplay).foregroundStyle(MykColor.ink.color)
-            Text("Zwei Dinge bringen dein Cockpit zum Leben:")
+            Text("Ein Schritt, um den Assistenten zum Laufen zu bringen:")
                 .font(.mykBody).foregroundStyle(MykColor.inkSoft.color)
-            bullet("Claude — das Gehirn des Assistenten.")
-            bullet("Google Workspace — deine Daten, nur lesend (Drive, Kalender, Gmail, Kontakte).")
-            Text("Dauert keine drei Minuten. Du kannst alles später in den Einstellungen ändern.")
+            bullet("Claude — das Gehirn. Ohne Claude bleibt der Assistent stumm.")
+            bullet("Google Workspace — empfohlen. Mail, Kalender, Drive live lesen (nur lesend).")
+            Text("Claude genügt für den Start. Google ergänzt du jederzeit in den Einstellungen.")
                 .font(.mykSmall).foregroundStyle(MykColor.muted.color)
         }
     }
@@ -127,7 +127,7 @@ struct OnboardingWizardView: View {
 
     private var googleBody: some View {
         VStack(alignment: .leading, spacing: MykSpace.s5) {
-            stepTitle("Google verbinden", "Nur Lesezugriff — Drive, Kalender, Gmail, Kontakte. Essenziell für Live-Antworten.")
+            stepTitle("Google verbinden", "Empfohlen — Lesezugriff auf Drive, Kalender, Gmail, Kontakte. Kannst du überspringen.")
             ConnectionStatusView(state: googleDisplay)
             labeledField("OAuth-Client-ID (Desktop App)", text: $googleClientID, placeholder: "…apps.googleusercontent.com")
             Button(appState.googleAuth.status == .connecting ? "Verbindet…" : "Verbinden") { connectGoogle() }
@@ -151,19 +151,25 @@ struct OnboardingWizardView: View {
     private var doneBody: some View {
         VStack(alignment: .leading, spacing: MykSpace.s5) {
             if doneReady {
-                Text("Alles bereit. ✨")
+                Text("Startklar. 🚀")
                     .font(.mykDisplay).foregroundStyle(MykColor.ink.color)
-                Text("Claude und Google sind verbunden — der Assistent kann deine Projekte, Mails und Termine lesen und mitdenken.")
+                Text("Claude und Google sind verbunden — der Assistent denkt mit und kann Mails, Kalender und Projekte live lesen.")
                     .font(.mykBody).foregroundStyle(MykColor.inkSoft.color)
-            } else {
-                Text("Fast fertig.")
+            } else if appState.claudeAuth.status == .connected {
+                Text("Assistent bereit.")
                     .font(.mykDisplay).foregroundStyle(MykColor.ink.color)
-                Text("Der Assistent antwortet erst voll, wenn Claude UND Google verbunden sind.")
+                Text("Claude ist verbunden — du kannst sofort loslegen. Google ergänzt Live-Zugriffe auf Mail und Kalender.")
                     .font(.mykBody).foregroundStyle(MykColor.inkSoft.color)
                 HStack(spacing: MykSpace.s5) {
                     miniStatus("Claude", claudeDisplay)
                     miniStatus("Google", googleDisplay)
                 }
+            } else {
+                Text("Claude fehlt noch.")
+                    .font(.mykDisplay).foregroundStyle(MykColor.ink.color)
+                Text("Ohne Claude-Key bleibt der Assistent stumm. Trage ihn in den Einstellungen nach.")
+                    .font(.mykBody).foregroundStyle(MykColor.inkSoft.color)
+                miniStatus("Claude", claudeDisplay)
             }
         }
     }
@@ -255,6 +261,9 @@ struct OnboardingWizardView: View {
     }
 
     // MARK: Status-Mapper
+    // Volle Bereitschaft = Claude UND Google. Claude allein = "Assistent bereit".
+    // Wizard nennt Google "empfohlen" (nicht erzwingend) — essentialsConnected in
+    // ContentView prüft nur Claude, was dazu konsistent ist.
     private var doneReady: Bool {
         appState.claudeAuth.status == .connected && appState.googleAuth.status == .connected
     }
