@@ -5,6 +5,17 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 
 ---
 
+## Ideen & Backlog
+
+**Vor jeder Session lesen, am Ende aktualisieren:**
+[docs/IDEEN_UND_BACKLOG.md](docs/IDEEN_UND_BACKLOG.md) — lebendes Dokument
+für alles, was angedacht aber noch nicht entschieden/umgesetzt ist. Anders
+als die Handoffs unten (die sind abgeschlossene Session-Protokolle) ist das
+hier der dauerhafte Sammelort für offene Ideen, egal in welcher Session sie
+entstanden sind.
+
+---
+
 ## Wo wir stehen
 
 **🟢 Release 6.3.0 — App-Vollständigkeit + Phase 3 CalendarActionCard (Branch `sprint/shared-drive-widget-oauth`).**
