@@ -6,8 +6,8 @@ import MykilosServices
 // MARK: - BrandsView
 // Sidebar-Modul "Marken & Daten": Integrations-Dashboard aller Datenquellen.
 struct BrandsView: View {
+    var onNavigateToSettings: () -> Void = {}
     @Environment(AppState.self) private var appState
-    @FocusedBinding(\.activeModule) private var activeModule
 
     var body: some View {
         ScrollView {
@@ -33,48 +33,48 @@ struct BrandsView: View {
                         icon: "person.crop.circle",
                         color: MykColor.drive.color,
                         state: googleState
-                    ) { activeModule = .settings }
+                    ) { onNavigateToSettings() }
                     IntegrationCard(
                         name: "Claude",
                         detail: "Assistent · Chat · Analyse",
                         icon: "sparkles",
                         color: MykColor.personal.color,
                         state: claudeState
-                    ) { activeModule = .settings }
+                    ) { onNavigateToSettings() }
                     IntegrationCard(
                         name: "Airtable",
                         detail: "Projektsync · System-of-Record",
                         icon: "table",
                         color: MykColor.tasks.color,
                         state: airtableState
-                    ) { activeModule = .settings }
+                    ) { onNavigateToSettings() }
                     IntegrationCard(
                         name: "ClickUp",
                         detail: "Aufgaben · Tasks-Widget",
                         icon: "checklist",
                         color: MykColor.tasks.color,
                         state: clickUpState
-                    ) { activeModule = .settings }
+                    ) { onNavigateToSettings() }
                     IntegrationCard(
                         name: "Clockodo",
                         detail: "Zeiterfassung",
                         icon: "clock",
                         color: MykColor.people.color,
                         state: clockodoState
-                    ) { activeModule = .settings }
+                    ) { onNavigateToSettings() }
                     IntegrationCard(
                         name: "Sevdesk",
                         detail: "Rechnungen · Cash-Widget",
                         icon: "eurosign",
                         color: MykColor.cash.color,
                         state: sevdeskState
-                    ) { activeModule = .settings }
+                    ) { onNavigateToSettings() }
                 }
 
                 Divider().overlay(MykColor.line.color)
 
                 Button {
-                    activeModule = .settings
+                    onNavigateToSettings()
                 } label: {
                     HStack(spacing: MykSpace.s3) {
                         Image(systemName: "gearshape")

@@ -141,7 +141,7 @@ struct ContentView: View {
         case .projects:  ProjectGalleryView()
         case .assistant: AssistantPageView()
         case .offers:    GlobalOffersView()
-        case .brands:    BrandsView()
+        case .brands:    BrandsView(onNavigateToSettings: { module = .settings })
         case .settings:  SettingsView()
         }
     }

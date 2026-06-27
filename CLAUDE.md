@@ -23,7 +23,7 @@ Notizen, Clockodo, Kontakte, Bilder, Angebote).
 
 ## Wo wir stehen
 
-**🟢 Release 6.3.0 — App-Vollständigkeit + Phase 3 CalendarActionCard (Branch `sprint/shared-drive-widget-oauth`).**
+**🟢 Release 6.3.0 — App-Vollständigkeit + Phase 3 CalendarActionCard + BrandsView-Fix (Branch `sprint/shared-drive-widget-oauth`).**
 Alle ursprünglichen „in Vorbereitung"-Oberflächen sind live. **Sidebar:** Angebote
 (`GlobalOffersView`) und Marken & Daten (`BrandsView`, Integrations-Dashboard).
 **Projekt-Tabs:** Assistent (Chat scoped auf Projektnummer) und Dateien (`FilesTabView`).
@@ -31,6 +31,7 @@ Alle ursprünglichen „in Vorbereitung"-Oberflächen sind live. **Sidebar:** An
 Claude einen Termin empfiehlt, erscheint eine klickbare Karte die Google Kalender im
 Browser öffnet (kein API-Write, nur URL). `.calendarAction`-Block in `ChatContentBlock`,
 nie an die API gesendet. **169 Tests grün.** Offen: Google live verifizieren.
+**Session 3 (Bugfix):** `BrandsView`-Navigationsbug behoben — `@FocusedBinding` → Callback.
 **Aufgabe 14 (Bugfixes + Streaming):** SSE-Streaming live tippend, UserProfile im Prompt,
 dynamische Beispielfragen, Chat-Verlauf-Löschen, 2 Bugfixes (Integer-Decode, Wizard-X).
 
@@ -87,6 +88,7 @@ Daten sind heilig; bei Datenverlust-Gefahr warnen.
 | Post-Akt 5, Aufgabe 20 | ✅ | Phase 3: `SuggestCalendarEventTool` + `CalendarActionCard` + `.calendarAction` Block (URL → Browser, kein API-Write) — 169 Tests, Version 6.3.0 |
 | Live-Wiring, Session 1 | ✅ | Angebote-Tab-Bugfix, Airtable-Base "mykilOS Mastermind" (Schema + 69 Records live), ClickUp-Sandbox-Space, DemoSeed → 31 echte Projekte, hartkodierte Bugs gefixt, Force-Poll-Buttons. Details: [HANDOFF_LIVE_WIRING_1.md](docs/handoffs/HANDOFF_LIVE_WIRING_1.md) |
 | Live-Wiring, Session 2 | 🟡 | Google-Login client_secret-Fix, Fenster-Drift-Guard, Projekt-Favoriten klickbar, Drive-Routing über alle 31 Projekte (alle code-fertig, **Live-Verifikation ausstehend**), Assistent-Ausbauplan (nur geplant). Details: [HANDOFF_LIVE_WIRING_2.md](docs/handoffs/HANDOFF_LIVE_WIRING_2.md) |
+| Live-Wiring, Session 3 | ✅ | BrandsView-Navigationsbug behoben (`@FocusedBinding` nil → `onNavigateToSettings`-Callback), Live-App-Tour, OAuth-Handshake gesammelt. 169 Tests. Details: [HANDOFF_LIVE_WIRING_3.md](docs/handoffs/HANDOFF_LIVE_WIRING_3.md) |
 
 ---
 
@@ -496,6 +498,7 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_POST_AKT5_14_BUGFIXES.md` — Bugfixes #1/#2 + Streaming Phase 1e + UserProfile im Prompt + dynamische Beispielfragen + Chat-Löschen (163 Tests, Version 6.2.0)
 - `docs/handoffs/HANDOFF_LIVE_WIRING_1.md` — Airtable Mastermind-Base live (Schema + 69 Records), ClickUp-Testspace, Angebote-Tab-Bugfix, DemoSeed → echte Projekte, hartkodierte Bugs + Force-Poll erledigt
 - `docs/handoffs/HANDOFF_LIVE_WIRING_2.md` — Google-Login-Fix, Fenster-Drift-Guard, Projekt-Favoriten klickbar, Drive-Routing über alle Projekte, Assistent-Ausbauplan, Startprompt für Session 3
+- `docs/handoffs/HANDOFF_LIVE_WIRING_3.md` — BrandsView-Navigationsbug, Live-Tour-Befunde, OAuth-Handshake, Startprompt für Session 4
 - `docs/registry/README.md` — 3-Kopien-Redundanzmodell (Airtable/lokaler Cache/Git-JSON) für die Projekt-/Kunden-Registry
 - `docs/architecture/mykilOS6_Systemarchitektur.pdf` — Systemarchitektur (9 S., A4 quer): Integrations-Landkarte, Steckbriefe (Google/Clockodo/Airtable/ClickUp/Sevdesk/Claude), Signal-Nervensystem, GRDB-Persistenz, Funktionsbaum, Trigger-/Handle-Matrix; Quelle `.html` + `build_pdf.sh` daneben
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
