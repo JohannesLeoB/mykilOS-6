@@ -64,12 +64,17 @@ struct TodayView: View {
 
     private var greetingText: String {
         let hour = Calendar.current.component(.hour, from: Date())
+        let base: String
         switch hour {
-        case 5..<12: return "Guten Morgen."
-        case 12..<17: return "Guten Nachmittag."
-        case 17..<22: return "Guten Abend."
-        default: return "Noch wach?"
+        case 5..<12: base = "Guten Morgen"
+        case 12..<17: base = "Guten Nachmittag"
+        case 17..<22: base = "Guten Abend"
+        default: base = "Noch wach"
         }
+        if let name = appState.profile.profile?.displayName, name.isEmpty == false {
+            return "\(base), \(name)."
+        }
+        return "\(base)."
     }
 }
 
