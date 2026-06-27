@@ -81,6 +81,22 @@ struct ConversationEngineTests {
         #expect(last?.blocks.contains { if case .toolActivity = $0 { true } else { false } } == true)
     }
 
+    // MARK: Streaming-Pfad (toolsEnabled: false → streamText-Fallback via Default-Extension)
+    @Test func sendStreamtTextInkrementiell() async throws {
+        let store = ChatStore(db: try GRDBDatabase.inMemory())
+        // MultiDeltaProvider gibt 3 Deltas über streamText zurück.
+        let provider = MultiDeltaProvider(deltas: ["Hallo", " Welt", "!"])
+        let engine = ConversationEngine(chatStore: store, provider: provider)
+        await engine.send("hi", scope: .home, focusedProjectID: nil, signals: [], projects: [], toolsEnabled: false)
+        let msgs = store.messages(for: .home)
+        #expect(msgs.count == 2)
+        // Finaler Text ist die Summe aller Deltas.
+        #expect(msgs[1].text == "Hallo Welt!")
+        #expect(msgs[1].status == .complete)
+        // Provider.respond() darf NICHT aufgerufen werden — Streaming nutzt streamText().
+        #expect(provider.respondCallCount == 0)
+    }
+
     @Test func toolSchleifeRespektiertOptInAus() async throws {
         let store = ChatStore(db: try GRDBDatabase.inMemory())
         let registry = AssistantToolRegistry.standard(gmail: FakeGmailForEngine(messages: []))
@@ -88,6 +104,28 @@ struct ConversationEngineTests {
         let engine = ConversationEngine(chatStore: store, provider: provider, registry: registry)
         await engine.send("frage", scope: .home, focusedProjectID: nil, signals: [], projects: [], toolsEnabled: false)
         #expect(provider.lastTools.isEmpty)   // Opt-in aus → keine Tools an die API
+    }
+}
+
+// Provider, der streamText mit mehreren Deltas simuliert (kein respond()-Aufruf).
+private final class MultiDeltaProvider: AssistantConversing, @unchecked Sendable {
+    let deltas: [String]
+    private(set) var respondCallCount = 0
+    init(deltas: [String]) { self.deltas = deltas }
+
+    func respond(messages: [ChatMessage], system: String, tools: [ClaudeToolDefinition], maxTokens: Int) async throws -> ClaudeChatResponse {
+        respondCallCount += 1
+        return ClaudeChatResponse(text: deltas.joined(), toolUses: [], stopReason: "end_turn")
+    }
+
+    func streamText(messages: [ChatMessage], system: String, tools: [ClaudeToolDefinition], maxTokens: Int) -> AsyncThrowingStream<String, Error> {
+        let d = deltas
+        return AsyncThrowingStream { continuation in
+            Task {
+                for delta in d { continuation.yield(delta) }
+                continuation.finish()
+            }
+        }
     }
 }
 

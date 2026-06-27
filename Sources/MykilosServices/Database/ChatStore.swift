@@ -69,6 +69,24 @@ public final class ChatStore {
         }
     }
 
+    /// Aktualisiert den Text eines Assistenten-Turns OHNE DB-Write (Streaming-Delta).
+    /// @Observable löst den UI-Update aus; updateAssistantTurn schreibt am Ende in die DB.
+    public func updateStreamingText(id: UUID, text: String, in scope: ChatScope) {
+        let key = scope.rawKey
+        guard var list = byScope[key],
+              let index = list.firstIndex(where: { $0.id == id }) else { return }
+        var updated = list[index]
+        var blocks = updated.blocks
+        if let ti = blocks.firstIndex(where: { if case .text = $0 { true } else { false } }) {
+            blocks[ti] = .text(text)
+        } else {
+            blocks.insert(.text(text), at: 0)
+        }
+        updated.blocks = blocks
+        list[index] = updated
+        byScope[key] = list
+    }
+
     /// Aktualisiert einen bestehenden Assistenten-Turn (Streaming-Abschluss).
     public func updateAssistantTurn(
         id: UUID,

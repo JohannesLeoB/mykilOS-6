@@ -9,6 +9,32 @@ public protocol AssistantConversing: Sendable {
     func respond(
         messages: [ChatMessage], system: String, tools: [ClaudeToolDefinition], maxTokens: Int
     ) async throws -> ClaudeChatResponse
+
+    // Protokoll-Anforderung (kein Extension-only) damit Dynamic Dispatch über
+    // `any AssistantConversing` die konkrete Implementierung aufruft.
+    func streamText(
+        messages: [ChatMessage], system: String, tools: [ClaudeToolDefinition], maxTokens: Int
+    ) -> AsyncThrowingStream<String, Error>
+}
+
+extension AssistantConversing {
+    /// Default: respond() als Einzel-Delta-Stream (ScriptedProvider/Fallback ohne Netz).
+    /// ClaudeChatClient überschreibt das mit echtem SSE.
+    public func streamText(
+        messages: [ChatMessage], system: String, tools: [ClaudeToolDefinition], maxTokens: Int
+    ) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    let r = try await respond(messages: messages, system: system, tools: tools, maxTokens: maxTokens)
+                    if r.text.isEmpty == false { continuation.yield(r.text) }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
 }
 
 // MARK: - ConversationEngine
@@ -70,7 +96,11 @@ public final class ConversationEngine {
 
         do {
             var activities: [ChatContentBlock] = []
-            let finalText = try await runLoop(convo: &convo, activities: &activities, system: system, tools: tools)
+            let placeholderID = placeholder.id
+            let onTextDelta: (String) -> Void = { [chatStore] text in
+                chatStore.updateStreamingText(id: placeholderID, text: text, in: scope)
+            }
+            let finalText = try await runLoop(convo: &convo, activities: &activities, system: system, tools: tools, onTextDelta: onTextDelta)
             // Tool-Spuren (Transparenz) vor die Antwort; nur Anzeige, nicht an die API.
             try chatStore.updateAssistantTurn(
                 id: placeholder.id, blocks: activities + [.text(finalText)], status: .complete, in: scope
@@ -86,13 +116,22 @@ public final class ConversationEngine {
     }
 
     // Agentische Schleife. Sammelt nebenbei sichtbare Tool-Spuren (activities)
-    // und gibt den finalen Antworttext zurück.
+    // und gibt den finalen Antworttext zurück. Bei leerer Tools-Liste (kein Opt-in
+    // oder keine Tools) wird direkt gestreamt — onTextDelta liefert Akkumulierungs-
+    // zwischenstände für inkrementelle UI-Updates.
     private func runLoop(
         convo: inout [ChatMessage],
         activities: inout [ChatContentBlock],
         system: String,
-        tools: [ClaudeToolDefinition]
+        tools: [ClaudeToolDefinition],
+        onTextDelta: ((String) -> Void)? = nil
     ) async throws -> String {
+        // Tool-loses Streaming: Claude gibt garantiert keinen tool_use zurück →
+        // direkt streamen, kein Round-Trip nötig.
+        if tools.isEmpty, let onTextDelta {
+            return try await streamingFinalAnswer(convo: convo, system: system, onTextDelta: onTextDelta)
+        }
+
         var rounds = 0
         while true {
             rounds += 1
@@ -121,6 +160,21 @@ public final class ConversationEngine {
             }
             convo.append(ChatMessage(role: .user, blocks: resultBlocks, status: .complete))
         }
+    }
+
+    // Streamt die finale Textantwort via SSE. Akkumuliert Deltas und ruft
+    // onTextDelta mit dem jeweils gewachsenen Gesamttext auf (→ UI tippt mit).
+    private func streamingFinalAnswer(
+        convo: [ChatMessage], system: String, onTextDelta: (String) -> Void
+    ) async throws -> String {
+        let stream = provider.streamText(messages: convo, system: system, tools: [], maxTokens: 1024)
+        var accumulated = ""
+        for try await delta in stream {
+            accumulated += delta
+            onTextDelta(accumulated)
+        }
+        let trimmed = accumulated.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Ich konnte gerade keine Antwort bilden." : accumulated
     }
 
     // Menschliche Spur eines Tool-Aufrufs (Quelle sichtbar). Zeigt die Quelle +
@@ -160,6 +214,8 @@ public final class ConversationEngine {
             "Der Dienst ist gerade überlastet — bitte gleich erneut versuchen."
         case ClaudeClientError.httpError(let code):
             "Die Anfrage ist fehlgeschlagen (Fehler \(code))."
+        case ClaudeClientError.streamInterrupted:
+            "Die Verbindung wurde unterbrochen — bitte erneut versuchen."
         default:
             "Es ist ein Fehler aufgetreten. Bitte erneut versuchen."
         }

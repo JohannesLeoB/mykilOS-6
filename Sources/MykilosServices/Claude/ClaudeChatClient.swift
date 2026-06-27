@@ -51,9 +51,10 @@ struct ClaudeChatRequestPayload: Encodable {
     var system: String
     var messages: [ClaudeWireMessage]
     var tools: [ClaudeToolDefinition]?
+    var stream: Bool?   // nil → omitted (non-streaming); true → SSE-Stream
 
     enum CodingKeys: String, CodingKey {
-        case model, maxTokens = "max_tokens", system, messages, tools
+        case model, maxTokens = "max_tokens", system, messages, tools, stream
     }
 }
 
@@ -100,12 +101,14 @@ public struct ClaudeChatClient: AssistantConversing {
 
     static func buildRequest(
         url: URL, credentials: ClaudeCredentials, messages: [ChatMessage],
-        system: String, tools: [ClaudeToolDefinition], maxTokens: Int
+        system: String, tools: [ClaudeToolDefinition], maxTokens: Int,
+        stream: Bool = false
     ) throws -> URLRequest {
         let payload = ClaudeChatRequestPayload(
             model: credentials.model, maxTokens: maxTokens, system: system,
             messages: messages.map(wire(from:)),
-            tools: tools.isEmpty ? nil : tools
+            tools: tools.isEmpty ? nil : tools,
+            stream: stream ? true : nil
         )
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -164,6 +167,55 @@ public struct ClaudeChatClient: AssistantConversing {
             }
         }
         return ClaudeChatResponse(text: texts.joined(separator: "\n\n"), toolUses: toolUses, stopReason: stopReason)
+    }
+
+    // MARK: - SSE-Streaming (Phase 1e)
+    // Liefert Text-Deltas über server-sent events. Nur für tool-freie Runden gedacht;
+    // tool_use-Blöcke im Stream werden ignoriert (kommen bei leerer tools[]-Liste nie vor).
+    // Nutzt URLSession.shared.bytes direkt (httpClient-Protokoll deckt nur Data-Fetching ab).
+    public func streamText(
+        messages: [ChatMessage], system: String, tools: [ClaudeToolDefinition], maxTokens: Int
+    ) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    guard let credentials = try credentialsStore.load() else {
+                        continuation.finish(throwing: ClaudeClientError.notConnected)
+                        return
+                    }
+                    let request = try Self.buildRequest(
+                        url: baseURL, credentials: credentials,
+                        messages: messages, system: system, tools: tools,
+                        maxTokens: maxTokens, stream: true
+                    )
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request, delegate: nil)
+                    guard let http = response as? HTTPURLResponse else {
+                        continuation.finish(throwing: ClaudeClientError.invalidResponse)
+                        return
+                    }
+                    guard (200...299).contains(http.statusCode) else {
+                        continuation.finish(throwing: Self.mapHTTPError(status: http.statusCode, response: http))
+                        return
+                    }
+                    for try await line in bytes.lines {
+                        guard line.hasPrefix("data: ") else { continue }
+                        let json = String(line.dropFirst(6))
+                        guard json != "[DONE]",
+                              let data = json.data(using: .utf8),
+                              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                              obj["type"] as? String == "content_block_delta",
+                              let delta = obj["delta"] as? [String: Any],
+                              delta["type"] as? String == "text_delta",
+                              let text = delta["text"] as? String
+                        else { continue }
+                        continuation.yield(text)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
     }
 
     static func mapHTTPError(status: Int, response: HTTPURLResponse) -> ClaudeClientError {
