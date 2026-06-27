@@ -121,14 +121,19 @@ public struct AssistantChatView: View {
     }
 
     private var exampleQuestions: [String] {
+        // \u201D = schlie\u00DFendes deutsches Anf\u00FChrungszeichen
         if toolsEnabled {
-            [“Was steht diese Woche im Kalender an?””,
-             “Suche Mails zum Thema Angebot.””,
-             “Fasse die offenen Signale zusammen.””]
+            return [
+                "Was steht diese Woche im Kalender an?\u{201D}",
+                "Suche Mails zum Thema Angebot.\u{201D}",
+                "Fasse die offenen Signale zusammen.\u{201D}",
+            ]
         } else {
-            [“Was steht diese Woche an?””,
-             “Fasse die offenen Signale zusammen.””,
-             “Worauf soll ich heute achten?””]
+            return [
+                "Was steht diese Woche an?\u{201D}",
+                "Fasse die offenen Signale zusammen.\u{201D}",
+                "Worauf soll ich heute achten?\u{201D}",
+            ]
         }
     }
 
