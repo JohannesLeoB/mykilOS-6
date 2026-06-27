@@ -7,20 +7,19 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 
 ## Wo wir stehen
 
-**🟢 Release 6.1.0 — Konversationeller Assistent (Branch `feat/conversational-assistant`).**
-Der Assistent ist jetzt ein echter Chat: Multi-Turn über Claude (Phase 1, **live
-verifiziert** — erdet sich an echten Projekten, bleibt ehrlich), read-only Tool-Use mit
-agentischer Schleife + Datenschutz-Opt-in (Phase 2, gebaut + unit-getestet, **noch nicht
-live**, weil App-Google-OAuth unverbunden), Gmail-„wo abgelegt?" via Labels. **Sevdesk
-strukturell aus der Tool-Whitelist + Negativtest.** 158 Tests grün, Version 6.1.0 markiert,
-gepusht. Ehrlicher Stand + Vision + Startprompt in
-[HANDOFF_POST_AKT5_13_ASSISTANT_RELEASE.md](docs/handoffs/HANDOFF_POST_AKT5_13_ASSISTANT_RELEASE.md).
+**🟢 Release 6.2.0 — Streaming + Profil (Branch `sprint/shared-drive-widget-oauth`).**
+Der Assistent tippt live: SSE-Streaming via `ClaudeChatClient.streamText()` + agentische
+Schleife streamt final answer wenn keine Tools aktiv sind. `UserProfile` fließt in den
+System-Prompt ein (Name + Rolle). Zwei Bugfixes (Aufgabe 14): Integer-Decode-Bug in
+`AssistantToolRegistry` (JSONSerialization statt JSONDecoder), Wizard-Schließen-Button.
+Dynamische Beispielfragen je `toolsEnabled`. Chat-Verlauf-Löschen mit Bestätigung.
+Streaming-Test + 4 Grounding-Tests. **163 Tests grün.** Offen: Google live verifizieren,
+Phase 3 (Datei-Upload, ChatActionCard für Kalender-Entwürfe).
 **Neu (Aufgabe 13): First-Run-Onboarding-Wizard + lokales Profil** (`UserProfile`,
 `ProfileStore`, Migration `v3_profile`, `OnboardingWizardView` als Overlay) — führt
 einen Testuser durch Profil → Claude → Google (read-only) → optionale Quellen; Done-State
-ehrlich (Assistent bereit nur bei Claude UND Google), Sevdesk ausgelassen (NO-GO),
-Wizard-Render live bestätigt, +3 Cold-Start-Tests. Offen: Google live verifizieren,
-ToolCallRow, Streaming, Phase 3.
+ehrlich (Assistent bereit nur bei Claude), Sevdesk ausgelassen (NO-GO),
+Wizard-Render live bestätigt, +3 Cold-Start-Tests.
 
 **Akt 5 abgeschlossen.** Politur, Dark Mode, DMG. Aufgabe 9/10: `DriveOfferWatcher`
 als Live-Quelle für `offerDetected` + Angebote-Tab. **Aufgabe 11 (Stabilisierung)**
@@ -66,6 +65,7 @@ Daten sind heilig; bei Datenverlust-Gefahr warnen.
 | Post-Akt 5, Aufgabe 11 | ✅ | Stabilisierung: Projektdetail-Crash + Galerie-Hang behoben, Multi-Agent-Bug-Audit-Fixes (118 Tests, live verifiziert) |
 | Post-Akt 5, Aufgabe 12 | ✅ | Konversationeller Assistent 6.1.0: Phase 0 (ChatStore) + Phase 1 (Multi-Turn-Chat, live verifiziert) + Phase 2 (read-only Tool-Use, Opt-in, Gmail-Labels) — 155 Tests, Sevdesk-Negativtest |
 | Post-Akt 5, Aufgabe 13 | ✅ | First-Run-Onboarding-Wizard + lokales Profil (UserProfile/ProfileStore/v3_profile, Overlay-Wizard, geteilte ConnectionStatusView, ehrlicher Done-State) — 158 Tests, Wizard live bestätigt |
+| Post-Akt 5, Aufgabe 14 | ✅ | Streaming Phase 1e (SSE live-tippend), UserProfile im System-Prompt, dynamische Beispielfragen, Chat-Verlauf-Löschen, 2 Bugfixes (Integer-Decode, Wizard-X), 5 neue Tests — 163 Tests, Version 6.2.0 |
 
 ---
 
@@ -415,6 +415,7 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_POST_AKT5_11.md` — Stabilisierung: Projektdetail-Crash + Galerie-Hang + Bug-Audit-Fixes (live verifiziert, 118 Tests)
 - `docs/handoffs/HANDOFF_POST_AKT5_12_ASSISTANT_PLAN.md` — Multi-Agent-Synthese-Plan für den konversationellen Assistenten (Phasen 0–4, NO-GO-Durchsetzung, offene Entscheidungen)
 - `docs/handoffs/HANDOFF_POST_AKT5_13_ASSISTANT_RELEASE.md` — Release 6.1.0: ehrlicher Reality-Check, feste Vision, fester Nächste-Session-Plan, **Startprompt**
+- `docs/handoffs/HANDOFF_POST_AKT5_14_BUGFIXES.md` — Bugfixes #1/#2 + Streaming Phase 1e + UserProfile im Prompt + dynamische Beispielfragen + Chat-Löschen (163 Tests, Version 6.2.0)
 - `docs/architecture/mykilOS6_Systemarchitektur.pdf` — Systemarchitektur (9 S., A4 quer): Integrations-Landkarte, Steckbriefe (Google/Clockodo/Airtable/ClickUp/Sevdesk/Claude), Signal-Nervensystem, GRDB-Persistenz, Funktionsbaum, Trigger-/Handle-Matrix; Quelle `.html` + `build_pdf.sh` daneben
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
 - `docs/codex/WORKFLOW.md` — Session-Regeln für Codex-Sessions in diesem Repo
