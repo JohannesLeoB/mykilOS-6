@@ -68,6 +68,7 @@ Daten sind heilig; bei Datenverlust-Gefahr warnen.
 | Post-Akt 5, Aufgabe 16 | ✅ | Profil-Sektion in Settings (Name + Rolle editierbar ohne Wizard-Umweg) |
 | Post-Akt 5, Aufgabe 17 | ✅ | Globales Angebote-Modul (GlobalOffersView: Projektliste links + OffersTabView rechts) |
 | Post-Akt 5, Aufgabe 18 | ✅ | Dateien-Tab live (FilesTabView: alle Drive-Dateien, nach Änderungszeit) + Marken & Daten (BrandsView: Integrations-Dashboard) |
+| Post-Akt 5, Aufgabe 19 | ✅ | Polishing: personalisierte Begrüßung, Cmd+1..6 Navigation, projektspezifische Beispielfragen, Sidebar-Profil→Settings, Files-Refresh-Button |
 
 ---
 
