@@ -53,4 +53,45 @@ struct AssistantGroundingTests {
         #expect(prompt.contains("KEINE Live-Zugriffe"))
         #expect(prompt.contains("nur als Vorschlag"))
     }
+
+    @Test func promptNenntNutzerMitProfilUndRolle() {
+        let profile = UserProfile(displayName: "Johannes", role: "Design & Projektleitung", updatedAt: Date())
+        let prompt = AssistantGrounding.systemPrompt(
+            profile: profile,
+            focusedProjectID: nil, signals: [], projects: [], now: montag29Juni2026()
+        )
+        #expect(prompt.contains("Du sprichst mit Johannes"))
+        #expect(prompt.contains("Design & Projektleitung"))
+    }
+
+    @Test func promptOhneProfilNenntKeinenNamen() {
+        let prompt = AssistantGrounding.systemPrompt(
+            profile: nil,
+            focusedProjectID: nil, signals: [], projects: [], now: montag29Juni2026()
+        )
+        #expect(prompt.contains("Du sprichst mit") == false)
+    }
+
+    @Test func promptMitToolsEnabledNenntErlaubteTools() {
+        let prompt = AssistantGrounding.systemPrompt(
+            focusedProjectID: nil, signals: [], projects: [], now: montag29Juni2026(),
+            toolsEnabled: true
+        )
+        #expect(prompt.contains("search_gmail"))
+        #expect(prompt.contains("list_calendar_events"))
+        // toolsEnabled=true: LIVE-Zugriff auf Gmail/Kalender, aber nicht Mail/Kalender als "KEINE"-Pfad
+        #expect(prompt.contains("LIVE-Lesezugriff"))
+        #expect(prompt.contains("KEINE Live-Zugriffe auf \nMails, Kalender") == false)
+    }
+
+    @Test func promptOhneToolsEnabledVerbieteLiveZugriffe() {
+        let prompt = AssistantGrounding.systemPrompt(
+            focusedProjectID: nil, signals: [], projects: [], now: montag29Juni2026(),
+            toolsEnabled: false
+        )
+        // toolsEnabled=false: kein Hinweis auf erlaubte Tools, generelles Verbot
+        #expect(prompt.contains("KEINE Live-Zugriffe"))
+        #expect(prompt.contains("search_gmail") == false)
+        #expect(prompt.contains("LIVE-Lesezugriff") == false)
+    }
 }
