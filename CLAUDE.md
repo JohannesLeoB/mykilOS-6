@@ -12,10 +12,15 @@ Der Assistent ist jetzt ein echter Chat: Multi-Turn über Claude (Phase 1, **liv
 verifiziert** — erdet sich an echten Projekten, bleibt ehrlich), read-only Tool-Use mit
 agentischer Schleife + Datenschutz-Opt-in (Phase 2, gebaut + unit-getestet, **noch nicht
 live**, weil App-Google-OAuth unverbunden), Gmail-„wo abgelegt?" via Labels. **Sevdesk
-strukturell aus der Tool-Whitelist + Negativtest.** 155 Tests grün, Version 6.1.0 markiert,
+strukturell aus der Tool-Whitelist + Negativtest.** 158 Tests grün, Version 6.1.0 markiert,
 gepusht. Ehrlicher Stand + Vision + Startprompt in
 [HANDOFF_POST_AKT5_13_ASSISTANT_RELEASE.md](docs/handoffs/HANDOFF_POST_AKT5_13_ASSISTANT_RELEASE.md).
-Offen: Onboarding/Profil, Google live verifizieren, ToolCallRow, Streaming, Phase 3.
+**Neu (Aufgabe 13): First-Run-Onboarding-Wizard + lokales Profil** (`UserProfile`,
+`ProfileStore`, Migration `v3_profile`, `OnboardingWizardView` als Overlay) — führt
+einen Testuser durch Profil → Claude → Google (read-only) → optionale Quellen; Done-State
+ehrlich (Assistent bereit nur bei Claude UND Google), Sevdesk ausgelassen (NO-GO),
+Wizard-Render live bestätigt, +3 Cold-Start-Tests. Offen: Google live verifizieren,
+ToolCallRow, Streaming, Phase 3.
 
 **Akt 5 abgeschlossen.** Politur, Dark Mode, DMG. Aufgabe 9/10: `DriveOfferWatcher`
 als Live-Quelle für `offerDetected` + Angebote-Tab. **Aufgabe 11 (Stabilisierung)**
@@ -60,6 +65,7 @@ Daten sind heilig; bei Datenverlust-Gefahr warnen.
 | Post-Akt 5, Aufgabe 10 | ✅ | Angebote-Tab live (Belege aus Drive via `DriveOfferWatcher.detectOffers`, read-only) |
 | Post-Akt 5, Aufgabe 11 | ✅ | Stabilisierung: Projektdetail-Crash + Galerie-Hang behoben, Multi-Agent-Bug-Audit-Fixes (118 Tests, live verifiziert) |
 | Post-Akt 5, Aufgabe 12 | ✅ | Konversationeller Assistent 6.1.0: Phase 0 (ChatStore) + Phase 1 (Multi-Turn-Chat, live verifiziert) + Phase 2 (read-only Tool-Use, Opt-in, Gmail-Labels) — 155 Tests, Sevdesk-Negativtest |
+| Post-Akt 5, Aufgabe 13 | ✅ | First-Run-Onboarding-Wizard + lokales Profil (UserProfile/ProfileStore/v3_profile, Overlay-Wizard, geteilte ConnectionStatusView, ehrlicher Done-State) — 158 Tests, Wizard live bestätigt |
 
 ---
 
