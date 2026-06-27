@@ -6,6 +6,9 @@ import MykilosServices
 // MARK: - SettingsView
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
+    @State private var profileName: String = ""
+    @State private var profileRole: String = ""
+    @State private var profileSaved = false
     @State private var clientID: String = ""
     @State private var errorMessage: String?
     @State private var clockodoEmail: String = ""
@@ -28,6 +31,7 @@ struct SettingsView: View {
                 Text("Einstellungen")
                     .font(.mykDisplay)
                     .foregroundStyle(MykColor.ink.color)
+                profileSection
                 googleSection
                 clockodoSection
                 clickUpSection
@@ -41,6 +45,9 @@ struct SettingsView: View {
         }
         .background(MykColor.paper.color)
         .task {
+            if let p = appState.profile.profile {
+                profileName = p.displayName; profileRole = p.role
+            }
             clientID = (try? appState.googleAuth.storedClientID()) ?? ""
             if let creds = try? appState.clockodoAuth.storedCredentials() {
                 clockodoEmail = creds.email
@@ -578,6 +585,50 @@ struct SettingsView: View {
             claudeModel = ClaudeAuthService.defaultModel
         } catch {
             claudeError = "Trennen fehlgeschlagen: \(error)"
+        }
+    }
+
+    // MARK: - Profil
+
+    private var profileSection: some View {
+        VStack(alignment: .leading, spacing: MykSpace.s5) {
+            Text("Mein Profil")
+                .font(.mykHeadline)
+                .foregroundStyle(MykColor.ink.color)
+            TextField("Name", text: $profileName)
+                .textFieldStyle(.roundedBorder)
+                .font(.mykMono(12))
+            TextField("Rolle (z. B. Design & Projektleitung)", text: $profileRole)
+                .textFieldStyle(.roundedBorder)
+                .font(.mykMono(12))
+            HStack(spacing: MykSpace.s4) {
+                Button("Speichern") { saveProfile() }
+                if profileSaved {
+                    Text("Gespeichert")
+                        .font(.mykMono(10))
+                        .foregroundStyle(MykColor.positive.color)
+                }
+            }
+            Text("Name und Rolle fließen in den System-Prompt des Assistenten ein.")
+                .font(.mykMono(9.5))
+                .foregroundStyle(MykColor.faint.color)
+        }
+        .padding(MykSpace.s6)
+        .background(
+            RoundedRectangle(cornerRadius: MykRadius.md).fill(MykColor.card.color)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: MykRadius.md).stroke(MykColor.line.color, lineWidth: 1)
+        )
+    }
+
+    private func saveProfile() {
+        profileSaved = false
+        do {
+            try appState.profile.save(UserProfile(displayName: profileName, role: profileRole, updatedAt: Date()))
+            profileSaved = true
+        } catch {
+            // Fehler sichtbar über appState.profile.saveState — kein separater State nötig.
         }
     }
 }
