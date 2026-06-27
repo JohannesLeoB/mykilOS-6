@@ -52,7 +52,7 @@ struct TodayView: View {
             }
             Spacer()
             // Signal-Demo-Knopf — zeigt die Engine in Aktion
-            HomeDemoSignalButton()
+            HomeForcePollButton()
         }
         .padding(.horizontal, MykSpace.s9)
         .padding(.vertical, MykSpace.s5)
@@ -132,29 +132,28 @@ private struct SignalPill: View {
     }
 }
 
-// MARK: - HomeDemoSignalButton
-// Demo: feuert Signale für ein reales Projekt (2026-015, Hustadt) damit
-// FocusWidget reagiert. Bleibt Showcase-Button bis Aufgabe 10 (Force-Poll
-// gegen DriveOfferWatcher statt Fake-Signale) umgesetzt ist.
-private struct HomeDemoSignalButton: View {
+// MARK: - HomeForcePollButton
+// Löst sofort einen Drive-Poll für alle aktiven Projekte mit verlinktem
+// Drive-Ordner aus, statt Fake-Signale zu emittieren — derselbe
+// DriveOfferWatcher, der ohnehin alle 60 s pro offener Projektseite pollt
+// (siehe ProjectDetailView), hier nur als manueller Sofort-Trigger über
+// alle Projekte auf der Heute-Seite.
+private struct HomeForcePollButton: View {
+    @Environment(AppState.self) private var appState
     @Environment(StudioContext.self) private var context
-    @State private var fired = false
+    @State private var isPolling = false
+    @State private var lastResultCount: Int?
 
     var body: some View {
         Button {
-            withAnimation {
-                context.emit(.offerDetected(projectID: "2026-015", label: "Arbeitsplatte"))
-                context.emit(.budgetThresholdCrossed(projectID: "2026-015", ratio: 0.72))
-                context.emit(.deadlineNear(projectID: "2026-015", days: 2))
-                fired = true
-            }
+            Task { await forcePollAll() }
         } label: {
             HStack(spacing: 6) {
                 Circle()
-                    .fill(fired ? MykColor.positive.color : MykColor.faint.color)
+                    .fill(statusColor)
                     .frame(width: 6, height: 6)
-                    .animation(.easeInOut(duration: 0.3), value: fired)
-                Text(fired ? "Signale aktiv" : "Signal-Demo")
+                    .animation(.easeInOut(duration: 0.3), value: isPolling)
+                Text(label)
                     .font(.mykMono(10))
                     .foregroundStyle(MykColor.muted.color)
             }
@@ -166,5 +165,34 @@ private struct HomeDemoSignalButton: View {
             )
         }
         .buttonStyle(.plain)
+        .disabled(isPolling)
+    }
+
+    private var statusColor: Color {
+        if isPolling { return MykColor.tasks.color }
+        if let lastResultCount, lastResultCount > 0 { return MykColor.positive.color }
+        return MykColor.faint.color
+    }
+
+    private var label: String {
+        if isPolling { return "Prüfe Drive …" }
+        if let lastResultCount {
+            return lastResultCount > 0 ? "\(lastResultCount) neue Angebote" : "Keine neuen Angebote"
+        }
+        return "Jetzt prüfen"
+    }
+
+    private func forcePollAll() async {
+        isPolling = true
+        var total = 0
+        for project in appState.registry.activeProjects() {
+            guard let folderID = project.links.driveFolderID, folderID.isEmpty == false else { continue }
+            let watcher = appState.offerWatcher(for: project.projectNumber)
+            let signals = await watcher.poll(projectID: project.projectNumber, folderID: folderID)
+            for signal in signals { context.emit(signal) }
+            total += signals.count
+        }
+        lastResultCount = total
+        isPolling = false
     }
 }
