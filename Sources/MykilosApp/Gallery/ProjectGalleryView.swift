@@ -36,8 +36,15 @@ struct ProjectGalleryView: View {
                     .transition(.opacity)
             }
         }
-        // Clipping verhindert zusätzlich, dass eine transiente Größe/Position
-        // während des Übergangs die gemessenen Fensterbounds aufbläht.
+        // maxWidth/maxHeight .infinity: die ZStack-Kinder (Gallery-Grid vs.
+        // ProjectDetailView) haben unterschiedliche ideale Breiten. Ohne diese
+        // Angabe propagiert SwiftUI die enger bevorzugte Größe nach oben in die
+        // NSHostingView — die ruft daraufhin setContentSize: auf dem NSWindow
+        // auf und verschiebt dessen Ursprung. Das ist der eigentliche Drift-
+        // Auslöser, nicht nur ein Positionierungsproblem.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Clipping als zusätzliche Sperre: verhindert, dass transiente Größen
+        // während der Opacity-Transition als Fenster-Constraint sichtbar werden.
         .clipped()
         .animation(.easeInOut(duration: 0.22), value: selectedProject?.id)
         .task { await registry.load() }

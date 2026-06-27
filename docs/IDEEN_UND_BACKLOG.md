@@ -16,6 +16,52 @@ Verknüpfung zu Handoffs/Code, falls vorhanden. Status-Werte:
 
 ---
 
+## Assistent als Kontakt- und Beziehungsintelligenz
+
+### 💡 Assistent kennt alle Kontakt-Zusammenhänge (Vollbild-Vision)
+**Quelle:** User-Wunsch 2026-06-27 (Kontakte-Import-Session).
+**Vision:** Der Assistent hat ein vollständiges, lebendiges Bild aller
+Personen, die mit MYKILOS in Berührung kommen — projektbezogen, aus
+Google Kontakten und aus dem gesamten Mail-Verlauf. Er kennt:
+- Wer ist Projektkunde, Architekt/Planer, Lieferant, Handwerker, Team?
+- Welche Person gehört zu welchem Projekt (auch wenn der Name nur in einer
+  Mail-CC oder im Betreff steht)?
+- Wer hat wen vermittelt (z. B. Christian Westphal → Dr. Klose)?
+- Welche Firmen/Domains tauchen project-übergreifend auf (Weichsel78,
+  MGB Naturstein, HS-Architekten arbeiten an mehreren Projekten)?
+- Welche Kontakte fehlen noch (25 von 31 Projekten ohne direkten
+  Kundenkontakt in den CSV-Exporten)?
+
+**Aktueller Stand (2026-06-27):**
+- Airtable Mastermind hat jetzt eine **Kontakte-Tabelle** mit 914 Einträgen
+  (891 aus CSV-Export + 23 aus Gmail-Recherche).
+- 6 Projekte haben direkte Projektkunden-Links; 25 Projekte sind noch offen
+  (Bellavance, Cirnavuk, Hustadt etc. haben Kunden per Gmail gefunden und
+  bereits in Airtable eingetragen, aber noch nicht alle 31 abgedeckt).
+- Gmail-Recherche liefert deutlich mehr Kontext als CSV-Export allein:
+  Projektnummern im Betreff (#Cirnavuk, #Schmid), CCs mit Kunden-Mails,
+  Architekten-Kontakte als Vermittler.
+
+**Nächste Schritte für die App-Umsetzung:**
+- AssistantWidget: Kontakte-Kontext aus Airtable laden (pro Projekt: wer
+  ist der Ansprechpartner, wer ist der Architekt, wer sind die Lieferanten?)
+- Gmail-Suche nach Projektnamen als Assistenz-Funktion (bereits im
+  ASSISTANT_CAPABILITIES_PLAN.md als Lese-Punkt A3/A4 vorgesehen)
+- Kontakte-Tabelle als lebendes Gedächtnis: neue Mail-Kontakte automatisch
+  vorschlagen (Assistent erkennt unbekannte Absender in Projekt-Threads)
+- Beziehungsgraph: wer arbeitet mit wem zusammen? (z. B. HS-Architekten
+  orchestriert mehrere Gewerke bei Projekten 2026-021 und 2026-026;
+  Weichsel78 ist Tischler für 6+ Projekte)
+
+**Daten-Qualitätslücken:**
+- 371 Kontakte haben keine E-Mail (nur Name/Telefon aus CSV-Export)
+- Manche Projekt-Kunden sind nur per Firmen-Mail erreichbar (z. B. Wartenb
+  erg Vermögensverwaltung), kein privater Kanal
+- May, Wobig, von Boch, Loidl, Mohadjer, Cirnavuk (Kunde direkt),
+  Zitscher (Kunde direkt) — Kunden-E-Mails noch unbekannt
+
+---
+
 ## Assistent-Ausbau (großer Block, eigenes Dokument)
 
 ### 📋 Vollständiger Such-/Schreib-Ausbau des Assistenten

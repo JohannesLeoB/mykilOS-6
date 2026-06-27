@@ -53,6 +53,11 @@ struct ProjectDetailView: View {
                 }
             }
         }
+        // Identischer Fix wie in ProjectGalleryView: ohne diese Angabe würde
+        // der VStack eine spezifisch breite Preferred-Size nach oben propagieren
+        // (ProjectHeroView + TabBar haben eine eigene Idealbreite, die kleiner als
+        // die des Gallery-Grids sein kann) → NSHostingView verschiebt das Fenster.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             context.focus(project: project.projectNumber)
             try? boardStore.load()
@@ -133,6 +138,11 @@ struct ProjectDetailView: View {
             )
         case .offers:
             OffersTabView(
+                projectID: project.projectNumber,
+                driveFolderID: project.links.driveFolderID
+            )
+        case .material:
+            MaterialTabView(
                 projectID: project.projectNumber,
                 driveFolderID: project.links.driveFolderID
             )
