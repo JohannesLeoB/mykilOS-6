@@ -74,6 +74,9 @@ public enum ChatContentBlock: Codable, Sendable, Equatable {
     case text(String)
     case toolUse(id: String, name: String, inputJSON: Data)   // rohes Input-Objekt (JSON)
     case toolResult(toolUseID: String, summary: String, isError: Bool)
+    // Nur-Anzeige-Spur eines gelaufenen Tools (Transparenz „Quelle sichtbar").
+    // Wird NIE an die API gesendet (kein orphaned tool_use beim erneuten Schicken).
+    case toolActivity(label: String, isError: Bool)
     case image(ChatAttachmentRef)
     case document(ChatAttachmentRef)
 }

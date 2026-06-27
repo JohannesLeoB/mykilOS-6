@@ -77,6 +77,8 @@ struct ConversationEngineTests {
         #expect(last?.text == "Ich habe 1 Mail von Gesa gefunden.")
         // Persistiert wird nur der finale Antwort-Turn (kein tool_use-Rauschen im Verlauf).
         #expect(store.messages(for: .home).count == 2)
+        // Tool-Spur (Transparenz) ist im finalen Turn als reine Anzeige enthalten.
+        #expect(last?.blocks.contains { if case .toolActivity = $0 { true } else { false } } == true)
     }
 
     @Test func toolSchleifeRespektiertOptInAus() async throws {

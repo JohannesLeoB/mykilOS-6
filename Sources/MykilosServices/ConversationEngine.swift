@@ -69,9 +69,11 @@ public final class ConversationEngine {
         let tools = (toolsEnabled ? registry?.definitions() : nil) ?? []
 
         do {
-            let finalText = try await runLoop(convo: &convo, system: system, tools: tools)
+            var activities: [ChatContentBlock] = []
+            let finalText = try await runLoop(convo: &convo, activities: &activities, system: system, tools: tools)
+            // Tool-Spuren (Transparenz) vor die Antwort; nur Anzeige, nicht an die API.
             try chatStore.updateAssistantTurn(
-                id: placeholder.id, blocks: [.text(finalText)], status: .complete, in: scope
+                id: placeholder.id, blocks: activities + [.text(finalText)], status: .complete, in: scope
             )
         } catch {
             let message = Self.describe(error)
@@ -83,8 +85,14 @@ public final class ConversationEngine {
         }
     }
 
-    // Agentische Schleife. Gibt den finalen Antworttext zurück.
-    private func runLoop(convo: inout [ChatMessage], system: String, tools: [ClaudeToolDefinition]) async throws -> String {
+    // Agentische Schleife. Sammelt nebenbei sichtbare Tool-Spuren (activities)
+    // und gibt den finalen Antworttext zurück.
+    private func runLoop(
+        convo: inout [ChatMessage],
+        activities: inout [ChatContentBlock],
+        system: String,
+        tools: [ClaudeToolDefinition]
+    ) async throws -> String {
         var rounds = 0
         while true {
             rounds += 1
@@ -100,15 +108,34 @@ public final class ConversationEngine {
             assistantBlocks += response.toolUses.map { .toolUse(id: $0.id, name: $0.name, inputJSON: $0.inputJSON) }
             convo.append(ChatMessage(role: .assistant, blocks: assistantBlocks, status: .complete))
 
-            // Tools ausführen → tool_result-Turn (role user) anhängen.
+            // Tools ausführen → tool_result-Turn (role user) anhängen + Anzeige-Spur.
             var resultBlocks: [ChatContentBlock] = []
             for toolUse in response.toolUses {
                 let result = await (registry?.run(name: toolUse.name, inputJSON: toolUse.inputJSON)
                     ?? ToolRunResult(text: "Keine Tools verfügbar.", isError: true))
                 resultBlocks.append(.toolResult(toolUseID: toolUse.id, summary: result.text, isError: result.isError))
+                activities.append(.toolActivity(
+                    label: Self.activityLabel(name: toolUse.name, inputJSON: toolUse.inputJSON),
+                    isError: result.isError
+                ))
             }
             convo.append(ChatMessage(role: .user, blocks: resultBlocks, status: .complete))
         }
+    }
+
+    // Menschliche Spur eines Tool-Aufrufs (Quelle sichtbar). Zeigt die Quelle +
+    // ggf. die Suchabfrage — keine sensiblen Ergebnisinhalte.
+    static func activityLabel(name: String, inputJSON: Data) -> String {
+        let input = (try? JSONDecoder().decode([String: String].self, from: inputJSON)) ?? [:]
+        let query = input["query"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let base: String
+        switch name {
+        case "search_gmail":         base = "Gmail durchsucht"
+        case "list_calendar_events": base = "Kalender gelesen"
+        default:                     base = name
+        }
+        if let query, query.isEmpty == false { return "\(base) · \(query)" }
+        return base
     }
 
     static func describe(_ error: Error) -> String {

@@ -69,11 +69,16 @@ struct ContentView: View {
     @AppStorage("onboarding.hasCompleted") private var hasCompleted = false
     @State private var showOnboarding = false
 
-    // Onboarding-Overlay liegt, solange noch nicht abgeschlossen ODER wenn es der
-    // Nutzer über den Profil-Eintrag erneut öffnet. hasCompleted = reiner
-    // Erst-Start-Marker; erneutes Öffnen läuft über showOnboarding (NICHT
-    // hasCompleted zurücksetzen — sonst triggert der Wizard bei jedem Start).
-    private var isOnboardingUp: Bool { hasCompleted == false || showOnboarding }
+    // Direkt nutzbar (ohne Setup-Zwang): der Wizard erzwingt sich beim ersten
+    // Start NUR, wenn die App noch nicht einsatzbereit ist — also Claude (das
+    // Gehirn) nicht verbunden. Ist Claude bereits da (z. B. eingerichtete
+    // Maschine), öffnet die App direkt. Der Wizard bleibt über den Sidebar-
+    // Profil-Eintrag (showOnboarding) jederzeit manuell erreichbar. hasCompleted
+    // = reiner Erst-Start-Marker; erneutes Öffnen NIE über hasCompleted-Reset.
+    private var essentialsConnected: Bool { appState.claudeAuth.status == .connected }
+    private var isOnboardingUp: Bool {
+        showOnboarding || (hasCompleted == false && essentialsConnected == false)
+    }
 
     var body: some View {
         ZStack {

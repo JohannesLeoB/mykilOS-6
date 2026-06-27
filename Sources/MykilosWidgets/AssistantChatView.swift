@@ -199,6 +199,10 @@ struct ChatMessageBubble: View {
         HStack {
             if message.role == .user { Spacer(minLength: 40) }
             VStack(alignment: message.role == .user ? .trailing : .leading, spacing: MykSpace.s2) {
+                // Tool-Spuren (Quelle sichtbar) über der Antwort.
+                ForEach(Array(toolActivities.enumerated()), id: \.offset) { _, activity in
+                    ToolCallRow(label: activity.label, isError: activity.isError)
+                }
                 bubble
                 if case .failed = message.status {
                     Label("Erneut versuchen über erneutes Senden", systemImage: "exclamationmark.triangle")
@@ -206,6 +210,12 @@ struct ChatMessageBubble: View {
                 }
             }
             if message.role == .assistant { Spacer(minLength: 40) }
+        }
+    }
+
+    private var toolActivities: [(label: String, isError: Bool)] {
+        message.blocks.compactMap {
+            if case let .toolActivity(label, isError) = $0 { (label, isError) } else { nil }
         }
     }
 
@@ -239,5 +249,26 @@ struct ChatMessageBubble: View {
             markdown: raw,
             options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         )) ?? AttributedString(raw)
+    }
+}
+
+// MARK: - ToolCallRow
+// Sichtbare Spur eines gelaufenen read-only Tools („Quelle ist immer sichtbar").
+struct ToolCallRow: View {
+    let label: String
+    let isError: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: isError ? "exclamationmark.magnifyingglass" : "magnifyingglass")
+                .font(.mykMono(9.5))
+            Text(label)
+                .font(.mykMono(9.5))
+                .lineLimit(1)
+        }
+        .foregroundStyle(isError ? MykColor.critical.color : MykColor.muted.color)
+        .padding(.horizontal, MykSpace.s4)
+        .padding(.vertical, 3)
+        .background(Capsule().fill(MykColor.card.color))
     }
 }
