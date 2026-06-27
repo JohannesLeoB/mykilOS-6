@@ -10,7 +10,17 @@ struct ProjectCard: View {
     let customer: Customer?
     let action: () -> Void
 
+    @Environment(StudioContext.self) private var context
     @State private var isHovered = false
+
+    private var signalCount: Int { context.signals(for: project.projectNumber).count }
+    private var hasCriticalSignal: Bool {
+        context.signals(for: project.projectNumber).contains {
+            if case .deadlineNear = $0 { return true }
+            if case .budgetThresholdCrossed(_, let r) = $0 { return r >= 0.9 }
+            return false
+        }
+    }
 
     var body: some View {
         Button(action: action) {
@@ -51,9 +61,21 @@ struct ProjectCard: View {
                 GridTexture()
                     .opacity(0.35)
             )
-            // Projekt-Kürzel oben rechts
+            // Projekt-Kürzel oben rechts + Signal-Badge oben links
             VStack {
                 HStack {
+                    // Signal-Badge: nur wenn aktive Sitzungs-Signale vorhanden
+                    if signalCount > 0 {
+                        Text("\(signalCount)")
+                            .font(.mykMono(9.5))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, MykSpace.s3)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule().fill(hasCriticalSignal ? MykColor.critical.color : MykColor.tasks.color)
+                            )
+                            .padding(MykSpace.s4)
+                    }
                     Spacer()
                     Text(project.projectNumber)
                         .font(.mykMono(10))
