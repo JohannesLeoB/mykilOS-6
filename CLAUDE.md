@@ -69,6 +69,7 @@ Daten sind heilig; bei Datenverlust-Gefahr warnen.
 | Post-Akt 5, Aufgabe 18 | ✅ | Dateien-Tab live (FilesTabView: alle Drive-Dateien, nach Änderungszeit) + Marken & Daten (BrandsView: Integrations-Dashboard) |
 | Post-Akt 5, Aufgabe 19 | ✅ | Polishing: personalisierte Begrüßung, Cmd+1..6 Navigation, projektspezifische Beispielfragen, Sidebar-Profil→Settings, Files-Refresh-Button, Signal-Strip in TodayView |
 | Post-Akt 5, Aufgabe 20 | ✅ | Phase 3: `SuggestCalendarEventTool` + `CalendarActionCard` + `.calendarAction` Block (URL → Browser, kein API-Write) — 169 Tests, Version 6.3.0 |
+| Live-Wiring, Session 1 | 🟡 | Angebote-Tab-Bugfix (zwei Spalten, 169 Tests grün); neue Airtable-Base "mykilOS Mastermind" mit Schema + 69 Records live; ClickUp-Sandbox-Space entdeckt; Demo-/Dummy-Audit (11 Punkte) für Folge-Session. **DemoSeed noch nicht ersetzt.** Details: [HANDOFF_LIVE_WIRING_1.md](docs/handoffs/HANDOFF_LIVE_WIRING_1.md) |
 
 ---
 
@@ -209,6 +210,22 @@ lesen echte Daten, die Integrations-Landkarte ist vollständig.
 Angebote und Marken & Daten. Noch „ComingSoon": Projekt-Tabs Timeline und Material
 (keine Datenquelle vorhanden). Offen: Google live verifizieren, Phase 3 ChatActionCard.
 
+**🎯 Nächste Session (Live-Wiring 2) — konkreter Plan, siehe
+[HANDOFF_LIVE_WIRING_1.md](docs/handoffs/HANDOFF_LIVE_WIRING_1.md):**
+1. `DemoSeed` durch die echten 31 Projekte/30 Kunden aus
+   `docs/registry/projekte.json`/`kunden.json` ersetzen (größter Hebel —
+   macht Budget-/Phase-Anzeigen automatisch real statt hartkodiert).
+2. Verbleibende hartkodierte Demo-Bugs fixen: `ProjectHeroView` (72%-Budget-
+   Balken fix), `FocusWidget` (Text ignoriert echtes Signal-Projekt),
+   `CashWidget` (Angebotstext hartkodiert).
+3. Demo-Signal-Buttons (`SignalDemoView`, `HomeDemoSignalButton`) zu echten
+   "Jetzt prüfen"-Force-Polls gegen `DriveOfferWatcher` umbauen.
+4. Neue Tabs: Zeichnungen (PDF-Vorschau, Quelle `02 CAD`), Material
+   (Quelle `03 PRÄSENTATION`), Abnahme-Bereich.
+5. Optional: `RegistryStore.syncFromAirtable` testweise gegen die neue
+   Mastermind-Base (`appuVMh3KDfKw4OoQ`, bereits mit 69 Records befüllt)
+   laufen lassen, sobald Settings auf diese Base-ID zeigen.
+
 **Aus Post-Akt-5 Aufgabe 10 (Angebote-Tab):**
 - Der Projekt-Tab „Angebote" (`OffersTabView`, in `MykilosApp/Detail/`) war ein
   „in Vorbereitung"-Platzhalter und zeigt jetzt die Angebots-/Rechnungs-PDFs aus
@@ -330,6 +347,47 @@ Angebote und Marken & Daten. Noch „ComingSoon": Projekt-Tabs Timeline und Mate
 - Live-API-Check mit Keychain-Credentials und `claude-sonnet-4-6` war
   erfolgreich; das App-Bundle wurde danach neu gestartet und codesign-verifiziert.
 
+**Aus der Live-Wiring-Session 1 (2026-06-27) — Airtable Mastermind + ClickUp Testspace:**
+- Neue, eigenständige Airtable-Base **"mykilOS Mastermind"**
+  (`appuVMh3KDfKw4OoQ`) — vom User explizit als eigene "Schaltzentrale"
+  freigegeben, **getrennt** von der ursprünglichen geteilten Base unter dem
+  harten NO-GO. Schema (`Kunden`/`Projekte`/`Externe Systeme`/
+  `Archiv-Übersetzung`) ist 1:1 an `AirtableClient.mapProjects`/
+  `mapCustomers` angelehnt. **69 Records live eingespielt:** 30 Kunden,
+  31 Projekte, 8 externe Systeme.
+- Airtable-MCP-Connector kann keine Records schreiben (nur Schema) —
+  Workaround per Personal-Access-Token (Keychain-Service
+  `mykilos-mastermind-airtable-pat`) + lokalem `curl`-Skript, Token nie im
+  Chat sichtbar gemacht.
+- Neuer ClickUp-Space **"MYKILOS API TESTSPACE"** (`90128024109`) entdeckt —
+  Sandbox mit Test-Liste, sicherer Ort für Aufgabe 7 (ClickUp-Handle für
+  `ProjectKind`).
+- Vollständiger Demo-/Dummy-Audit (11 Punkte) für die nächste Session,
+  Angebote-Tab-Bugfix bereits umgesetzt + getestet.
+- Details, Migrationsskript-Muster und Startprompt für Session 2:
+  [HANDOFF_LIVE_WIRING_1.md](docs/handoffs/HANDOFF_LIVE_WIRING_1.md).
+
+**Aus der Live-Wiring-Session (2026-06-27) — Drive als Projektquelle:**
+- Es gibt keine Airtable-Projekttabelle. Projekte werden direkt aus dem
+  echten Drive-Ordner `PROJEKTE` (`1Q-H_3JsZfiXosFmxtNgoy0hI3cvZLgST`)
+  geroutet — 31 aktive Projektordner, Schema `JJJJ_lfdNr_Kunde[_Code]`,
+  tolerant geparst (fehlende führende Nullen, Bindestrich-Kunden etc.).
+  Projektnummer-Format in der App: `JJJJ-NR` (z. B. `2026-015`).
+- `ProjectKind` (kitchen/lighting/addendum/lead/quote) lässt sich aus dem
+  Drive-Ordnernamen nicht ableiten — kommt später aus ClickUp. Geplant:
+  ein Handle/Link-Konnektor (ClickUp-Listen-ID pro Projekt) plus eine
+  Übersetzungsregistry in Airtable, die ClickUp-Daten auf `ProjectKind`
+  mapped. Noch nicht umgesetzt.
+- `_PROJEKTE_ARCHIV` (`1I5P6Iu_b5NxmhcqH1PP7e9pU_hmD_YJz`) enthält ~200+
+  archivierte Projektordner über 8 Jahre (2018–2026), mit einem komplett
+  anderen, uneinheitlichen Namensschema (Standort-Präfixe wie `B_`, `HH_`,
+  `K_`, `WI_` statt `JJJJ_lfdNr_Kunde`) und mehrfach verschachtelten
+  Jahres-Unterordnern. **Bewusst zurückgestellt** — kein Parser, kein
+  Import, keine Einbindung in die App jetzt. Geplanter Ansatz für später:
+  eigener Namens-Mapping-Parser fürs alte Schema + eine
+  Übersetzungsregistry in Airtable (Alt-Name ↔ neues `JJJJ-NR`-Schema),
+  nicht direkt in mykilOS-Core.
+
 **Bekannte offene Punkte aus Schritt 1 (noch nicht relevant geworden):**
 - Ob Google "Desktop App"-OAuth-Clients bei PKCE zusätzlich ein `client_secret`
   verlangen, ist nicht live getestet (V5 unterstützte es optional, V6 aktuell
@@ -419,6 +477,8 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_POST_AKT5_13_ASSISTANT_RELEASE.md` — Release 6.1.0: ehrlicher Reality-Check, feste Vision, fester Nächste-Session-Plan, **Startprompt**
 - `docs/handoffs/HANDOFF_POST_AKT5_15_SURFACE_COMPLETION.md` — Release 6.3.0: App-Vollständigkeit (Aufgaben 15–21), Phase 3 CalendarActionCard, Signal-Badges, Grounding-Update, 169 Tests
 - `docs/handoffs/HANDOFF_POST_AKT5_14_BUGFIXES.md` — Bugfixes #1/#2 + Streaming Phase 1e + UserProfile im Prompt + dynamische Beispielfragen + Chat-Löschen (163 Tests, Version 6.2.0)
+- `docs/handoffs/HANDOFF_LIVE_WIRING_1.md` — Airtable Mastermind-Base live (Schema + 69 Records), ClickUp-Testspace, Angebote-Tab-Bugfix, vollständiger Demo-Audit + Startprompt für Session 2
+- `docs/registry/README.md` — 3-Kopien-Redundanzmodell (Airtable/lokaler Cache/Git-JSON) für die Projekt-/Kunden-Registry
 - `docs/architecture/mykilOS6_Systemarchitektur.pdf` — Systemarchitektur (9 S., A4 quer): Integrations-Landkarte, Steckbriefe (Google/Clockodo/Airtable/ClickUp/Sevdesk/Claude), Signal-Nervensystem, GRDB-Persistenz, Funktionsbaum, Trigger-/Handle-Matrix; Quelle `.html` + `build_pdf.sh` daneben
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
 - `docs/codex/WORKFLOW.md` — Session-Regeln für Codex-Sessions in diesem Repo
