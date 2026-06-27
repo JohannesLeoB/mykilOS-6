@@ -275,9 +275,10 @@ Die App ist feature-complete für Beta.
   Calibration-Typen in LearningModels.swift). Kompletter verbatim Port der 10 Dateien.
   Reconciliation: `EstimateSession.id` ist `String` → `KostenSchaetzung.id` + `recordAdjustment`
   auf String umstellen. Port-Reihenfolge in Handoff Teil 3.
-- **⚠️ NEUE OFFENE ENTSCHEIDUNG — Destillation:** `activeAnchors()` liest CSVs, nicht die sqlite;
-  die 3.383→204-Destillation ist externer Python-Code, nicht reproduzierbar in Swift. V2-Pipeline
-  nachbauen oder extern+manuell triggern? Plus: `gen_lexicon.py` fehlt → MaterialLexicon manuell.
+- **✅ Destillation ENTSCHIEDEN (Johannes): V2-Swift-Pipeline.** `activeAnchors()` liest CSVs;
+  die 3.383→204-Destillation (heute externer Python-Code) wird in Swift reimplementiert →
+  geschlossener Lernkreis, neue `Preis-Beobachtungen` destillieren automatisch nach. V1 nutzt
+  vorhandene CSVs. Plus offen: `gen_lexicon.py` fehlt → MaterialLexicon (149) bleibt manuell.
 - **Korpus-Entscheidung (V4_MoneyObservations, 3.383 Beobachtungen):** beides —
   Tabelle `Preis-Beobachtungen` in Mastermind-Base + destilliertes Seed-`sqlite` zur
   Laufzeit; alte Base `appkPzoEiI5eSMkNK` wird stillgelegt.
