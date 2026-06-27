@@ -25,23 +25,32 @@ struct ProjectDetailView: View {
         ZStack(alignment: .bottom) {
             MykColor.paper.color.ignoresSafeArea()
             VStack(spacing: 0) {
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ProjectHeroView(
-                            project:  project,
-                            customer: appState.registry.customer(for: project),
-                            onBack:   onBack
-                        )
-                        tabBar
-                        Divider().overlay(MykColor.line.color)
-                        SignalDemoView(projectID: project.projectNumber)
-                        tabContent
+                // Fester Header (Hero + Tabs) — immer sichtbar, nicht scrollbar.
+                ProjectHeroView(
+                    project:  project,
+                    customer: appState.registry.customer(for: project),
+                    onBack:   onBack
+                )
+                tabBar
+                Divider().overlay(MykColor.line.color)
+                // Chat braucht volle Höhe; alle anderen Tabs scrollen.
+                if activeTab.isFullHeight {
+                    tabContent
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            SignalDemoView(projectID: project.projectNumber)
+                            tabContent
+                        }
                     }
                 }
             }
-            // Sichtbarer Speichern-Vertrag für das Widget-Board
-            SaveStateBar(state: boardStore.saveState) {
-                try? boardStore.save()
+            // Sichtbarer Speichern-Vertrag für das Widget-Board — nur bei scrollbaren Tabs.
+            if activeTab.isFullHeight == false {
+                SaveStateBar(state: boardStore.saveState) {
+                    try? boardStore.save()
+                }
             }
         }
         .onAppear {
@@ -103,6 +112,20 @@ struct ProjectDetailView: View {
                 .padding(.horizontal, MykSpace.s9)
                 .padding(.top, MykSpace.s7)
                 .padding(.bottom, 64)   // Platz für SaveStateBar
+        case .chat:
+            // Konversationeller Assistent, scoped auf dieses Projekt.
+            // Gleiche Engine wie der globale Assistent — Verlauf je Scope getrennt.
+            AssistantChatView(
+                scope: .project(project.projectNumber),
+                chatStore: appState.chat,
+                engine: appState.conversation,
+                isConnected: appState.claudeAuth.status == .connected,
+                modelName: (try? appState.claudeAuth.storedCredentials()?.model)
+                    ?? ClaudeAuthService.defaultModel,
+                projects: appState.registry.projects,
+                focusedProjectID: project.projectNumber,
+                profile: appState.profile.profile
+            )
         case .offers:
             OffersTabView(
                 projectID: project.projectNumber,
@@ -223,9 +246,13 @@ private struct RowLayout: Identifiable {
 
 // MARK: - Tab-Helfer
 enum ProjectTab: String, CaseIterable, Identifiable {
-    case overview = "Übersicht"; case files = "Dateien"; case offers = "Angebote"
+    case overview = "Übersicht"; case chat = "Assistent"
+    case files = "Dateien"; case offers = "Angebote"
     case timeline = "Timeline"; case material = "Material"
     var id: String { rawValue }
+
+    // Chat braucht volle Höhe und darf nicht in einen äußeren ScrollView geraten.
+    var isFullHeight: Bool { self == .chat }
 }
 
 private struct TabButton: View {
