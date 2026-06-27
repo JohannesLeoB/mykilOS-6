@@ -8,6 +8,141 @@
 
 ---
 
+## 0 — Connector-Check (vor allen Aufgaben ausführen)
+
+**Dieser Abschnitt ist zuerst abzuarbeiten.** Alle Zugriffe und Freigaben müssen bestehen, bevor Code angefasst wird.
+
+### 0a. GitHub-Zugriff
+
+```bash
+gh auth status
+gh repo view JohannesLeoB/mykilOS-6 --json name,defaultBranchRef
+```
+
+Erwartetes Ergebnis: Logged in, Repo sichtbar.  
+Falls nicht: `gh auth login` → Browser-Flow → PAT im Keychain.
+
+Aktueller Branch: `claude/musing-sammet-3abd94`
+```bash
+git status
+git log --oneline -5
+```
+
+Erwartet: Clean working tree, letzter Commit `bcaf4dd docs: Codex handoff...`
+
+### 0b. Swift-Toolchain
+
+```bash
+swift --version
+swift build 2>&1 | tail -5
+swift test  2>&1 | tail -10
+```
+
+Erwartet: Swift 5.9+, Build grün, **97 Tests grün** (keine neuen Failures).  
+Falls Tests rot: erst fixen, bevor die Aufgaben unten starten.
+
+### 0c. Airtable-Zugriff (Mastermind-Base)
+
+Der Code nutzt den gespeicherten Airtable-PAT aus dem Keychain.  
+Manueller Smoke-Test (einmalig, im Browser oder curl):
+
+```bash
+# PAT liegt im Keychain unter Service "mykilOS-Airtable", Account "pat"
+# NIEMALS den Key in Code/Logs schreiben
+curl -s -H "Authorization: Bearer <PAT-aus-Keychain>" \
+  "https://api.airtable.com/v0/appuVMh3KDfKw4OoQ/Kalkulationen?maxRecords=1" \
+  | python3 -m json.tool | head -20
+```
+
+Erwartet: HTTP 200, JSON-Antwort mit `records`-Array.  
+Falls 401: PAT abgelaufen → neu generieren unter airtable.com/account → im Keychain speichern über Settings-Tab in der laufenden App.
+
+**Tabellen-IDs (nie ändern):**
+| Tabelle | ID |
+|---|---|
+| `Kalkulationen` | `tblO3y2jdmxDnuiZj` |
+| `Kalkulations-Positionen` | `tblNamx3cHTus6gtk` |
+| `Eingehende-Angebote` | `tbliKfs5FnufjdB36` |
+| `Clockodo-Nutzer` | `tblPbly2br8mR2kaU` |
+| `Clockodo-Buchungen` | `tblYQxlauwej7FD1w` |
+| `Preis-Beobachtungen` | *(noch anzulegen, V2)* |
+
+**Nur Mastermind-Base `appuVMh3KDfKw4OoQ` darf beschrieben werden.**  
+Alte mykilO$$-Base `appkPzoEiI5eSMkNK`: absolutes Schreibverbot.
+
+### 0d. Google Drive-Zugriff (read-only)
+
+Drive-Tokens liegen im Keychain (gespeichert über Google-OAuth-Flow in der App).  
+Code-Zugriff läuft über `GoogleDriveClient` in `MykilosServices/Google/`.  
+Drive ist **read-only** — kein Schreiben, kein Verschieben, kein Umbenennen.
+
+Smoke-Test nur wenn Drive-Code angefasst wird:
+```bash
+# Drive-Ordner-ID kommt aus Airtable-Feld "Drive-Ordner-ID" je Projekt
+# Nie hardcoden
+```
+
+### 0e. Claude API (Anthropic)
+
+API-Key liegt im Keychain unter `ClaudeAuthService` (gespeichert über Settings-Tab).  
+Default-Modell: `claude-sonnet-4-6`  
+Wird nur vom `AssistantWidget` aufgerufen — Kalkulations-Aufgaben brauchen keinen direkten Zugriff.
+
+Falls Keychain-Zugriff in Tests nötig: `InMemoryStore`-Test-Double bauen, **nie echten Key in Tests**.
+
+### 0f. Clockodo-Zugriff
+
+API-Key liegt im Keychain unter `ClockodoAuthService`.  
+Für Aufgabe 7 (Kalkulation) nicht direkt benötigt — aber Smoke-Test nicht vergessen wenn Clockodo-Code angefasst wird.
+
+### 0g. mykilO$$-Quellverzeichnis lesbar
+
+```bash
+ls "/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilO\$\$\$/ClaudeCode_Final_Handoff_2026-06-26/04_PROJECT/MYKILOSKalkulationslabor/Sources/MYKILOSKalkulationslabor/" | sort
+```
+
+Erwartet: 10 Swift-Dateien sichtbar:
+```
+AirtableOffer.swift
+BottomUpCost.swift
+ComponentResolver.swift
+Estimation.swift
+LearningModels.swift
+MaterialLexicon.swift
+Models.swift
+Parsing.swift
+Review.swift
+Version.swift
+```
+
+Falls das Verzeichnis nicht erreichbar ist: **Stopp, melden** — ohne Quellcode kein verbatim-Port möglich.
+
+### 0h. App-Bundle bauen und starten
+
+```bash
+./script/build_and_run.sh
+```
+
+Erwartet: `.app` in `dist/` gebaut, App startet ohne Crash.  
+Falls Crash: erst debuggen, bevor Aufgaben 1–7 gestartet werden.
+
+### Checkliste Connector-Status
+
+Codex trägt nach dem Check hier ein:
+
+- [ ] GitHub: eingeloggt, Branch korrekt
+- [ ] Swift: Build grün, 97 Tests grün
+- [ ] Airtable Mastermind: HTTP 200 auf Kalkulationen-Tabelle
+- [ ] mykilO$$-Quellverzeichnis: 10 Dateien sichtbar
+- [ ] App-Bundle: startet ohne Crash
+- [ ] (optional) Google Drive: Token vorhanden im Keychain
+- [ ] (optional) Claude API: Key vorhanden im Keychain
+- [ ] (optional) Clockodo: Key vorhanden im Keychain
+
+Erst wenn alle relevanten Haken gesetzt: mit Aufgabe 1 starten.
+
+---
+
 ## Ausgangslage (was bereits erledigt ist)
 
 | Was | Wo | Status |
