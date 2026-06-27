@@ -102,23 +102,32 @@ struct AssistantPageView: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: MykSpace.s7) {
+        // Wurzel VStack (kein äußeres ScrollView), damit der Chat eigenständig
+        // scrollt und der Composer unten verankert bleibt.
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: MykSpace.s2) {
                 Text("Assistent")
                     .font(.mykDisplay)
                     .foregroundStyle(MykColor.ink.color)
-                Text("Der Dolmetscher liest alle Quellen und fasst zusammen, was wichtig ist.")
-                    .font(.mykBody)
+                Text("Fragt deine Projekte, Signale und den Tag — im Dialog.")
+                    .font(.mykSmall)
                     .foregroundStyle(MykColor.muted.color)
-                AssistantWidget(
-                    projectID: "home",
-                    auditStore: appState.audit,
-                    llmProvider: appState.claudeAuth.status == .connected ? appState.assistantLLM : nil
-                )
             }
-            .padding(MykSpace.s9)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, MykSpace.s9)
+            .padding(.top, MykSpace.s9)
+            .padding(.bottom, MykSpace.s5)
+            Divider().overlay(MykColor.line.color)
+            AssistantChatView(
+                scope: .home,
+                chatStore: appState.chat,
+                engine: appState.conversation,
+                isConnected: appState.claudeAuth.status == .connected,
+                modelName: (try? appState.claudeAuth.storedCredentials()?.model) ?? ClaudeAuthService.defaultModel,
+                projects: appState.registry.projects,
+                focusedProjectID: context.focusedProjectID
+            )
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .background(MykColor.paper.color)
     }
 }

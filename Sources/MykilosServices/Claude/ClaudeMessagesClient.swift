@@ -8,6 +8,9 @@ public enum ClaudeClientError: Error, Sendable, Equatable {
     case httpError(Int)
     case decodingFailed
     case emptyResponse
+    case rateLimited(retryAfter: Int?)
+    case overloaded
+    case streamInterrupted
 }
 
 // MARK: - AssistantLLMProviding
