@@ -7,13 +7,15 @@ public struct GoogleGmailMessage: Identifiable, Equatable, Sendable {
     public var from: String
     public var snippet: String
     public var receivedAt: Date?
+    public var labels: [String]   // Gmail-Label-IDs (Ablageort), z. B. INBOX, SENT, Label_123
 
-    public init(id: String, subject: String, from: String, snippet: String, receivedAt: Date?) {
+    public init(id: String, subject: String, from: String, snippet: String, receivedAt: Date?, labels: [String] = []) {
         self.id = id
         self.subject = subject
         self.from = from
         self.snippet = snippet
         self.receivedAt = receivedAt
+        self.labels = labels
     }
 }
 
@@ -131,7 +133,8 @@ public struct GoogleGmailClient: GoogleGmailFetching {
             subject: subject,
             from: extractSenderName(from: fromRaw),
             snippet: resource.snippet ?? "",
-            receivedAt: dateString.flatMap { parseEmailDate($0) }
+            receivedAt: dateString.flatMap { parseEmailDate($0) },
+            labels: resource.labelIds ?? []
         )
     }
 
@@ -173,6 +176,7 @@ private struct GmailMessageResource: Decodable {
     var id: String
     var snippet: String?
     var payload: GmailPayload?
+    var labelIds: [String]?
 }
 
 private struct GmailPayload: Decodable {

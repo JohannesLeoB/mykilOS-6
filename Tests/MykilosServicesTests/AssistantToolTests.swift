@@ -48,6 +48,19 @@ struct AssistantToolTests {
         #expect(fake.lastQuery == "from:gesa")
     }
 
+    // MARK: „Wo abgelegt?" — Label wird als Ablageort gezeigt
+    @Test func gmailToolZeigtAblageort() async {
+        let fake = FakeGmail(messages: [
+            GoogleGmailMessage(id: "1", subject: "Angebot", from: "gesa@gesahansen.com",
+                               snippet: "…", receivedAt: nil, labels: ["INBOX", "CATEGORY_PERSONAL", "UNREAD"]),
+        ])
+        let registry = AssistantToolRegistry.standard(gmail: fake)
+        let result = await registry.run(name: "search_gmail", inputJSON: Data(#"{"query":"x"}"#.utf8))
+        #expect(result.text.contains("Ablage: Posteingang"))
+        #expect(result.text.contains("Kategorie Personal"))
+        #expect(result.text.contains("UNREAD") == false)   // Status-Label ausgeblendet
+    }
+
     @Test func gmailToolLeeresErgebnis() async {
         let registry = AssistantToolRegistry.standard(gmail: FakeGmail(messages: []))
         let result = await registry.run(name: "search_gmail", inputJSON: Data(#"{"query":"x"}"#.utf8))

@@ -99,13 +99,34 @@ public struct SearchGmailTool: AssistantTool {
             }
             let lines = messages.map { m -> String in
                 let date = m.receivedAt.map { toolDateFormatter.string(from: $0) } ?? "ohne Datum"
-                return "• \(m.subject) — von \(m.from) (\(date))\n  \(m.snippet)"
+                let place = Self.placement(from: m.labels)
+                return "• \(m.subject) — von \(m.from) (\(date))\(place.isEmpty ? "" : " · Ablage: \(place)")\n  \(m.snippet)"
             }
             return ToolRunResult(text: lines.joined(separator: "\n"))
         } catch GoogleGmailError.notConnected {
             return ToolRunResult(text: "Gmail ist nicht verbunden. Bitte Google in den Einstellungen verbinden.", isError: true)
         } catch {
             return ToolRunResult(text: "Gmail-Suche fehlgeschlagen: \(error)", isError: true)
+        }
+    }
+
+    // Label-IDs → lesbarer Ablageort (beantwortet „wo abgelegt?"). Status-Labels
+    // (gelesen/markiert) werden ausgeblendet; Kategorien & eigene Labels bleiben.
+    static func placement(from labels: [String]) -> String {
+        let hidden: Set<String> = ["UNREAD", "STARRED", "IMPORTANT"]
+        let names = labels.filter { hidden.contains($0) == false }.map(humanLabel(_:))
+        return names.joined(separator: ", ")
+    }
+
+    static func humanLabel(_ id: String) -> String {
+        switch id {
+        case "INBOX":  "Posteingang"
+        case "SENT":   "Gesendet"
+        case "DRAFT":  "Entwürfe"
+        case "SPAM":   "Spam"
+        case "TRASH":  "Papierkorb"
+        case let c where c.hasPrefix("CATEGORY_"): "Kategorie " + c.dropFirst("CATEGORY_".count).capitalized
+        default: id   // eigene Label-ID
         }
     }
 }
