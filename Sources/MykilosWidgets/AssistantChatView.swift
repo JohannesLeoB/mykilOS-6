@@ -122,6 +122,24 @@ public struct AssistantChatView: View {
 
     private var exampleQuestions: [String] {
         // \u201D = schlie\u00DFendes deutsches Anf\u00FChrungszeichen
+        if case .project(let nr) = scope,
+           let project = projects.first(where: { $0.projectNumber == nr }) {
+            // Projekt-spezifische Einstiegsfragen.
+            if toolsEnabled {
+                return [
+                    "Was steht f\u{00FC}r \(project.title) diese Woche an?\u{201D}",
+                    "Suche Mails zu \(project.title).\u{201D}",
+                    "Fasse die offenen Signale f\u{00FC}r \(project.title) zusammen.\u{201D}",
+                ]
+            } else {
+                return [
+                    "Was sind die n\u{00E4}chsten Schritte f\u{00FC}r \(project.title)?\u{201D}",
+                    "Welche offenen Signale gibt es f\u{00FC}r \(project.title)?\u{201D}",
+                    "Worauf soll ich bei \(project.title) heute achten?\u{201D}",
+                ]
+            }
+        }
+        // Home-Scope: allgemeine Fragen.
         if toolsEnabled {
             return [
                 "Was steht diese Woche im Kalender an?\u{201D}",
