@@ -121,7 +121,15 @@ public struct AssistantChatView: View {
     }
 
     private var exampleQuestions: [String] {
-        ["Was steht diese Woche an?“", "Fasse die offenen Signale zusammen.“", "Worauf soll ich heute achten?“"]
+        if toolsEnabled {
+            [“Was steht diese Woche im Kalender an?””,
+             “Suche Mails zum Thema Angebot.””,
+             “Fasse die offenen Signale zusammen.””]
+        } else {
+            [“Was steht diese Woche an?””,
+             “Fasse die offenen Signale zusammen.””,
+             “Worauf soll ich heute achten?””]
+        }
     }
 
     // MARK: Datenschutz-Opt-in für Live-Tools
