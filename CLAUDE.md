@@ -417,6 +417,7 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_POST_AKT5_11.md` — Stabilisierung: Projektdetail-Crash + Galerie-Hang + Bug-Audit-Fixes (live verifiziert, 118 Tests)
 - `docs/handoffs/HANDOFF_POST_AKT5_12_ASSISTANT_PLAN.md` — Multi-Agent-Synthese-Plan für den konversationellen Assistenten (Phasen 0–4, NO-GO-Durchsetzung, offene Entscheidungen)
 - `docs/handoffs/HANDOFF_POST_AKT5_13_ASSISTANT_RELEASE.md` — Release 6.1.0: ehrlicher Reality-Check, feste Vision, fester Nächste-Session-Plan, **Startprompt**
+- `docs/handoffs/HANDOFF_POST_AKT5_15_SURFACE_COMPLETION.md` — Release 6.3.0: App-Vollständigkeit (Aufgaben 15–21), Phase 3 CalendarActionCard, Signal-Badges, Grounding-Update, 169 Tests
 - `docs/handoffs/HANDOFF_POST_AKT5_14_BUGFIXES.md` — Bugfixes #1/#2 + Streaming Phase 1e + UserProfile im Prompt + dynamische Beispielfragen + Chat-Löschen (163 Tests, Version 6.2.0)
 - `docs/architecture/mykilOS6_Systemarchitektur.pdf` — Systemarchitektur (9 S., A4 quer): Integrations-Landkarte, Steckbriefe (Google/Clockodo/Airtable/ClickUp/Sevdesk/Claude), Signal-Nervensystem, GRDB-Persistenz, Funktionsbaum, Trigger-/Handle-Matrix; Quelle `.html` + `build_pdf.sh` daneben
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
