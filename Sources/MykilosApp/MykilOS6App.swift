@@ -25,12 +25,12 @@ struct MykilOS6App: App {
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1340, height: 860)
-        // Fenster-Mindestgröße EXPLIZIT setzen. Ohne das gilt .automatic, wobei
-        // der Inhalt die Fenster-Mindestbreite treibt; in Kombination mit der
-        // Detail-Transition oszilliert AppKit dann die Update-Constraints-Pässe
-        // bis die Breite explodiert (NSGenericException, ~4 Mio pt). Eine feste
-        // Mindestgröße gibt der NSHostingView einen stabilen unteren Anker.
-        .windowResizability(.contentMinSize)
+        // KEIN .windowResizability(.contentMinSize): das positionierte das Fenster
+        // bei jedem Inhaltswechsel neu (Drift aus dem Bild). Der Crash ist bereits
+        // anders behoben — durch die entschärfte Transition (.opacity statt .move,
+        // siehe ProjectGalleryView) und den festen Mindestrahmen an ContentView,
+        // der der NSHostingView einen stabilen, endlichen unteren Anker gibt.
+        // Damit bleibt die normale, stabile .automatic-Fensterlogik erhalten.
         .commands { AppCommands() }
 
         WindowGroup("Über mykilOS 6", id: "about") {
@@ -75,12 +75,14 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(MykColor.paper.color)
-        // Stabiler, endlicher Mindestrahmen für den Fensterinhalt. Zusammen mit
-        // .windowResizability(.contentMinSize) bekommt die NSHostingView eine
-        // feste untere Schranke → die Fenster-Extrema-Berechnung konvergiert,
-        // statt der Detail-Transition in eine Endlosschleife zu folgen.
-        .frame(minWidth: 1100, idealWidth: 1340, maxWidth: .infinity,
-               minHeight: 720, idealHeight: 860, maxHeight: .infinity)
+        // Nur MIN/MAX, KEIN idealWidth/idealHeight: der Mindestrahmen gibt der
+        // NSHostingView eine feste, endliche untere Schranke (verhindert die
+        // Fenster-Extrema-Endlosschleife → Crash). Ein idealWidth ließ das
+        // Fenster bei jeder Navigation Richtung Ideal „springen" und aus dem Bild
+        // driften — darum bewusst weggelassen. Die Startgröße kommt aus
+        // .defaultSize(1340×860), die laufende Größe behält der Nutzer.
+        .frame(minWidth: 1100, maxWidth: .infinity,
+               minHeight: 720, maxHeight: .infinity)
     }
 
     @ViewBuilder
