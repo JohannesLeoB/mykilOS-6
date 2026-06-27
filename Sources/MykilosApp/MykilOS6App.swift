@@ -62,6 +62,17 @@ enum AppModule: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - FocusedValues — Navigation
+private struct ActiveModuleKey: FocusedValueKey {
+    typealias Value = Binding<AppModule>
+}
+extension FocusedValues {
+    var activeModule: Binding<AppModule>? {
+        get { self[ActiveModuleKey.self] }
+        set { self[ActiveModuleKey.self] = newValue }
+    }
+}
+
 // MARK: - ContentView
 struct ContentView: View {
     @State private var module: AppModule = .today
@@ -90,6 +101,7 @@ struct ContentView: View {
                 )
             }
         }
+        .focusedValue(\.activeModule, $module)
     }
 
     private var shell: some View {
@@ -214,6 +226,7 @@ struct AboutMykilOSView: View {
 
 struct AppCommands: Commands {
     @Environment(\.openWindow) private var openWindow
+    @FocusedBinding(\.activeModule) private var activeModule
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {}
@@ -222,6 +235,20 @@ struct AppCommands: Commands {
                 openWindow(id: "about")
             }
             .keyboardShortcut(",", modifiers: .command)
+        }
+        CommandMenu("Navigation") {
+            Button("Heute")           { activeModule = .today }
+                .keyboardShortcut("1", modifiers: .command)
+            Button("Projekte")        { activeModule = .projects }
+                .keyboardShortcut("2", modifiers: .command)
+            Button("Assistent")       { activeModule = .assistant }
+                .keyboardShortcut("3", modifiers: .command)
+            Button("Marken & Daten")  { activeModule = .brands }
+                .keyboardShortcut("4", modifiers: .command)
+            Button("Angebote")        { activeModule = .offers }
+                .keyboardShortcut("5", modifiers: .command)
+            Button("Einstellungen")   { activeModule = .settings }
+                .keyboardShortcut("6", modifiers: .command)
         }
     }
 }
