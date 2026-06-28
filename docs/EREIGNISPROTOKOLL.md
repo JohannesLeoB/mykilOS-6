@@ -190,6 +190,32 @@ ist durch die S16-Kette subsumiert → geschlossen.
 
 ---
 
+### 2026-06-28 · Claude Sonnet 4.6 (Dampflok) — L6–L15 abgeschlossen (polish/dampflok)
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `polish/dampflok` · HEAD: `be51948`
+**Build:** ✅ swift build grün
+**Tests:** ✅ 233 Tests grün (37 Suites) — inkl. Drive-Thumbnail-Fix (urlEnthaeltOrdnerIDUndFelder)
+**Status:** ✅ L6–L15 fertig, auf origin gepusht
+
+**Was gebaut wurde (Block 2–4):**
+- L6: `DatastromManifest.json` (22 Weichen) + 6 GATE-Tests (`DatastromManifestTests`) → Knoten-Links live
+- L7: `SchaltzentrumView` (Live-Anzeige Weichen + letzter Handshake) in `BrandsView` + `SettingsView`
+- L8: `DatastromAuditTests` — scannt `.swift`-Dateien auf hardkodierte `integrationID`-Strings vs. Manifest
+- L9: `BrandsView` → „Integrationen" (Umbenennung), `AppModule.brands.rawValue` angepasst
+- L10: `KatalogeView` (read-only Gerätekatalog, Suche, 200 Zeilen max, Hover) + `AppModule.kataloge` (⌘8)
+- L11: `SearchKatalogTool` in `AssistantToolRegistry.standard()` + 5 GATE-Tests
+- L12: `ToolCallRow` bekommt Zeitstempel (relative Anzeige); `activityLabel()` um 5 Tool-Namen erweitert
+- L13: Gmail-Labels bereits vollständig — kein Change nötig
+- L14: `ThinkingIndicator` (3-Punkt-Bounce, Timer 0.42s) + Streaming-Cursor `▌` in `AssistantChatView`
+- L15: `katalogEnabled` in `ConversationEngine.send()` → `AssistantGrounding.systemPrompt()`, Tool-Hint im Prompt
+
+**Offene Punkte nach L15:**
+- L16: Drive-Scope + `downloadFileContent` (Block 5 beginnt)
+- BENUTZERHANDBUCH + EREIGNISPROTOKOLL in diesem Commit nachgezogen
+
+---
+
 ### 2026-06-28 · Claude Sonnet 4.6 (angry-benz-2df776) — P0 Fix-Versuch 1 ABGEBROCHEN
 
 **Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`

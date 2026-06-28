@@ -19,6 +19,8 @@ Hauptbereiche. Tastenkürzel:
 | ⌘4 | Dateien |
 | ⌘5 | Angebote |
 | ⌘6 | Kalkulation |
+| ⌘7 | Integrationen |
+| ⌘8 | Kataloge |
 | ⌘⇧S | Sidebar ein-/ausblenden |
 
 ---
@@ -105,6 +107,21 @@ Alle Drive-Dateien des Accounts, nach Änderungszeit sortiert.
 ### Angebote (global)
 Projektliste links, Angebots-PDFs des gewählten Projekts rechts.
 
+### Integrationen (⌘7)
+Datenstrom-Schaltzentrale: zeigt alle 22 Weichen aus `DatastromManifest.json`
+mit letztem Handshake-Zeitstempel und Verbindungsstatus (grün/rot/grau).
+Jede Weiche hat eine eindeutige `Integrations-ID` die exakt dem `DataFlowLogger`-Eintrag
+im Code entspricht.
+
+Ebenfalls hier: verbundene Dienste (Google, Airtable, ClickUp, Clockodo, Sevdesk, Claude).
+
+### Kataloge (⌘8)
+Gerätekatalog read-only. Suche nach Hersteller, Beschreibung oder Artikelnummer.
+Zeigt MYKILOS-VK. Quelle: `_Daten/Kalkulation/Devices/catalog.csv`
+(5.565 Artikel aus Airtable-DB `appdxTeT6bhSBmwx5` — nur Export, nie schreiben).
+
+**Voraussetzung:** CSV-Datei muss im `_Daten/`-Ordner liegen (nicht im Repo).
+
 ### Kalkulation
 Kostenschätzungs-Engine (mykilO$$-Integration). Freitext-Eingabe einer
 Projektbeschreibung → Min/Mitte/Max-Netto-Schätzung mit Konfidenz-Badge.
@@ -182,8 +199,17 @@ Wenn Tools aktiviert sind, kann der Assistent folgende Aktionen ausführen
 | `search_contacts` | Sucht Google-Kontakte | toolsEnabled |
 | `schaetze_projekt` | Kostenschätzung (lokal) | toolsEnabled oder schaetzModus |
 | `query_studio_knowledge` | Fragt Slack-Brain | toolsEnabled |
+| `search_katalog` | Sucht Gerätekatalog (Hersteller, Artikelnr., VK) | toolsEnabled, kein SchaetzModus |
 
 Alle Tool-Calls werden via `DataFlowLogger` lokal protokolliert.
+
+**Capability-Chips:** Im optIn-Bereich des Chats zeigen farbige Chips welche
+Fähigkeiten gerade aktiv sind (Gmail, Kalender, Drive, ClickUp, Kontakte,
+Studio-Wissen, Katalog, Kalkulation). Grüner Chip = Opt-in aktiv + Handle vorhanden.
+Gelber Chip = nur mit dem jeweiligen Scope verfügbar (z. B. Drive nur mit Projekt-Ordner).
+
+**ThinkingIndicator:** Während Claude antwortet erscheint ein 3-Punkt-Bounce als
+Ladeindikator. Bei aktivem Streaming tippt der Text mit blinkenden Cursor `▌`.
 
 ---
 
@@ -295,7 +321,7 @@ Der Logger schreibt **immer zuerst lokal** (GRDB, `dataFlowLog`-Tabelle).
 Danach spiegelt er nicht-fatal nach Airtable `Datenstrom-Log` — ein Airtable-Ausfall
 stoppt nie den eigentlichen Datenstrom.
 
-**Wo sichtbar:** Settings → Schaltzentrum (geplant, L7). Aktuell: GRDB direkt.
+**Wo sichtbar:** Sidebar → Integrationen (⌘7) → Schaltzentrum-Abschnitt.
 
 ---
 
@@ -309,4 +335,4 @@ Wenn eine neue Integration gebaut wird:
 ---
 
 *Dieses Dokument wird mit jedem Feature-Commit aktualisiert.*
-*Letzte Änderung: 2026-06-28 · polish/dampflok*
+*Letzte Änderung: 2026-06-28 · polish/dampflok · L6–L15 abgeschlossen*
