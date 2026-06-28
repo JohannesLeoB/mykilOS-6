@@ -53,6 +53,36 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+### 2026-06-28 · Claude Code (Opus 4.8) — mykilO$$ Kalkulations-Core portiert (Schritt 1)
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `feat/kalkulation-core-port` (aus `stabilize/from-0b7c366-2026-06-28`)
+**Build:** ✅ | **Tests:** 185 grün (169 swift-testing + 16 portierte XCTest)
+
+**Was gemacht wurde — Port-Reihenfolge Schritt 1 (HANDOFF_LIVE_WIRING_5.md Teil 3):**
+- Neues Foundation-only-Target **`MykilosKalkulationsCore`** (Geschwister zu `MykilosKit`).
+- **10 Dateien verbatim** aus mykilO$$ `KalkulationsCore` portiert: AirtableOffer,
+  BottomUpCost, ComponentResolver, Estimation, LearningModels, MaterialLexicon,
+  Models, Parsing, Review, Version. Foundation-only am Code verifiziert (nur `import Foundation`).
+- `MykilosServices` hängt jetzt von `MykilosKalkulationsCore` ab (Zielzustand für die GRDB-Adapter).
+- **16 reine Core-Tests portiert** (ParserTests 4 + MaterialLexiconTests 12) als neues
+  Test-Target `MykilosKalkulationsCoreTests`. Einzige Änderung: Modulname im `@testable import`.
+- SwiftLint: `Sources/MykilosKalkulationsCore` als vendored ausgenommen (verbatim-Tabellen
+  sprengen `line_length` absichtlich; kein SwiftUI → Token-Custom-Rules n/a).
+
+**Bewusst NICHT in diesem Schritt (= eigene PRs danach):**
+- KalkulationsData/GRDB-Schicht: `LearningStore`/`LearningDatabase` (eigene `learning.sqlite`),
+  `BrainSeedAnchorProvider`, `DeviceCatalog` → Schritt 2 + **Cold-Start-Test (Merge-Gate)**.
+- 14 Integrations-Tests (Estimator/Calibration) — brauchen die Data-Schicht + Seed-Dateien.
+- `KalkulationsEngine`-Adapter (`parse → estimate`, id als String), AppState-Verdrahtung, UI.
+- Seed-`sqlite` (11 MB) + 4 CSVs aus dem mykilO$$-Tree nach Application-Support (externe Daten).
+
+**Offen / Übergabe:** Reconciliation `recordAdjustment(schaetzungsID:)` UUID→String steht noch aus
+(Teil 3); Destillation V2-Swift-Pipeline ist entschieden, aber noch nicht gebaut.
+Kein Push ohne Johannes' Freigabe.
+
+---
+
 ### 2026-06-28 · Claude Code Desktop — Verbindungscheck + Session-Abschluss
 
 **Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`

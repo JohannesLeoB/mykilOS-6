@@ -4,6 +4,10 @@ included:
   - Sources
 excluded:
   - Sources/MykilosApp/main.swift   # Akt-0-Ausnahme, in Akt 1 entfernen
+  - Sources/MykilosKalkulationsCore # verbatim aus mykilO$$ portiert (vendored),
+                                     # wird NICHT umformatiert — externe Daten-Tabellen
+                                     # (MaterialLexicon u.a.) sprengen line_length absichtlich.
+                                     # Kein SwiftUI → Token-Custom-Rules ohnehin n/a.
 
 custom_rules:
   no_system_font_in_features:

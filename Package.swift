@@ -19,6 +19,11 @@ let package = Package(
         .target(name: "MykilosKit",
                 path: "Sources/MykilosKit"),
 
+        // Kalkulations-Kern — verbatim aus mykilO$$ portiert, NUR Foundation.
+        // Reiner Schätz-/Kostenboden-Kern; GRDB-Adapter leben in MykilosServices.
+        .target(name: "MykilosKalkulationsCore",
+                path: "Sources/MykilosKalkulationsCore"),
+
         // Design-Tokens — nur SwiftUI
         .target(name: "MykilosDesign",
                 dependencies: ["MykilosKit"],
@@ -28,6 +33,7 @@ let package = Package(
         .target(name: "MykilosServices",
                 dependencies: [
                     "MykilosKit",
+                    "MykilosKalkulationsCore",
                     .product(name: "GRDB", package: "GRDB.swift"),
                 ],
                 path: "Sources/MykilosServices"),
@@ -49,6 +55,9 @@ let package = Package(
         .testTarget(name: "MykilosKitTests",
                     dependencies: ["MykilosKit"],
                     path: "Tests/MykilosKitTests"),
+        .testTarget(name: "MykilosKalkulationsCoreTests",
+                    dependencies: ["MykilosKalkulationsCore"],
+                    path: "Tests/MykilosKalkulationsCoreTests"),
         .testTarget(name: "MykilosServicesTests",
                     dependencies: [
                         "MykilosServices", "MykilosKit",
