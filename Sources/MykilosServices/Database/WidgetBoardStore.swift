@@ -43,7 +43,26 @@ public final class WidgetBoardStore {
             try save()
         } else {
             instances = records.map(\.toDomain)
+            // Nicht-destruktive Migration: fehlende kanonische Widgets anhängen,
+            // vorhandene Reihenfolge/Einstellungen bleiben unberührt.
+            try reconcileCanonicalWidgets()
         }
+    }
+
+    // Hängt jede Widget-Art aus dem board-spezifischen defaultLayout ans Ende,
+    // die noch nicht im Board ist. Idempotent — safe, auch mehrfach aufgerufen.
+    // Nutzt defaultLayout() statt einer harten Referenz auf canonicalLayout,
+    // damit Home-Boards keine Projekt-Widgets erhalten.
+    private func reconcileCanonicalWidgets() throws {
+        let presentKinds = Set(instances.map(\.kind))
+        let missing = defaultLayout().filter { !presentKinds.contains($0.kind) }
+        guard !missing.isEmpty else { return }
+        var nextPosition = (instances.map(\.position).max() ?? -1) + 1
+        for template in missing {
+            instances.append(WidgetInstance(kind: template.kind, size: template.size, position: nextPosition))
+            nextPosition += 1
+        }
+        try save()
     }
 
     // MARK: Speichern — Der Vertrag (throws, SaveState sichtbar)

@@ -127,30 +127,80 @@ struct WidgetBoardStoreTests {
         #expect(storeB.entries.first?.summary == entry.summary)
     }
 
-    // MARK: Mehrere Projekt-Boards unabhängig
+    // MARK: Mehrere Projekt-Boards unabhängig (Option A: alle starten mit 7 Widgets)
     @Test func projektBoardsUnabhaengig() throws {
         let db = try GRDBDatabase.inMemory()
         let meyerStore = WidgetBoardStore(boardID: "proj_ME-24", db: db) { WidgetBoardDefault.layout(for: .kitchen) }
         let lightStore  = WidgetBoardStore(boardID: "proj_SO-24", db: db) { WidgetBoardDefault.layout(for: .lighting) }
         try meyerStore.load()
         try lightStore.load()
-        // Küche hat mehr Widgets als Lichtplanung
-        #expect(meyerStore.instances.count > lightStore.instances.count)
+        // Beide starten mit dem kanonischen Vollsatz
+        #expect(meyerStore.instances.count == WidgetBoardDefault.canonicalLayout.count)
+        #expect(lightStore.instances.count  == WidgetBoardDefault.canonicalLayout.count)
         // Boards sind unabhängig — Änderung in Meyer betrifft Licht nicht
-        try meyerStore.add(kind: .calendar)
+        try meyerStore.add(kind: .mail)
         #expect(meyerStore.instances.count > lightStore.instances.count)
+        #expect(meyerStore.boardID != lightStore.boardID)
     }
 
-    // MARK: Nachtrag-Boards vererben nichts von Eltern
+    // MARK: Nachtrag-Boards vererben nichts von Eltern (boardID-Isolation)
     @Test func nachtragBoardUnabhaengigVomEltern() throws {
         let db = try GRDBDatabase.inMemory()
         let parentStore   = WidgetBoardStore(boardID: "proj_ME-24",    db: db) { WidgetBoardDefault.layout(for: .kitchen) }
         let addendumStore = WidgetBoardStore(boardID: "proj_ME-24-N1", db: db) { WidgetBoardDefault.layout(for: .addendum) }
         try parentStore.load()
         try addendumStore.load()
-        // Addendum ist schlanker
-        #expect(addendumStore.instances.count < parentStore.instances.count)
+        // Option A: beide starten mit demselben kanonischen Widget-Satz
+        #expect(parentStore.instances.count   == WidgetBoardDefault.canonicalLayout.count)
+        #expect(addendumStore.instances.count == WidgetBoardDefault.canonicalLayout.count)
         // Verschiedene Board-IDs = vollständig unabhängig
         #expect(parentStore.boardID != addendumStore.boardID)
+    }
+
+    // MARK: Nicht-destruktive Migration: alte Boards bekommen fehlende Widgets
+    @Test func reconcileErganztFehlende() throws {
+        let db = try GRDBDatabase.inMemory()
+        // Board mit altem, schlankem Layout (nur 4 Widgets) anlegen
+        let altLayout: [WidgetInstance] = [
+            WidgetInstance(kind: .drive,     size: .wide,   position: 0),
+            WidgetInstance(kind: .notes,     size: .medium, position: 1),
+            WidgetInstance(kind: .tasks,     size: .wide,   position: 2),
+            WidgetInstance(kind: .assistant, size: .full,   position: 3),
+        ]
+        let seedStore = WidgetBoardStore(boardID: "proj_ALT", db: db) { altLayout }
+        try seedStore.load()
+        #expect(seedStore.instances.count == 4)
+
+        // Neustart mit canonicalLayout — reconcile ergänzt fehlende 3 Widgets
+        let freshStore = WidgetBoardStore(boardID: "proj_ALT", db: db) {
+            WidgetBoardDefault.canonicalLayout
+        }
+        try freshStore.load()
+        #expect(freshStore.instances.count == WidgetBoardDefault.canonicalLayout.count)
+        let kinds = freshStore.instances.map(\.kind)
+        // Ursprüngliche 4 erhalten
+        #expect(kinds.contains(.drive))
+        #expect(kinds.contains(.notes))
+        #expect(kinds.contains(.tasks))
+        #expect(kinds.contains(.assistant))
+        // Neue 3 ergänzt
+        #expect(kinds.contains(.contacts))
+        #expect(kinds.contains(.cash))
+        #expect(kinds.contains(.calendar))
+        // Erste 4 Positionen unverändert
+        #expect(freshStore.instances[0].kind == .drive)
+        #expect(freshStore.instances[1].kind == .notes)
+        #expect(freshStore.instances[2].kind == .tasks)
+        #expect(freshStore.instances[3].kind == .assistant)
+    }
+
+    // MARK: Reconcile ist idempotent — mehrfaches Laden dupliziert nichts
+    @Test func reconcileIstIdempotent() throws {
+        let db = try GRDBDatabase.inMemory()
+        let store = WidgetBoardStore(boardID: "proj_X", db: db) { WidgetBoardDefault.canonicalLayout }
+        try store.load()
+        let countAfterFirst = store.instances.count
+        try store.load()
+        #expect(store.instances.count == countAfterFirst)
     }
 }

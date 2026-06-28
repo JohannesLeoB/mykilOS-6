@@ -49,48 +49,27 @@ public struct WidgetInstance: Codable, Identifiable, Equatable, Sendable {
     }
 }
 
-// MARK: - Adaptive Default-Layouts (Akt 0 — statisch)
-// Jeder Projekt-Archetyp bekommt eine kuratierte Werkbank als Startpunkt.
-// Der Nutzer kann jederzeit Widgets hinzufügen/entfernen/verschieben (Akt 2+).
+// MARK: - Default-Layouts (Option A: einheitlicher vollständiger Widget-Satz)
+// Alle Projekttypen erhalten dieselben 7 Widgets. Project.kind beeinflusst
+// nur die Hero-Gradient-Farbe, nie den Funktionsumfang.
+// WidgetBoardStore.reconcileCanonicalWidgets() ergänzt diese Widgets
+// nicht-destruktiv in bereits gespeicherten Boards (Migration ohne Datenverlust).
 public enum WidgetBoardDefault {
+    // Computed property — erzeugt jedes Mal frische UUIDs (kein UUID-Sharing
+    // zwischen Boards, die beide erstmals laden und in dieselbe DB schreiben).
+    public static var canonicalLayout: [WidgetInstance] {
+        [
+            WidgetInstance(kind: .drive,     size: .wide,   position: 0),
+            WidgetInstance(kind: .contacts,  size: .medium, position: 1),
+            WidgetInstance(kind: .tasks,     size: .medium, position: 2),
+            WidgetInstance(kind: .cash,      size: .wide,   position: 3),
+            WidgetInstance(kind: .calendar,  size: .medium, position: 4),
+            WidgetInstance(kind: .notes,     size: .medium, position: 5),
+            WidgetInstance(kind: .assistant, size: .full,   position: 6),
+        ]
+    }
+
     public static func layout(for kind: ProjectKind) -> [WidgetInstance] {
-        switch kind {
-        case .kitchen:
-            return [
-                WidgetInstance(kind: .drive,     size: .wide,   position: 0),
-                WidgetInstance(kind: .contacts,  size: .medium, position: 1),
-                WidgetInstance(kind: .tasks,     size: .medium, position: 2),
-                WidgetInstance(kind: .cash,      size: .wide,   position: 3),
-                WidgetInstance(kind: .calendar,  size: .medium, position: 4),
-                WidgetInstance(kind: .notes,     size: .medium, position: 5),
-                WidgetInstance(kind: .assistant, size: .full,   position: 6),
-            ]
-        case .lighting:
-            return [
-                WidgetInstance(kind: .drive,     size: .wide,   position: 0),
-                WidgetInstance(kind: .notes,     size: .medium, position: 1),
-                WidgetInstance(kind: .tasks,     size: .wide,   position: 2),
-                WidgetInstance(kind: .assistant, size: .full,   position: 3),
-            ]
-        case .addendum:
-            return [
-                WidgetInstance(kind: .tasks,     size: .medium, position: 0),
-                WidgetInstance(kind: .cash,      size: .wide,   position: 1),
-                WidgetInstance(kind: .calendar,  size: .medium, position: 2),
-                WidgetInstance(kind: .notes,     size: .wide,   position: 3),
-                WidgetInstance(kind: .assistant, size: .full,   position: 4),
-            ]
-        case .lead, .quote:
-            return [
-                WidgetInstance(kind: .notes,     size: .wide,   position: 0),
-                WidgetInstance(kind: .tasks,     size: .medium, position: 1),
-                WidgetInstance(kind: .assistant, size: .full,   position: 2),
-            ]
-        case .studioInternal:
-            return [
-                WidgetInstance(kind: .tasks,     size: .wide,   position: 0),
-                WidgetInstance(kind: .notes,     size: .medium, position: 1),
-            ]
-        }
+        canonicalLayout
     }
 }
