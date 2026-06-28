@@ -53,6 +53,36 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+### 2026-06-28 · Claude Code Desktop — Verbindungscheck + Session-Abschluss
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `stabilize/from-0b7c366-2026-06-28`
+**Build:** ✅ | **Tests:** 169 grün
+
+**Verbindungscheck (alle Keychain-Einträge geprüft):**
+
+| Service | Keychain | Live-API |
+|---|---|---|
+| Airtable | ✅ PAT + baseID = `appuVMh3KDfKw4OoQ` | ✅ Kunden, Projekte, Clockodo-Nutzer, Clockodo-Leistungen |
+| Claude | ✅ API-Key + Modell `claude-sonnet-4-6` | ✅ |
+| Google | ✅ OAuth-Token vorhanden | in App prüfen |
+| Clockodo | ✅ `johannes@mykilos.com` | in App prüfen |
+| ClickUp | ✅ API-Key vorhanden | in App prüfen |
+| Sevdesk | ✅ (NO-GO — nicht live geprüft) | — |
+
+**Airtable-Bug behoben:** `baseID` im Keychain enthält jetzt korrekt `appuVMh3KDfKw4OoQ`
+(zuvor fälschlich zweiten PAT-Token — von Johannes manuell in App → Einstellungen korrigiert).
+
+**Abgeschlossen diese Session:**
+- Eiserne Regel in CLAUDE.md
+- EREIGNISPROTOKOLL.md angelegt (dieses Dokument)
+- Alle Memories aktualisiert (canonical-folder-rule, project-current-state, airtable-keychain-bug)
+- Startprompt + Modell-Empfehlung für nächste Session geschrieben
+
+**Finaler Handoff:** `docs/handoffs/HANDOFF_SESSION_ABSCHLUSS_2026-06-28.md`
+
+---
+
 ### 2026-06-28 · Claude Code Desktop — Eiserne Regel + Ereignisprotokoll
 
 **Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
