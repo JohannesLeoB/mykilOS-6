@@ -19,6 +19,8 @@ struct OffersTabView: View {
     let driveFolderID: String?
 
     @State private var loader = OffersLoader()
+    @State private var searchText = ""
+    @State private var sortByDate = true   // true = neueste zuerst, false = Name A–Z
 
     var body: some View {
         WidgetContainer(
@@ -29,6 +31,7 @@ struct OffersTabView: View {
         ) {
             VStack(alignment: .leading, spacing: MykSpace.s5) {
                 header
+                if case .content = loader.renderState { searchAndSort }
                 columns
             }
         }
@@ -58,6 +61,39 @@ struct OffersTabView: View {
         }
     }
 
+    private var searchAndSort: some View {
+        HStack(spacing: MykSpace.s4) {
+            Image(systemName: "magnifyingglass")
+                .font(.mykCaption)
+                .foregroundStyle(MykColor.muted.color)
+            TextField("Dateiname suchen…", text: $searchText)
+                .font(.mykSmall)
+                .textFieldStyle(.plain)
+            Spacer()
+            Button {
+                sortByDate.toggle()
+            } label: {
+                Label(sortByDate ? "Datum" : "Name",
+                      systemImage: sortByDate ? "calendar" : "textformat.abc")
+                    .font(.mykMono(9.5))
+                    .foregroundStyle(MykColor.muted.color)
+            }
+            .buttonStyle(.plain)
+            .help(sortByDate ? "Sortierung: Neueste zuerst — klicken für Name A–Z" : "Sortierung: Name A–Z — klicken für Datum")
+        }
+        .padding(.horizontal, MykSpace.s4)
+        .padding(.vertical, MykSpace.s2)
+        .background(RoundedRectangle(cornerRadius: MykRadius.sm).fill(MykColor.line.color.opacity(0.18)))
+    }
+
+    private func filtered(_ files: [GoogleDriveFile]) -> [GoogleDriveFile] {
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let base = q.isEmpty ? files : files.filter { $0.name.localizedCaseInsensitiveContains(q) }
+        return sortByDate
+            ? base.sorted { ($0.modifiedAt ?? .distantPast) > ($1.modifiedAt ?? .distantPast) }
+            : base.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+    }
+
     private var refreshButton: some View {
         Button {
             Task { await loader.load(rootFolderID: driveFolderID) }
@@ -81,9 +117,9 @@ struct OffersTabView: View {
 
     private var columns: some View {
         HStack(alignment: .top, spacing: MykSpace.s7) {
-            OfferColumn(title: "Eingehende Angebote", files: loader.incoming, folderFound: loader.incomingFolderFound)
+            OfferColumn(title: "Eingehende Angebote", files: filtered(loader.incoming), folderFound: loader.incomingFolderFound)
             Divider().overlay(MykColor.line.color.opacity(0.6))
-            OfferColumn(title: "Ausgehende Angebote", files: loader.outgoing, folderFound: loader.outgoingFolderFound)
+            OfferColumn(title: "Ausgehende Angebote", files: filtered(loader.outgoing), folderFound: loader.outgoingFolderFound)
         }
         .frame(maxWidth: .infinity)
     }
@@ -206,35 +242,48 @@ private final class OffersLoader {
 private struct OfferRow: View {
     let file: GoogleDriveFile
 
+    @State private var showPreview = false
+
     var body: some View {
-        Button {
-            if let link = file.webViewLink, let url = URL(string: link) {
-                NSWorkspace.shared.open(url)
-            }
-        } label: {
-            HStack(spacing: MykSpace.s4) {
-                Image(systemName: "doc.text")
+        HStack(spacing: MykSpace.s4) {
+            Button { showPreview.toggle() } label: {
+                Image(systemName: file.iconName)
                     .font(.mykCaption)
                     .foregroundStyle(MykColor.cash.color)
                     .frame(width: 20)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(file.name)
-                        .font(.mykSmall)
-                        .foregroundStyle(MykColor.ink.color)
-                        .lineLimit(1)
-                    if let modifiedAt = file.modifiedAt {
-                        Text(modifiedAt.formatted(.relative(presentation: .named)))
-                            .font(.mykMono(9.5))
-                            .foregroundStyle(MykColor.muted.color)
-                    }
-                }
-                Spacer()
-                Image(systemName: "arrow.up.right.square")
-                    .font(.mykMono(10))
-                    .foregroundStyle(MykColor.faint.color)
             }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showPreview, arrowEdge: .trailing) {
+                FilePreviewView(file: file)
+                    .frame(width: 300)
+                    .padding(MykSpace.s2)
+            }
+
+            Button {
+                if let link = file.webViewLink, let url = URL(string: link) {
+                    NSWorkspace.shared.open(url)
+                }
+            } label: {
+                HStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(file.name)
+                            .font(.mykSmall)
+                            .foregroundStyle(MykColor.ink.color)
+                            .lineLimit(1)
+                        if let modifiedAt = file.modifiedAt {
+                            Text(modifiedAt.formatted(.relative(presentation: .named)))
+                                .font(.mykMono(9.5))
+                                .foregroundStyle(MykColor.muted.color)
+                        }
+                    }
+                    Spacer()
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.mykMono(10))
+                        .foregroundStyle(MykColor.faint.color)
+                }
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
         .padding(.vertical, MykSpace.s3)
     }
 }
