@@ -79,7 +79,9 @@ struct ProjectDetailView: View {
             )
                 .padding(.horizontal, MykSpace.s9)
                 .padding(.top, MykSpace.s7)
-                .padding(.bottom, 64)   // Platz für SaveStateBar
+                .padding(.bottom, 64)
+        case .files:
+            ProjectFilesTabView(project: project)
         default:
             ComingTabView(tab: activeTab)
         }

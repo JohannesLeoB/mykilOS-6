@@ -124,6 +124,61 @@ struct AirtableClientTests {
             #expect(error as? AirtableError == .notConnected)
         }
     }
+
+    // MARK: - createRecord
+
+    @Test func buildCreateRequestSetztMethodeUndHeader() throws {
+        let request = try AirtableClient.buildCreateRequest(
+            apiBase: "https://api.airtable.com/v0",
+            baseID: "appXYZ",
+            tableID: "tblABC",
+            pat: "pat123",
+            fields: ["Name": .string("Test"), "Betrag": .number(42.5), "Aktiv": .bool(true)]
+        )
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.absoluteString.contains("appXYZ/tblABC") == true)
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer pat123")
+        #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+    }
+
+    @Test func buildCreateRequestKodiertFelder() throws {
+        let request = try AirtableClient.buildCreateRequest(
+            apiBase: "https://api.airtable.com/v0",
+            baseID: "appXYZ",
+            tableID: "tblABC",
+            pat: "pat123",
+            fields: ["SHA256": .string("abc123"), "Netto-Summe": .number(1234.56)]
+        )
+        let body = try #require(request.httpBody)
+        let json = try JSONSerialization.jsonObject(with: body) as? [String: Any]
+        let fields = json?["fields"] as? [String: Any]
+        #expect(fields?["SHA256"] as? String == "abc123")
+        #expect(fields?["Netto-Summe"] as? Double == 1234.56)
+    }
+
+    @Test func parseCreateResponseLiestRecordID() throws {
+        let json = #"{"id":"recNEW123","createdTime":"2026-06-28T10:00:00.000Z","fields":{}}"#
+        let recordID = try AirtableClient.parseCreateResponse(from: Data(json.utf8))
+        #expect(recordID == "recNEW123")
+    }
+
+    @Test func parseCreateResponseWirftBeiKaputtemJSON() {
+        #expect(throws: AirtableError.decodingFailed) {
+            try AirtableClient.parseCreateResponse(from: Data("nope".utf8))
+        }
+    }
+
+    @Test func createRecordWirftNotConnectedOhneCredentials() async {
+        let store = InMemoryAirtableCredentialsStore()
+        let client = AirtableClient(credentialsStore: store)
+
+        do {
+            _ = try await client.createRecord(baseID: "app123", tableID: "tblABC", fields: [:])
+            Issue.record("sollte werfen")
+        } catch {
+            #expect(error as? AirtableError == .notConnected)
+        }
+    }
 }
 
 // MARK: - InMemoryAirtableCredentialsStore

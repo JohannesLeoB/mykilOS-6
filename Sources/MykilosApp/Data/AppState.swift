@@ -25,6 +25,9 @@ public final class AppState {
     public let claudeAuth: ClaudeAuthService
     public let assistantLLM: any AssistantLLMProviding
 
+    // Kalkulations-Engine — nil bis die integrierte Engine geladen ist
+    public var kalkulationsEngine: (any KalkulationsEngineProviding)?
+
     // Projekt-Boards on-demand (pro geöffnetem Projekt)
     private var projectBoards: [String: WidgetBoardStore] = [:]
     private var projectNotes:  [String: NoteStore]        = [:]

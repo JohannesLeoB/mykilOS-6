@@ -31,6 +31,8 @@ und regelbasierten Insights erzeugen.
 | Post-Akt 5, Aufgabe 3 | ✅ | About-Fenster über App-Menü mit Version 6.0.0 |
 | Post-Akt 5, Aufgabe 4 | ✅ | Eigenes App-Icon (`AppIcon.icns`) im Bundle |
 | Post-Akt 5, Aufgabe 5 | ✅ | Claude-LLM-Integration im Assistenten (Keychain + Messages API) |
+| Post-Akt 5, Aufgabe 6 | 📋 | Clockodo Zuhörer: Zeiten aus Chat/Kalender/Mail → Draft → Wochenabschluss → POST |
+| Post-Akt 5, Aufgabe 7 | 📋 | mykilO$$ Vollintegration: `KalkulationsEngineProviding`-Protokoll (✅), `AppState.kalkulationsEngine`-Slot (✅), `Eingehende-Angebote`-Tabelle (✅), Services/UI noch offen |
 
 ---
 
@@ -154,6 +156,22 @@ Kein Sync-Backend in V1.
 Akt 0–5 und alle dokumentierten Post-Akt-5-Verfeinerungen sind abgeschlossen.
 Die App ist feature-complete für Beta.
 
+**Post-Akt-5 Aufgabe 6 — Clockodo Zuhörer (📋 geplant, Code ausstehend):**
+- Ziel: Assistent-Chat-Eingabe → Clockodo-Zeitbuchung. "4h CAD für Heinz" →
+  Draft → Wochenabschluss → `POST /api/v2/entries`.
+- **Kernregel:** Jeder User bucht/sieht/editiert **nur seine eigenen** Einträge.
+  `ClockodoDraftEntry.clockodoUserID` filtert auf GRDB-Ebene.
+- **Airtable-Schema live** (Base `appuVMh3KDfKw4OoQ`, seit 2026-06-28):
+  - `Clockodo-Nutzer` (`tblPbly2br8mR2kaU`) — 4 Team-Mitglieder mit User-IDs
+  - `Clockodo-Buchungen` (`tblYQxlauwej7FD1w`) — Audit-Log bestätigter Buchungen
+  - `Clockodo-Leistungen` (`tblRtsegocdpM8CJd`) — 8 Services (bereits vorhanden)
+- **6 Schichten:** Intent (Claude parst NLP) → Resolution (Airtable-Lookup) →
+  Draft Store (GRDB lokal) → Wochenvorschau → Confirm → POST + AuditEntry.
+- Mail/Kalender-Vorschläge: Claude liest GCal + Gmail → schlägt Drafts vor.
+  Niemals automatisch buchen — immer erst Bestätigung.
+- Vollständige Architektur in
+  [HANDOFF_LIVE_WIRING_4.md](docs/handoffs/HANDOFF_LIVE_WIRING_4.md).
+
 **Aus Post-Akt-5 Aufgabe 1 (Auto-Sync bei App-Start):**
 - `AppState.bootstrap()` lädt weiterhin zuerst lokale Boards und Registry
   (Demo-Seed + Cache) und stößt danach bei verbundenem Airtable-Status den
@@ -228,6 +246,48 @@ Die App ist feature-complete für Beta.
 - Gleicher offener Punkt wie seit Schritt 1: ob Google "Desktop App"-Clients
   zusätzlich ein `client_secret` verlangen, ist weiterhin nicht live getestet.
 
+**Post-Akt-5 Aufgabe 7 — mykilO$$ Vollintegration (📋 teilweise fertig):**
+- **Entscheidung:** mykilO$$ wird nicht mehr als eigenständige App gebaut.
+  Alle Kalkulations-Capabilities (EvidenceBasedEstimator, BottomUpCostEngine,
+  LearningStore, ReviewCenter 815 Positionen, DeviceCatalog 13.419 Preise,
+  PDF Import Pipeline) als Modul in mykilOS 6 integriert. Alle Schreibrechte
+  bei mykilOS 6.
+- **Erledigt:**
+  - `KalkulationsEngineProviding`-Protokoll + Typen in
+    `Sources/MykilosKit/Domain/KalkulationsEngineProviding.swift`.
+  - `AppState.kalkulationsEngine: (any KalkulationsEngineProviding)?` (nil-Slot).
+  - Airtable-Tabelle `Eingehende-Angebote` (`tbliKfs5FnufjdB36`) live.
+- **Airtable-Tabellen (alle live):**
+  - `Kalkulationen` (`tblO3y2jdmxDnuiZj`)
+  - `Kalkulations-Positionen` (`tblNamx3cHTus6gtk`)
+  - `Eingehende-Angebote` (`tbliKfs5FnufjdB36`) — SHA256, Lieferant,
+    Netto-Summe, Anker-Anzahl, Status, Lern-Gewicht, Importiert-am
+- **Verifizierte Architektur (2026-06-28, nach Lesung des echten mykilO$$-Codes):**
+  - `KalkulationsCore` (10 Dateien) importiert nur Foundation → eigenes Target
+    **`MykilosKalkulationsCore`** (NICHT `MykilosServices/Kalkulation/`, das hat GRDB).
+  - Zweistufig: `parse(_:) -> EstimateRequest` (Semantik) dann `estimate(_:)` (Preis).
+  - LearningStore in eigener `learning.sqlite` (nicht Haupt-GRDB-Migration).
+  - `AirtableSyncService.swift` löschen (ENV-Secrets, fremde Base `appkPzoEiI5eSMkNK`, Blocking).
+  - `CostModel.stages` hardcoded → leere Stundensatz-Spalte blockiert Kostenboden nicht.
+  - Vollständig + Port-Reihenfolge: [HANDOFF_LIVE_WIRING_5.md → Teil 2](docs/handoffs/HANDOFF_LIVE_WIRING_5.md).
+- **✅ BLOCKER GELÖST (2026-06-28):** Alle Geschwister-Typen liegen in den 10
+  KalkulationsCore-Dateien (`CarryforwardRule`=Review.swift:33, `GermanNumberParser`=Parsing.swift:3,
+  Calibration-Typen in LearningModels.swift). Kompletter verbatim Port der 10 Dateien.
+  Reconciliation: `EstimateSession.id` ist `String` → `KostenSchaetzung.id` + `recordAdjustment`
+  auf String umstellen. Port-Reihenfolge in Handoff Teil 3.
+- **✅ Destillation ENTSCHIEDEN (Johannes): V2-Swift-Pipeline.** `activeAnchors()` liest CSVs;
+  die 3.383→204-Destillation (heute externer Python-Code) wird in Swift reimplementiert →
+  geschlossener Lernkreis, neue `Preis-Beobachtungen` destillieren automatisch nach. V1 nutzt
+  vorhandene CSVs. Plus offen: `gen_lexicon.py` fehlt → MaterialLexicon (149) bleibt manuell.
+- **Korpus-Entscheidung (V4_MoneyObservations, 3.383 Beobachtungen):** beides —
+  Tabelle `Preis-Beobachtungen` in Mastermind-Base + destilliertes Seed-`sqlite` zur
+  Laufzeit; alte Base `appkPzoEiI5eSMkNK` wird stillgelegt.
+- **Offene Datenfragen:**
+  - Stundensätze in `Clockodo-Leistungen.Stundensatz (€/h)` (`fld4NBokj4MoOy8Uq`)
+    noch leer — manuell einzutragen (blockiert Kostenboden aber NICHT, siehe oben).
+  - Welche Kategorie-Unterordner unter `05 eingehende Angebote`? (Tischler,
+    Stein + was noch?) — nur Johannes kann bestätigen.
+
 ---
 
 ## Hilfreiche Kommandos
@@ -270,3 +330,5 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_POST_AKT5_5.md` — Claude-LLM-Integration im Assistenten
 - `docs/MYKILOS_6_TEAM_MODELL.md` — Team, Airtable, Identität
 - `docs/codex/WORKFLOW.md` — Session-Regeln für Codex-Sessions in diesem Repo
+- `docs/PARTNER_APP_SCHEMA.md` — Airtable-Gesamtschema (nach Vollintegration): alle Tabellen-IDs, Clockodo-Records, Stundensatz-Priorität
+- `docs/KALKULATION_INTEGRATION.md` — mykilO$$ Vollintegrations-Plan: 10 Schritte, GRDB-Migration, UI-Slots, 59 Tests

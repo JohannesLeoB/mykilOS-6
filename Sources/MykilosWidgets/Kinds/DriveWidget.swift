@@ -18,6 +18,7 @@ public struct DriveWidget: View {
     }
 
     @State private var loader = DriveFolderLoader()
+    @Environment(StudioContext.self) private var context
 
     public var body: some View {
         WidgetContainer(
@@ -33,6 +34,16 @@ public struct DriveWidget: View {
         }
         .task(id: driveFolderID) {
             await loader.load(folderID: driveFolderID)
+            emitDriveSignals()
+        }
+    }
+
+    private func emitDriveSignals() {
+        guard case .content = loader.renderState else { return }
+        // Neueste Datei (keine Ordner) als Signal — Assistent sieht sie
+        let files = loader.files.filter { $0.mimeType != "application/vnd.google-apps.folder" }
+        if let newest = files.sorted(by: { ($0.modifiedAt ?? .distantPast) > ($1.modifiedAt ?? .distantPast) }).first {
+            context.emit(.driveFileAdded(projectID: projectID, fileName: newest.name))
         }
     }
 

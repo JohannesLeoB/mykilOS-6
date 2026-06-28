@@ -14,6 +14,29 @@ public protocol AirtableFetching: Sendable {
     func fetchRecords(baseID: String, table: String) async throws -> [[String: AirtableFieldValue]]
 }
 
+// MARK: - AirtableCreating
+public protocol AirtableCreating: Sendable {
+    func createRecord(baseID: String, tableID: String, fields: [String: AirtableWriteValue]) async throws -> String
+}
+
+// MARK: - AirtableWriteValue
+public enum AirtableWriteValue: Encodable, Sendable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case null
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        switch self {
+        case .string(let s): try c.encode(s)
+        case .number(let n): try c.encode(n)
+        case .bool(let b):   try c.encode(b)
+        case .null:          try c.encodeNil()
+        }
+    }
+}
+
 // MARK: - AirtableFieldValue
 public enum AirtableFieldValue: Sendable, Equatable, Decodable {
     case string(String)
@@ -42,7 +65,7 @@ public enum AirtableFieldValue: Sendable, Equatable, Decodable {
 }
 
 // MARK: - AirtableClient
-public struct AirtableClient: AirtableFetching {
+public struct AirtableClient: AirtableFetching, AirtableCreating {
     private let credentialsStore: AirtableCredentialsStoring
     private let session: URLSession
     private let apiBase = "https://api.airtable.com/v0"
@@ -81,6 +104,20 @@ public struct AirtableClient: AirtableFetching {
         } while offset != nil
 
         return allRecords
+    }
+
+    public func createRecord(baseID: String, tableID: String, fields: [String: AirtableWriteValue]) async throws -> String {
+        guard let credentials = try? credentialsStore.load() else {
+            throw AirtableError.notConnected
+        }
+        let request = try Self.buildCreateRequest(
+            apiBase: apiBase, baseID: baseID, tableID: tableID,
+            pat: credentials.pat, fields: fields
+        )
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw AirtableError.invalidResponse }
+        guard (200...299).contains(http.statusCode) else { throw AirtableError.httpError(http.statusCode) }
+        return try Self.parseCreateResponse(from: data)
     }
 
     // MARK: - Reine, testbare Bausteine
@@ -145,6 +182,32 @@ public struct AirtableClient: AirtableFetching {
                 phase: fields["Phase"]?.stringValue,
                 airtableRecordID: recordID
             )
+        }
+    }
+
+    static func buildCreateRequest(
+        apiBase: String, baseID: String, tableID: String,
+        pat: String, fields: [String: AirtableWriteValue]
+    ) throws -> URLRequest {
+        let encoded = tableID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? tableID
+        guard let url = URL(string: "\(apiBase)/\(baseID)/\(encoded)") else {
+            throw AirtableError.invalidResponse
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(pat)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body = try JSONEncoder().encode(["fields": fields])
+        request.httpBody = body
+        return request
+    }
+
+    static func parseCreateResponse(from data: Data) throws -> String {
+        struct Response: Decodable { let id: String }
+        do {
+            return try JSONDecoder().decode(Response.self, from: data).id
+        } catch {
+            throw AirtableError.decodingFailed
         }
     }
 }
