@@ -25,9 +25,9 @@ Vorstellungen vom Ergebnis, aber nicht immer vom Weg dorthin.
 
 ## WO BIN ICH?
 
-**Arbeitsverzeichnis:** Repo-Wurzel von mykilOS 6
+**Arbeitsverzeichnis — IMMER DIESER ORDNER (der gelbe MYKILOS-6-Ordner):**
 ```
-/Users/johannesleoberger/Desktop/CLAUDE/_mykilOS/mykilOS6/musing-sammet-3abd94/
+/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/
 ```
 
 **GitHub Repo:** https://github.com/JohannesLeoB/mykilOS-6 (privat)
