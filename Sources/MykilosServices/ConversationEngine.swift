@@ -243,6 +243,11 @@ public final class ConversationEngine {
         case "list_calendar_events":      base = "Kalender gelesen"
         case "suggest_calendar_event":    base = "Kalender-Link generiert"
         case "schaetze_projekt":          base = "Kostenschätzung erstellt"
+        case "list_drive_folder":         base = "Drive-Ordner gelesen"
+        case "search_contacts":           base = "Kontakte durchsucht"
+        case "list_clickup_tasks":        base = "ClickUp gelesen"
+        case "query_studio_knowledge":    base = "Wissensbasis durchsucht"
+        case "search_katalog":            base = "Katalog durchsucht"
         default:                          base = name
         }
         if let query, query.isEmpty == false { return "\(base) · \(query)" }
