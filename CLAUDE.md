@@ -247,6 +247,20 @@ ist bitgenau roundtrip-sicher).
 - `MykilosWidgets` importiert NIE GRDB.
 - Schreibvorgänge kommen NIE aus Views — nur über Stores.
 
+### Datenstrom-Handbuch (Eiserne Regel — ab 2026-06-28)
+- **Jede neue Daten-Weiche wird sofort** im Datenstrom-Handbuch eingetragen — nie am Ende der Session, nie "irgendwann".
+- Heimat: Airtable `appuVMh3KDfKw4OoQ` → Tabelle `tblaUVftka0GvXzeU` (Datenstrom-Handbuch).
+- Felder: Integrations-ID (eindeutige Konstante), Name, System, Richtung, Trigger, Status, NO-GO, Opt-in, Notizen.
+- Die `integrationID` im `DataFlowLogger.log()`-Aufruf im Code muss **exakt** mit dem `Integrations-ID`-Feld übereinstimmen.
+- Session-Abschluss-Checkliste: Handbuch vollständig? → erst dann committen.
+
+### Benutzerhandbuch (Eiserne Regel — ab 2026-06-28)
+- **Jede neue oder geänderte Funktion** wird sofort in `docs/BENUTZERHANDBUCH.md` dokumentiert.
+- Struktur je Funktion: **Name · Was es tut · Wo zu finden · Voraussetzungen · Einschränkungen**.
+- Das Handbuch wird mit dem Feature-Commit mitgepusht — kein separater Doku-Commit.
+- Entfernte Features → Abschnitt löschen. Keine veralteten "deprecated"-Einträge stehen lassen.
+- Zielgruppe: Johannes + Team. Klare, direkte Sprache.
+
 ### Prozess
 - Eine Session = ein kleiner PR = ein Handoff (`docs/handoffs/HANDOFF_AKT{n}_S{m}.md`).
 - CI ist Merge-Gate: roter Build/Test = kein Merge.
