@@ -111,7 +111,7 @@ public struct GoogleDriveClient: GoogleDriveFetching {
         guard let accessToken = try? await tokenProvider.validAccessToken() else {
             throw GoogleDriveError.notConnected
         }
-        guard let url = URL(string: "\(baseURL)/\(folderID)?fields=name") else {
+        guard let url = URL(string: "\(baseURL)/\(folderID)?fields=name&supportsAllDrives=true") else {
             throw GoogleDriveError.invalidResponse
         }
         var request = URLRequest(url: url)
@@ -133,6 +133,10 @@ public struct GoogleDriveClient: GoogleDriveFetching {
             URLQueryItem(name: "fields", value: "files(id,name,mimeType,modifiedTime,webViewLink,size)"),
             URLQueryItem(name: "pageSize", value: "100"),
             URLQueryItem(name: "orderBy", value: "folder,name"),
+            // Shared Drive (Team Drive) Support — ohne diese zwei Parameter liefert
+            // die API bei geteilten Laufwerken ein leeres Ergebnis ohne Fehler.
+            URLQueryItem(name: "supportsAllDrives", value: "true"),
+            URLQueryItem(name: "includeItemsFromAllDrives", value: "true"),
         ]
         return components?.url
     }

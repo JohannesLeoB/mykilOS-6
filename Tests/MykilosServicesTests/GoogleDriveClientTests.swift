@@ -14,6 +14,8 @@ struct GoogleDriveClientTests {
 
         #expect(items["q"] == "'ABC123' in parents and trashed=false")
         #expect(items["fields"] == "files(id,name,mimeType,modifiedTime,webViewLink,size)")
+        #expect(items["supportsAllDrives"] == "true")
+        #expect(items["includeItemsFromAllDrives"] == "true")
     }
 
     @Test func parseFilesDekodiertResponse() throws {
