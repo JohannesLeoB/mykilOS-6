@@ -117,6 +117,24 @@ public final class GRDBDatabase: Sendable {
             }
         }
 
+        // v6_dataflow_log — Schaltzentrum-Logbuch. Jeder externe Datensync
+        // schreibt hier einen Handshake (lokale Wahrheit; Airtable spiegelt nicht-fatal).
+        migrator.registerMigration("v6_dataflow_log") { db in
+            try db.create(table: "dataFlowLog") { t in
+                t.primaryKey("id", .text)
+                t.column("timestamp",      .double).notNull().indexed()
+                t.column("integrationID",  .text).notNull().indexed()
+                t.column("actorUserID",    .text).notNull()
+                t.column("action",         .text).notNull()
+                t.column("recordsRead",    .integer).notNull().defaults(to: 0)
+                t.column("recordsWritten", .integer).notNull().defaults(to: 0)
+                t.column("httpStatus",     .integer)
+                t.column("errorMessage",   .text)
+                t.column("durationMs",     .integer).notNull().defaults(to: 0)
+                t.column("summary",        .text).notNull()
+            }
+        }
+
         try migrator.migrate(queue)
     }
 

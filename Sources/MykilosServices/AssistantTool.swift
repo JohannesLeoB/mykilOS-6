@@ -274,6 +274,62 @@ public struct KostenSchaetzungTool: AssistantTool {
     }
 }
 
+// MARK: - ListDriveFolderTool
+// Listet Dateien und Unterordner im verlinkten Google-Drive-Projektordner.
+// Liest ausschließlich Metadaten (Name, Typ, Datum) — nie Dateiinhalte.
+// _driveFolderID wird von der Registry injiziert (kein echter Tool-Parameter).
+struct ListDriveFolderTool: AssistantTool {
+    private let client: GoogleDriveFetching
+    init(client: GoogleDriveFetching = GoogleDriveClient()) { self.client = client }
+
+    var name: String { "list_drive_folder" }
+    var description: String {
+        "Listet Dateien und Unterordner im verlinkten Google-Drive-Projektordner. "
+        + "Gibt Name, Typ und Änderungsdatum zurück — liest KEINE Dateiinhalte. "
+        + "Mit 'unterordner' (z. B. '01 ANGEBOTE', '02 CAD') gezielt in einen Unterordner schauen."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "unterordner",
+                       description: "Optionaler Unterordner-Name (z. B. '01 ANGEBOTE'). Leer = Projektordner-Wurzel.")]
+    }
+
+    func run(input: [String: String]) async -> ToolRunResult {
+        let folderID = (input["_driveFolderID"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let filter   = (input["unterordner"]    ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !folderID.isEmpty else {
+            return ToolRunResult(text: "Kein Drive-Ordner für dieses Projekt verknüpft.", isError: true)
+        }
+        do {
+            var files = try await client.listFolder(folderID: folderID)
+            var prefix = "Projektordner"
+            if !filter.isEmpty {
+                if let sub = files.first(where: { $0.isFolder && $0.name.lowercased().contains(filter) }) {
+                    files = try await client.listFolder(folderID: sub.id)
+                    prefix = sub.name
+                } else {
+                    let folders = files.filter { $0.isFolder }.map { $0.name }.joined(separator: ", ")
+                    return ToolRunResult(text: "Unterordner '\(filter)' nicht gefunden. Vorhandene Ordner: \(folders)")
+                }
+            }
+            return format(files, prefix: prefix)
+        } catch GoogleDriveError.notConnected {
+            return ToolRunResult(text: "Google Drive nicht verbunden. In Einstellungen verbinden.", isError: true)
+        } catch {
+            return ToolRunResult(text: "Drive-Abruf fehlgeschlagen: \(error.localizedDescription)", isError: true)
+        }
+    }
+
+    private func format(_ files: [GoogleDriveFile], prefix: String) -> ToolRunResult {
+        guard !files.isEmpty else { return ToolRunResult(text: "\(prefix): leer.") }
+        let fmt = DateFormatter(); fmt.dateFormat = "dd.MM.yy"
+        let lines = files.prefix(30).map { f in
+            "• \(f.name) [\(f.typeLabel)]\(f.modifiedAt.map { " — \(fmt.string(from: $0))" } ?? "")"
+        }
+        let more = files.count > 30 ? "\n… und \(files.count - 30) weitere." : ""
+        return ToolRunResult(text: "\(prefix) (\(files.count) Einträge):\n" + lines.joined(separator: "\n") + more)
+    }
+}
+
 // MARK: - AssistantToolRegistry (Whitelist, default-deny)
 public struct AssistantToolRegistry: Sendable {
     private let tools: [any AssistantTool]
@@ -282,16 +338,18 @@ public struct AssistantToolRegistry: Sendable {
 
     /// Standard-Read-only-Whitelist. SEVDESK ist hier bewusst NICHT enthalten und
     /// wird auch nie ergänzt (NO-GO: Sevdesk nie lesen/schreiben).
-    /// `kalkulationsEngine` ergänzt `schaetze_projekt`, wenn vorhanden.
+    /// `kalkulationsEngine` ergänzt `schaetze_projekt`, `drive` ergänzt `list_drive_folder`.
     public static func standard(
         gmail: GoogleGmailFetching = GoogleGmailClient(),
         calendar: GoogleCalendarFetching = GoogleCalendarClient(),
+        drive: GoogleDriveFetching = GoogleDriveClient(),
         kalkulationsEngine: (any KalkulationsEngineProviding)? = nil
     ) -> AssistantToolRegistry {
         var tools: [any AssistantTool] = [
             SearchGmailTool(client: gmail),
             ListCalendarTool(client: calendar),
             SuggestCalendarEventTool(),
+            ListDriveFolderTool(client: drive),
         ]
         if let engine = kalkulationsEngine {
             tools.append(KostenSchaetzungTool(engine: engine))
@@ -305,15 +363,16 @@ public struct AssistantToolRegistry: Sendable {
         tools.map { $0.wireDefinition() }
     }
 
-    /// Führt ein Tool aus. Unbekannter/nicht erlaubter Name → Deny-Ergebnis, ohne etwas auszuführen.
-    /// `projektID` wird als `_projektID` in den Input injiziert — kein Protokollbruch,
-    /// da `_`-Präfix-Keys von Claude nicht als echte Parameter gesendet werden.
-    public func run(name: String, inputJSON: Data, projektID: String? = nil) async -> ToolRunResult {
+    /// Führt ein Tool aus. Unbekannter/nicht erlaubter Name → Deny-Ergebnis.
+    /// `projektID` → `_projektID`, `driveFolderID` → `_driveFolderID` (injiziert,
+    /// kein Protokollbruch: `_`-Präfix-Keys sendet Claude nicht selbst).
+    public func run(name: String, inputJSON: Data, projektID: String? = nil, driveFolderID: String? = nil) async -> ToolRunResult {
         guard let tool = tools.first(where: { $0.name == name }) else {
             return ToolRunResult(text: "Tool nicht erlaubt oder unbekannt: \(name)", isError: true)
         }
         var input = Self.stringDict(from: inputJSON)
-        if let id = projektID { input["_projektID"] = id }
+        if let id  = projektID     { input["_projektID"]     = id }
+        if let fid = driveFolderID { input["_driveFolderID"] = fid }
         return await tool.run(input: input)
     }
 

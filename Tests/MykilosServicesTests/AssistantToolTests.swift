@@ -8,7 +8,9 @@ struct AssistantToolTests {
     // MARK: Whitelist enthält die erwarteten Tools, input_schema serialisiert
     @Test func standardRegistryHatErwarteteTools() throws {
         let registry = AssistantToolRegistry.standard()
-        #expect(registry.toolNames.sorted() == ["list_calendar_events", "search_gmail", "suggest_calendar_event"])
+        // Kern-Read-only-Tools sind immer da (weitere Tools kommen über opt. Parameter dazu).
+        let names = Set(registry.toolNames)
+        #expect(names.isSuperset(of: ["search_gmail", "list_calendar_events", "suggest_calendar_event", "list_drive_folder"]))
 
         let defs = registry.definitions()
         let json = try JSONEncoder().encode(defs)

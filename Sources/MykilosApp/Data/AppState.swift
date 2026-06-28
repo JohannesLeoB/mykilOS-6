@@ -20,6 +20,9 @@ public final class AppState {
     public let chat:       ChatStore
     public let conversation: ConversationEngine
     public let profile:    ProfileStore
+    // Schaltzentrum-Logbuch: jeder externe Datensync hinterlässt hier einen
+    // Handshake (lokal + Airtable-Spiegel). Siehe DataFlowLogger.
+    public let dataFlow:   DataFlowLogger
 
     // MARK: Integrationen
     public let googleAuth: GoogleAuthService
@@ -46,6 +49,11 @@ public final class AppState {
     // Google-Identität (S17): forwarding computed property damit SidebarView
     // und andere Views direkt darauf zugreifen können ohne googleAuth zu kennen.
     public var currentGoogleUser: GoogleUserInfo? { googleAuth.currentUser }
+
+    // Wer hat den Datenstrom ausgelöst? Für Handshake-Einträge im Schaltzentrum.
+    public var actorUserID: String {
+        googleAuth.currentUser?.email ?? profile.profile?.displayName ?? "local"
+    }
 
     // MARK: Navigations-Brücke
     // ContentView besitzt `module` (Sidebar-Auswahl), ProjectGalleryView besitzt
@@ -78,6 +86,9 @@ public final class AppState {
         self.clickUpAuth = ClickUpAuthService()
         self.sevdeskAuth = SevdeskAuthService()
         self.airtableAuth = AirtableAuthService()
+        // Logger spiegelt nach Airtable über den eng begrenzten Schreibpfad
+        // (nur Datenstrom-Log der Mastermind-Base; Whitelist im AirtableClient).
+        self.dataFlow = DataFlowLogger(db: database, airtable: AirtableClient())
         let claudeCredentials = KeychainClaudeCredentialsStore()
         self.claudeAuth = ClaudeAuthService(credentialsStore: claudeCredentials)
         self.assistantLLM = ClaudeMessagesClient(credentialsStore: claudeCredentials)
@@ -140,12 +151,23 @@ public final class AppState {
     @discardableResult
     public func pollAllActiveProjectsForOffers(into context: StudioContext) async -> Int {
         var total = 0
+        var scanned = 0
         for project in registry.activeProjects() {
             guard let folderID = project.links.driveFolderID, folderID.isEmpty == false else { continue }
+            scanned += 1
             let watcher = offerWatcher(for: project.projectNumber)
             let signals = await watcher.poll(projectID: project.projectNumber, folderID: folderID)
             for signal in signals { context.emit(signal) }
             total += signals.count
+        }
+        // Handshake nur bei echtem Treffer protokollieren — der 300s-Hintergrund-
+        // Sweep soll das Log nicht mit „nichts Neues" fluten.
+        if total > 0 {
+            dataFlow.log(
+                integrationID: "DRIVE_POLL_OFFERS", actorUserID: actorUserID, action: .success,
+                recordsRead: scanned, recordsWritten: 0,
+                summary: "\(total) neue Angebots-PDF(s) in \(scanned) Projektordnern erkannt"
+            )
         }
         return total
     }
@@ -174,6 +196,7 @@ public final class AppState {
         } catch {
             // AuditStore macht den Fehler über saveState sichtbar.
         }
+        try? dataFlow.load()
         // Registry seeden/laden
         await registry.seedIfEmpty()
         await registry.load()
@@ -189,7 +212,17 @@ public final class AppState {
         guard airtableAuth.status == .connected else { return }
         do {
             guard let credentials = try airtableAuth.storedCredentials() else { return }
+            dataFlow.log(integrationID: "AIRTABLE_KUNDEN_PROJEKTE", actorUserID: actorUserID,
+                         action: .start, summary: "Auto-Sync bei App-Start")
             await registry.syncFromAirtable(baseID: credentials.baseID, auth: airtableAuth)
+            if case .error(let msg) = airtableAuth.status {
+                dataFlow.log(integrationID: "AIRTABLE_KUNDEN_PROJEKTE", actorUserID: actorUserID,
+                             action: .error, errorMessage: msg, summary: "Airtable-Sync fehlgeschlagen")
+            } else {
+                dataFlow.log(integrationID: "AIRTABLE_KUNDEN_PROJEKTE", actorUserID: actorUserID,
+                             action: .success, recordsRead: registry.projects.count,
+                             summary: "Projekte/Kunden aus Mastermind synchronisiert")
+            }
         } catch {
             airtableAuth.setError(String(describing: error))
         }

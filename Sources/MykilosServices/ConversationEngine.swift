@@ -67,6 +67,7 @@ public final class ConversationEngine {
         _ text: String,
         scope: ChatScope,
         focusedProjectID: String?,
+        focusedDriveFolderID: String? = nil,
         signals: [WidgetSignal],
         projects: [Project],
         toolsEnabled: Bool = false,
@@ -104,7 +105,7 @@ public final class ConversationEngine {
             let onTextDelta: (String) -> Void = { [chatStore] text in
                 chatStore.updateStreamingText(id: placeholderID, text: text, in: scope)
             }
-            let finalText = try await runLoop(convo: &convo, activities: &activities, system: system, tools: tools, focusedProjectID: focusedProjectID, onTextDelta: onTextDelta)
+            let finalText = try await runLoop(convo: &convo, activities: &activities, system: system, tools: tools, focusedProjectID: focusedProjectID, focusedDriveFolderID: focusedDriveFolderID, onTextDelta: onTextDelta)
             // Tool-Spuren (Transparenz) vor die Antwort; nur Anzeige, nicht an die API.
             try chatStore.updateAssistantTurn(
                 id: placeholder.id, blocks: activities + [.text(finalText)], status: .complete, in: scope
@@ -129,6 +130,7 @@ public final class ConversationEngine {
         system: String,
         tools: [ClaudeToolDefinition],
         focusedProjectID: String? = nil,
+        focusedDriveFolderID: String? = nil,
         onTextDelta: ((String) -> Void)? = nil
     ) async throws -> String {
         // Tool-loses Streaming: Claude gibt garantiert keinen tool_use zurück →
@@ -155,7 +157,7 @@ public final class ConversationEngine {
             // Tools ausführen → tool_result-Turn (role user) anhängen + Anzeige-Spur.
             var resultBlocks: [ChatContentBlock] = []
             for toolUse in response.toolUses {
-                let result = await (registry?.run(name: toolUse.name, inputJSON: toolUse.inputJSON, projektID: focusedProjectID)
+                let result = await (registry?.run(name: toolUse.name, inputJSON: toolUse.inputJSON, projektID: focusedProjectID, driveFolderID: focusedDriveFolderID)
                     ?? ToolRunResult(text: "Keine Tools verfügbar.", isError: true))
                 resultBlocks.append(.toolResult(toolUseID: toolUse.id, summary: result.text, isError: result.isError))
                 activities.append(.toolActivity(
