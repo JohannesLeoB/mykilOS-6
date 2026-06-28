@@ -17,8 +17,12 @@ struct ProjectGalleryView: View {
     ]
 
     var body: some View {
-        ZStack {
-            MykColor.paper.color.ignoresSafeArea()
+        // .topLeading statt Default-Center: ein overbreiter Inhalt (z.B. Grid mit
+        // vielen Widget-Daten) würde sonst mit negativem x-Offset zentriert und
+        // schöbe einen unsichtbaren Hit-Test-Bereich über die Sidebar.
+        // frame(maxWidth/Height .infinity) auf ProjectDetailView stellt sicher,
+        // dass der ZStack die Detail-Ansicht exakt auf seine eigene Breite zwingt.
+        ZStack(alignment: .topLeading) {
             if let project = selectedProject {
                 // Bewusst KEINE .move-Transition: der Transform-Offset trieb in
                 // einem inhalts-dimensionierten Fenster die Fensterbreite hoch
@@ -30,6 +34,7 @@ struct ProjectGalleryView: View {
                         selectedProject = nil
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .transition(.opacity)
             } else {
                 galleryContent
@@ -42,6 +47,7 @@ struct ProjectGalleryView: View {
         // NSHostingView — die ruft daraufhin setContentSize: auf dem NSWindow
         // auf und verschiebt dessen Ursprung. Das ist der eigentliche Drift-
         // Auslöser, nicht nur ein Positionierungsproblem.
+        .background(MykColor.paper.color)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Clipping als zusätzliche Sperre: verhindert, dass transiente Größen
         // während der Opacity-Transition als Fenster-Constraint sichtbar werden.

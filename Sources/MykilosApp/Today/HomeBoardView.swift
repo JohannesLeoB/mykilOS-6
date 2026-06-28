@@ -28,6 +28,7 @@ struct HomeBoardView: View {
                 }
             }
         }
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
     }
 
     private func draggableCell(for instance: WidgetInstance) -> some View {
@@ -95,9 +96,10 @@ struct HomeBoardView: View {
 }
 
 private struct BoardRow: Identifiable {
-    let id = UUID()
     let items: [WidgetInstance]
     let totalColumns: Int
+    var id: UUID { items.first?.id ?? Self.emptyRowID }
+    private static let emptyRowID = UUID()
     var usedSpan: Int { items.reduce(0) { $0 + $1.size.columnSpan } }
     var fillerSpan: Int { totalColumns - usedSpan }
     var needsFiller: Bool { fillerSpan > 0 }

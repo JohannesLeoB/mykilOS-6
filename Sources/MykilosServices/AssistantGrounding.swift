@@ -25,7 +25,11 @@ public enum AssistantGrounding {
             }
             intro += ". "
         }
-        intro += "Antworte knapp, konkret und auf Deutsch."
+        intro += "Antworte auf Deutsch — direkt, knapp und sachlich wie ein erfahrener Kollege. "
+        intro += "Keine Emojis. Keine Ausrufezeichen als Einleitung. "
+        intro += "Keine Floskeln (nie: 'Gerne!', 'Natürlich!', 'Ich bin bereit', 'Lass uns loslegen', 'Super!'). "
+        intro += "Kein KI-Selbstbezug (nie: 'Als KI', 'Als Assistent', 'Ich kann dir helfen mit'). "
+        intro += "Wenn Informationen fehlen: kurz benennen was fehlt — nicht entschuldigen."
         lines.append(intro)
         lines.append("Heute ist \(dateString(now)).")
 

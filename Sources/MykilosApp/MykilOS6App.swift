@@ -126,14 +126,15 @@ struct ContentView: View {
             // zuerst ihren Platz einfordert.
             .fixedSize(horizontal: true, vertical: false)
             .layoutPriority(1)
-            Divider().overlay(MykColor.line.color)
-            moduleView
-                // minWidth: 0 verhindert, dass die Pane eine Mindestbreite
-                // propagiert, die das Fenster aufzieht. .clipped() klemmt
-                // transiente Übergrößen während Layout-Pässen ab.
-                .frame(minWidth: 0, maxWidth: .infinity,
-                       minHeight: 0, maxHeight: .infinity)
-                .clipped()
+            // Die Sidebar bleibt immer die oberste Interaktionsschicht. Selbst
+            // wenn ein Kind der Detail-Pane vorübergehend über seine Bounds
+            // hinaus layoutet, darf dessen Hit-Test-Fläche keine Sidebar-Klicks
+            // abfangen.
+            .zIndex(1)
+            Divider()
+                .overlay(MykColor.line.color)
+                .zIndex(1)
+            detailPane
         }
         .background(MykColor.paper.color)
         // Nur MIN/MAX, KEIN idealWidth/idealHeight: der Mindestrahmen gibt der
@@ -145,6 +146,31 @@ struct ContentView: View {
         .frame(minWidth: 1100, maxWidth: .infinity,
                minHeight: 720, maxHeight: .infinity)
         .disabled(isOnboardingUp)
+    }
+
+    /// Harte Layout-Grenze zwischen Sidebar und Modulinhalt.
+    ///
+    /// Ein normaler `frame(maxWidth: .infinity)` verhindert nicht, dass ein
+    /// intrinsisch breites Kind (hier: das Widget-`Grid`) seine Idealbreite
+    /// zurück in den äußeren `HStack` meldet. `GeometryReader` nimmt stattdessen
+    /// ausschließlich den tatsächlich verbleibenden Platz ein. Der Modulinhalt
+    /// erhält danach exakt diese endliche Breite und Höhe; `contentShape`
+    /// begrenzt zusätzlich seine Interaktionsfläche auf die Detail-Pane.
+    private var detailPane: some View {
+        GeometryReader { proxy in
+            moduleView
+                .frame(
+                    width: proxy.size.width,
+                    height: proxy.size.height,
+                    alignment: .topLeading
+                )
+                .clipped()
+                .contentShape(.interaction, Rectangle())
+        }
+        .frame(minWidth: 0, maxWidth: .infinity,
+               minHeight: 0, maxHeight: .infinity)
+        .layoutPriority(0)
+        .zIndex(0)
     }
 
     @ViewBuilder

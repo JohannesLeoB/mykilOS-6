@@ -33,6 +33,7 @@ struct TodayView: View {
                     .padding(.vertical, MykSpace.s8)
                     .padding(.bottom, 48)   // Platz für SaveStateBar
                 }
+                .clipped()
             }
             SaveStateBar(state: appState.homeBoard.saveState)
         }

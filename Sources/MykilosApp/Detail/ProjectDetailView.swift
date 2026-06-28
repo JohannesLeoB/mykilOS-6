@@ -23,7 +23,6 @@ struct ProjectDetailView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            MykColor.paper.color.ignoresSafeArea()
             VStack(spacing: 0) {
                 // Fester Header (Hero + Tabs) — immer sichtbar, nicht scrollbar.
                 ProjectHeroView(
@@ -44,6 +43,7 @@ struct ProjectDetailView: View {
                             tabContent
                         }
                     }
+                    .clipped()
                 }
             }
             // Sichtbarer Speichern-Vertrag für das Widget-Board — nur bei scrollbaren Tabs.
@@ -57,6 +57,7 @@ struct ProjectDetailView: View {
         // der VStack eine spezifisch breite Preferred-Size nach oben propagieren
         // (ProjectHeroView + TabBar haben eine eigene Idealbreite, die kleiner als
         // die des Gallery-Grids sein kann) → NSHostingView verschiebt das Fenster.
+        .background(MykColor.paper.color)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Widget-Board-Drift: Widgets laden ihren Inhalt async (API-Runden
         // 300–1800 ms) und verschieben das Fenster, nachdem der initiale
@@ -178,6 +179,10 @@ private struct ProjectWidgetBoardView: View {
     @State private var dropTargetID: UUID?
 
     var body: some View {
+        // frame(maxWidth: .infinity) bindet den Grid explizit an die vom ScrollView
+        // vorgeschlagene Breite. Color.clear als Füllzelle ist entfernt: eine
+        // flexible Zelle trieb die ideale Grid-Breite auf "unlimited", was via
+        // ZStack-Zentrierung den Inhalt in den Sidebar-Bereich schob.
         Grid(alignment: .topLeading,
              horizontalSpacing: MykSpace.s5,
              verticalSpacing: MykSpace.s5) {
@@ -186,12 +191,10 @@ private struct ProjectWidgetBoardView: View {
                     ForEach(row.items) { instance in
                         draggableCell(for: instance)
                     }
-                    if row.needsFiller {
-                        Color.clear.gridCellColumns(row.fillerSpan)
-                    }
                 }
             }
         }
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
     }
 
     private func draggableCell(for instance: WidgetInstance) -> some View {

@@ -29,6 +29,7 @@ struct ProjectHeroView: View {
             .padding(MykSpace.s8)
         }
         .frame(height: 280)
+        .frame(maxWidth: .infinity)
     }
 
     private var budget: Double? { project.links.budget }
