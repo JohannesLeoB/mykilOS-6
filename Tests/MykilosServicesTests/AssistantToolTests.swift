@@ -137,6 +137,52 @@ struct AssistantToolTests {
         #expect(result.isError == false)
         #expect(result.actionURL?.contains("calendar.google.com") == true)
     }
+
+    // MARK: SearchKatalogTool (L11 GATE)
+
+    @Test func searchKatalogToolImRegistry() {
+        let registry = AssistantToolRegistry.standard(deviceCatalog: nil)
+        #expect(registry.toolNames.contains("search_katalog"))
+    }
+
+    @Test func searchKatalogToolOhneKatalogGibtFehler() async {
+        let registry = AssistantToolRegistry.standard(deviceCatalog: nil)
+        let result = await registry.run(name: "search_katalog", inputJSON: Data(#"{"query":"Gaggenau"}"#.utf8))
+        #expect(result.isError == true)
+        #expect(result.text.contains("Kein Gerätekatalog"))
+    }
+
+    @Test func searchKatalogToolOhneQueryGibtFehler() async {
+        let fakeCatalog = makeFakeCatalog()
+        let registry = AssistantToolRegistry.standard(deviceCatalog: fakeCatalog)
+        let result = await registry.run(name: "search_katalog", inputJSON: Data(#"{"query":""}"#.utf8))
+        #expect(result.isError == true)
+        #expect(result.text.contains("Suchbegriff"))
+    }
+
+    @Test func searchKatalogToolFindetArtikel() async {
+        let fakeCatalog = makeFakeCatalog()
+        let registry = AssistantToolRegistry.standard(deviceCatalog: fakeCatalog)
+        let result = await registry.run(name: "search_katalog", inputJSON: Data(#"{"query":"testgerät"}"#.utf8))
+        #expect(result.isError == false)
+        #expect(result.text.contains("Testgerät GmbH"))
+    }
+
+    @Test func searchKatalogToolKeineResultate() async {
+        let fakeCatalog = makeFakeCatalog()
+        let registry = AssistantToolRegistry.standard(deviceCatalog: fakeCatalog)
+        let result = await registry.run(name: "search_katalog", inputJSON: Data(#"{"query":"xyzabcdef"}"#.utf8))
+        #expect(result.isError == false)
+        #expect(result.text.contains("Keine Artikel"))
+    }
+
+    private func makeFakeCatalog() -> DeviceCatalog {
+        let csv = """
+Name,Hersteller,Kategorie,Artikelbeschreibung,Artikelnummer,MYKILOS,Suchtext
+,Testgerät GmbH,Backöfen,Testgerät Backofen 60cm,TG-001,1234.56,testgerät backofen
+"""
+        return (try? DeviceCatalog(csv: csv)) ?? DeviceCatalog(entries: [])
+    }
 }
 
 // MARK: - Fakes

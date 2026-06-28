@@ -405,6 +405,47 @@ struct ListClickUpTasksTool: AssistantTool {
     }
 }
 
+// MARK: - SearchKatalogTool (read-only, lokal) — Artikel-/Gerätekatalog-Suche
+// Durchsucht den lokalen DeviceCatalog (CSV-Export aus Airtable appdxTeT6bhSBmwx5).
+// Gibt Hersteller, Beschreibung und MYKILOS-VK zurück. NIE schreiben.
+struct SearchKatalogTool: AssistantTool {
+    private let catalog: DeviceCatalog?
+    init(catalog: DeviceCatalog? = DeviceCatalog.loadDefault()) { self.catalog = catalog }
+
+    var name: String { "search_katalog" }
+    var description: String {
+        "Sucht Artikel und Geräte im lokalen Preiskatalog (Gaggenau, Miele, Blum…). "
+        + "Gibt Hersteller, Beschreibung, Artikelnummer und MYKILOS-Verkaufspreis zurück. "
+        + "Nützlich für Kalkulationsfragen wie \"Was kostet ein Gaggenau Backofen?\". Nur lesen."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "query", description: "Suchbegriff: Hersteller, Kategorie, Artikelnummer oder Produktbeschreibung", required: true)]
+    }
+
+    func run(input: [String: String]) async -> ToolRunResult {
+        let query = (input["query"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            return ToolRunResult(text: "Bitte einen Suchbegriff angeben (z. B. \"Gaggenau Backofen\" oder \"Blum Scharnier\").", isError: true)
+        }
+        guard let catalog else {
+            return ToolRunResult(text: "Kein Gerätekatalog geladen. Die CSV muss unter \(DeviceCatalog.defaultURL().path) liegen.", isError: true)
+        }
+        let results = catalog.search(query, limit: 10)
+        guard !results.isEmpty else {
+            return ToolRunResult(text: "Keine Artikel f\u{00FC}r \"\(query)\" im Katalog gefunden. Tipp: k\u{00FC}rzerer Suchbegriff oder Herstellername.")
+        }
+        let priceFormatter = NumberFormatter()
+        priceFormatter.numberStyle = .currency
+        priceFormatter.locale = Locale(identifier: "de_DE")
+        priceFormatter.maximumFractionDigits = 2
+        let lines = results.map { e -> String in
+            let price = e.sellNet.map { priceFormatter.string(from: $0 as NSDecimalNumber) ?? "–" } ?? "–"
+            return "• \(e.manufacturer) | \(e.description) | Art. \(e.articleNumber) | \(price)"
+        }
+        return ToolRunResult(text: "Katalog-Treffer f\u{00FC}r \"\(query)\":\n" + lines.joined(separator: "\n"))
+    }
+}
+
 // MARK: - QueryStudioKnowledgeTool (read-only, lokal) — die „allwissende" Wissensbasis
 struct QueryStudioKnowledgeTool: AssistantTool {
     private let brain: StudioBrain
@@ -450,7 +491,8 @@ public struct AssistantToolRegistry: Sendable {
         contacts: GoogleContactsFetching = GoogleContactsClient(),
         clickUp: ClickUpFetching = ClickUpClient(),
         studioBrain: StudioBrain? = StudioBrain.shared,
-        kalkulationsEngine: (any KalkulationsEngineProviding)? = nil
+        kalkulationsEngine: (any KalkulationsEngineProviding)? = nil,
+        deviceCatalog: DeviceCatalog? = DeviceCatalog.loadDefault()
     ) -> AssistantToolRegistry {
         var tools: [any AssistantTool] = [
             SearchGmailTool(client: gmail),
@@ -459,6 +501,7 @@ public struct AssistantToolRegistry: Sendable {
             ListDriveFolderTool(client: drive),
             SearchContactsTool(client: contacts),
             ListClickUpTasksTool(client: clickUp),
+            SearchKatalogTool(catalog: deviceCatalog),
         ]
         if let studioBrain {
             tools.append(QueryStudioKnowledgeTool(brain: studioBrain))

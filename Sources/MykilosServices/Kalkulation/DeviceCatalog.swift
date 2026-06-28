@@ -34,7 +34,7 @@ public struct DeviceCatalogEntry: Sendable, Equatable {
     }
 }
 
-public final class DeviceCatalog {
+public final class DeviceCatalog: @unchecked Sendable {
     public let entries: [DeviceCatalogEntry]
     public init(entries: [DeviceCatalogEntry]) { self.entries = entries }
 
