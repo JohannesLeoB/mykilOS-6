@@ -29,21 +29,11 @@ struct SidebarView: View {
     private var brand: some View {
         HStack(spacing: 10) {
             RoundedRectangle(cornerRadius: 8)
-                .fill(
-                    LinearGradient(
-                        colors: [MykColor.drive.color, MykColor.tasks.color],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )
-                )
+                .fill(MykColor.brand.color)
                 .frame(width: 26, height: 26)
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text("mykilOS")
-                    .font(.mykHeadline)
-                    .foregroundStyle(MykColor.ink.color)
-                Text("6")
-                    .font(.mykMono(10))
-                    .foregroundStyle(MykColor.faint.color)
-            }
+            Text("mykilOS")
+                .font(.mykHeadline)
+                .foregroundStyle(MykColor.ink.color)
         }
         .padding(.leading, MykSpace.s4)
     }
@@ -59,29 +49,23 @@ struct SidebarView: View {
         }
     }
 
-    // MARK: Fußzeile — Profil + Icon-Strip (Settings + Sidebar-Toggle)
+    // MARK: Fußzeile — eine saubere Zeile: Profil links, Icons rechts
     private var navFoot: some View {
-        VStack(spacing: 4) {
-            // Profil-Button (kompakt, wie bisher)
+        HStack(spacing: 0) {
+            // Profil-Button (Name + Status-Dot)
             Button(action: onOpenProfile) {
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
                     Circle()
                         .fill(footIndicatorColor)
-                        .frame(width: 6, height: 6)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(footDisplayName)
-                            .font(.mykSmall)
-                            .foregroundStyle(MykColor.inkSoft.color)
-                            .lineLimit(1)
-                        Text(footSubtitle)
-                            .font(.mykMono(9))
-                            .foregroundStyle(MykColor.faint.color)
-                            .lineLimit(1)
-                    }
-                    Spacer()
+                        .frame(width: 5, height: 5)
+                    Text(footDisplayName)
+                        .font(.mykSmall)
+                        .foregroundStyle(MykColor.inkSoft.color)
+                        .lineLimit(1)
                 }
                 .padding(.vertical, 8)
-                .padding(.horizontal, MykSpace.s4)
+                .padding(.leading, MykSpace.s4)
+                .padding(.trailing, 4)
                 .background(
                     RoundedRectangle(cornerRadius: 11)
                         .fill(profileHovered ? MykColor.paper2.color : Color.clear)
@@ -90,24 +74,21 @@ struct SidebarView: View {
             .buttonStyle(.plain)
             .onHover { profileHovered = $0 }
 
-            // Icon-Strip: Settings-Icon + Sidebar-Toggle, beide MYKILOS Orange
-            HStack(spacing: 0) {
-                Spacer()
-                SidebarIconButton(
-                    systemName: "gearshape",
-                    help: "Einstellungen"
-                ) {
-                    withAnimation(.easeInOut(duration: 0.18)) { selection = .settings }
-                }
-                SidebarIconButton(
-                    systemName: "sidebar.left",
-                    help: "Sidebar ausblenden (⌘⇧S)",
-                    action: onToggleSidebar
-                )
+            Spacer()
+
+            // Einstellungen
+            SidebarIconButton(systemName: "gearshape", help: "Einstellungen") {
+                withAnimation(.easeInOut(duration: 0.18)) { selection = .settings }
             }
-            .padding(.horizontal, MykSpace.s4)
-            .padding(.bottom, MykSpace.s3)
+            // Sidebar-Toggle
+            SidebarIconButton(
+                systemName: "sidebar.left",
+                help: "Sidebar ausblenden (⌘⇧S)",
+                action: onToggleSidebar
+            )
         }
+        .padding(.horizontal, MykSpace.s4)
+        .padding(.bottom, MykSpace.s3)
     }
 
     private var footIndicatorColor: Color {
