@@ -220,9 +220,12 @@ ist bitgenau roundtrip-sicher).
 - Keine `Color(red:...)` → `MykColor.drive.color` etc.
 - Keine `Color(hex:)` in Widgets/Features → `public` in `MykilosDesign/Tokens.swift` nutzen.
 
-### Secrets
+### Secrets & Private Area
 - Tokens, API-Keys, PATs → nur Keychain. Nie in Code, Dateien, Repo, Logs.
 - Externe IDs (Airtable-Record, Drive-Folder, ClickUp-Liste) = Referenzen, nie Primärschlüssel.
+- **User-Secrets sind pro Nutzer isoliert:** Keychain-Service mit nutzer-spezifischem Suffix (z. B. `com.mykilos6.clockodo.<userID>`). Nie teamweit geteilt.
+- **Clockodo ist datensensitiv.** Zeitdaten, Stundensätze, Entwürfe gehören ausschließlich in die **Private Area** der Settings. Kein Log, kein Audit-Eintrag darf Clockodo-Rohdaten anderer User enthalten. Jeder User sieht und bucht nur seine eigenen Einträge.
+- **Private Area in Settings** (eigener Abschnitt, visuell getrennt von geteilten Integrationen): enthält alle nutzer-persönlichen Credentials — Clockodo zuerst, perspektivisch auch andere personenbezogene Tokens.
 
 ### Widgets
 - Widgets reden NIE direkt miteinander → nur über `StudioContext.emit()`.
@@ -314,6 +317,11 @@ Persönliches Cockpit, geteilte Instrumente. Jeder hat sein eigenes mykilOS,
 sieht durch seine eigene Identität auf die geteilten Drive-Ordner, ClickUp-Tasks, Kalender.
 Projekt-Verdrahtung (boardID, Links) über Airtable als System-of-Record.
 Kein Sync-Backend in V1.
+
+**Datenschutz-Grenze:** Geteilte Daten (Drive, Kalender, ClickUp, Airtable-Projekte) sind
+für alle Teammitglieder sichtbar. **Private Daten** (Clockodo-Zeiteinträge, Stundensätze,
+persönliche Credentials) sind **ausschließlich nutzereigen** — nie teamweit zugänglich, nie
+in geteilten Logs, nie in Airtable-Tabellen ohne expliziten User-Scope-Filter.
 
 ---
 
