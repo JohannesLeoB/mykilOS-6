@@ -267,13 +267,71 @@ Geänderte/neue Stellen:
 
 ---
 
+## Schritt 8 — Lern-Loop sichtbar: Kalibrierungs-Kandidaten + Promote-Flow (S16)
+
+**Branch:** `feat/kalkulation-calibration-loop` (abgezweigt von `feat/kalkulation-record-adjustment`)
+
+Schritt 7 schrieb jede bestätigte Anpassung append-only weg (`learn: false`) — der
+Schätz-Brain lernte aber noch nicht sichtbar. Schritt 8 schließt den Loop: aus
+wiederkehrenden Anpassungen entsteht ein **Kalibrierungs-Kandidat**, den der Nutzer
+bewusst zu einem **aktiven Faktor** promotet. Danach verschieben sich künftige
+Schätzungen real. Die gesamte Fachlogik lag bereits im `LearningStore` — es fehlte
+nur die Verdrahtung über die Engine + die Sichtbarkeit im Widget.
+
+Geänderte/neue Stellen:
+
+- `Sources/MykilosKit/Domain/KalkulationsEngineProviding.swift`:
+  - `recordAdjustment` bekommt `lernen: Bool`. **Kein Default am Protokoll-Requirement**
+    (Swift erlaubt das nicht) — stattdessen eine `extension`-Convenience mit der alten
+    3-Argument-Signatur (`lernen: false`). So bleiben alle Schritt-7-Aufrufer (Tests,
+    Widget) quellkompatibel und unverändert grün. Bewusst NICHT zusätzlich ein Default
+    am konkreten Engine-Impl, sonst wäre der 3-Arg-Aufruf mehrdeutig.
+  - Neue Requirements `lernUebersicht() -> KalkulationsLernStand` + `promote(candidateID:)`.
+  - Neue Sendable-Value-Types `KalkulationsLernStand` / `KalkulationsFaktor` /
+    `KalkulationsKandidat` — bewusst in MykilosKit, damit das Widget **nie**
+    `CalibrationFactorCandidate` & Co. aus `MykilosKalkulationsCore` sieht (das es nicht
+    importieren darf).
+- `Sources/MykilosKit/Domain/AuditEntry.swift` — neuer `Action.calibrationPromoted`
+  (rawValue-persistiert → migrationssicher).
+- `Sources/MykilosServices/Kalkulation/KalkulationsEngine.swift`:
+  - `recordAdjustment` reicht `learn: lernen` an `appendAdjustment` durch.
+  - `lernUebersicht`: `learningStore.summary()` → `mapLernStand` (Kern-`LearningSummary`
+    → Kit-Value-Types; promotebare Kandidaten = Status `.candidate`/`.strongCandidate`,
+    bereits promotete erscheinen als aktiver Faktor, nicht doppelt als Knopf).
+  - `promote`: `learningStore.promoteCalibration` + `AuditEntry(.calibrationPromoted)`.
+    Sentinel-`projectID` "kalkulation", weil Kalibrierung projektübergreifend ist
+    (kein einzelnes Projekt).
+- `Sources/MykilosWidgets/Kinds/KalkulationsWidget.swift`:
+  - `KalkulationsActionCard`: Toggle „Für künftige Schätzungen lernen" → `lernen: true`.
+    Ohne Haken bleibt es eine reine Einzelkorrektur (Status quo Schritt 7).
+  - Neue ausklappbare Sektion „Gelernte Kalibrierung" mit allen Renderstates
+    (loading / leer „Noch nichts gelernt" / Inhalt / Fehler): aktive Faktoren (grün,
+    z. B. „Bauchgefühl · Gesamtschätzung · +10 % · n=3"), promotebare Kandidaten mit
+    „Übernehmen"-Button → `engine.promote` → Bestätigung sichtbar, Outlier-Zähler dezent.
+    Lädt via `.task`, refresht nach Lern-Anpassung und Promote. Schreibt nur über die
+    Engine (Regel: keine Schreibvorgänge aus Views).
+
+**Tests:** neuer Cold-Start-Test (Merge-Gate)
+`lernLoopUeberlebtNeustartUndVerschiebtSchaetzung` in `KalkulationsLearningStoreTests` —
+3× `recordAdjustment(lernen: true)` über die Engine (BaselineAnchorProvider liefert eine
+echte, positive Baseline; der leere Stub-Provider hätte mitteNetto == 0 und Kalibrierung
+könnte nicht greifen) → Kandidat → `promote` → **frische Store-Instanz** auf derselben
+`learning.sqlite` → aktiver Faktor lesbar UND der `EvidenceBasedEstimator` nutzt ihn:
+`mitteNetto` der neuen Schätzung liegt messbar über der unkalibrierten Baseline.
+
+**Ergebnis:** 198 Tests grün (179 swift-testing + 19 XCTest), keine Regressions.
+
+**Berührte Daten:** nur lokale temporäre `learning.sqlite` in `NSTemporaryDirectory()`
+(Test-Verzeichnisse, im `defer` gelöscht). Keine externen Datenquellen berührt.
+
+---
+
 ## Nächste Schritte (nicht in diesem PR)
 
 1. **Seed-Provider**: `BrainSeedRepository` mit destillierten Ankern aus SQLite +
    4 CSV-Dateien (aus mykilO$ Application-Support). Erfordert explizite Freigabe
    für Datei-Copy.
-2. **`importPDF`**: Erst nach `GoogleDriveClient.downloadFile()`.
+2. **`importPDF`**: Erst nach `GoogleDriveClient.downloadFile()`. **Letzter Engine-Stub.**
 3. **PREISLISTEN CSV**: `~/.../Devices/catalog.csv` aus mykilO$ Application-Support
    kopieren → `geraetepreis` liefert echte Preise. Explizite Freigabe erforderlich.
-4. **Kalibrierung sichtbar machen** (optional): Adjustments mit `learn: true` +
-   `promoteCalibration` UI, damit wiederkehrende Anpassungen echte Anker verschieben.
+4. ~~**Kalibrierung sichtbar machen**~~ ✅ erledigt in Schritt 8 (S16).

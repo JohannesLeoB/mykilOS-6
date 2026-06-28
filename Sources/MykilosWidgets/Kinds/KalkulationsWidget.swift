@@ -20,7 +20,14 @@ public struct KalkulationsWidget: View {
     // Anpassungs-Card (erscheint erst nach einer Schätzung)
     @State private var faktor: Double = 1.0
     @State private var grund: String = ""
+    @State private var lernen: Bool = false
     @State private var adjustmentState: AdjustmentState = .idle
+
+    // Lern-Loop sichtbar (ausklappbare Sektion)
+    @State private var lernState: LernState = .loading
+    @State private var lernExpanded: Bool = false
+    @State private var promotingID: String?
+    @State private var promoteBestaetigung: String?
 
     /// Die aktuell angezeigte Schätzung — Referenz für `recordAdjustment`.
     private var currentSchaetzung: KostenSchaetzung? {
@@ -67,12 +74,132 @@ public struct KalkulationsWidget: View {
                 KalkulationsActionCard(
                     faktor: $faktor,
                     grund: $grund,
+                    lernen: $lernen,
                     state: adjustmentState,
                     onConfirm: { await anpassen(schaetzung: schaetzung) }
                 )
             }
+
+            // Gelernte Kalibrierung — immer sichtbar (eigener Lese-Pfad, unabhängig
+            // von einer laufenden Schätzung).
+            Divider().overlay(MykColor.line.color)
+            lernSektion
         }
         .padding(MykSpace.s6)
+        .task { await ladeLernStand() }
+    }
+
+    // MARK: Gelernte Kalibrierung (ausklappbar)
+
+    private var lernSektion: some View {
+        VStack(alignment: .leading, spacing: MykSpace.s4) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) { lernExpanded.toggle() }
+            } label: {
+                HStack(spacing: MykSpace.s3) {
+                    Image(systemName: lernExpanded ? "chevron.down" : "chevron.right")
+                        .font(.mykMono(9.5))
+                        .foregroundStyle(MykColor.muted.color)
+                    Text("Gelernte Kalibrierung")
+                        .font(.mykMono(9.5))
+                        .foregroundStyle(MykColor.muted.color)
+                    Spacer()
+                    lernKopfzeile
+                }
+            }
+            .buttonStyle(.plain)
+
+            if lernExpanded {
+                lernInhalt
+            }
+        }
+    }
+
+    // Kompakte Kennzahl rechts in der Kopfzeile (auch eingeklappt informativ).
+    @ViewBuilder
+    private var lernKopfzeile: some View {
+        if case .content(let stand) = lernState, !stand.istLeer {
+            HStack(spacing: MykSpace.s3) {
+                if !stand.aktiveFaktoren.isEmpty {
+                    Text("\(stand.aktiveFaktoren.count) aktiv")
+                        .font(.mykMono(9.5))
+                        .foregroundStyle(MykColor.positive.color)
+                }
+                if !stand.kandidaten.isEmpty {
+                    Text("\(stand.kandidaten.count) Kandidat\(stand.kandidaten.count == 1 ? "" : "en")")
+                        .font(.mykMono(9.5))
+                        .foregroundStyle(MykColor.tasks.color)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var lernInhalt: some View {
+        switch lernState {
+        case .loading:
+            HStack(spacing: MykSpace.s3) {
+                ProgressView().controlSize(.small).tint(MykColor.tasks.color)
+                Text("Lern-Stand wird geladen …")
+                    .font(.mykSmall)
+                    .foregroundStyle(MykColor.muted.color)
+            }
+
+        case .error(let msg):
+            HStack(spacing: MykSpace.s3) {
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundStyle(MykColor.critical.color)
+                Text(msg)
+                    .font(.mykSmall)
+                    .foregroundStyle(MykColor.critical.color)
+                    .lineLimit(2)
+            }
+
+        case .content(let stand):
+            if stand.istLeer {
+                Text("Noch nichts gelernt. Hake bei einer Anpassung den Lern-Schalter an — ab drei ähnlichen Korrekturen entsteht ein Kandidat.")
+                    .font(.mykSmall)
+                    .foregroundStyle(MykColor.muted.color)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                VStack(alignment: .leading, spacing: MykSpace.s4) {
+                    if !stand.aktiveFaktoren.isEmpty {
+                        VStack(alignment: .leading, spacing: MykSpace.s2) {
+                            ForEach(stand.aktiveFaktoren) { faktor in
+                                AktiverFaktorRow(faktor: faktor)
+                            }
+                        }
+                    }
+                    if !stand.kandidaten.isEmpty {
+                        VStack(alignment: .leading, spacing: MykSpace.s2) {
+                            ForEach(stand.kandidaten) { kandidat in
+                                KandidatRow(
+                                    kandidat: kandidat,
+                                    promoting: promotingID == kandidat.id,
+                                    promoteDisabled: promotingID != nil,
+                                    onPromote: { await promote(kandidat) }
+                                )
+                            }
+                        }
+                    }
+                    if let bestaetigung = promoteBestaetigung {
+                        HStack(spacing: MykSpace.s2) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(MykColor.positive.color)
+                            Text(bestaetigung)
+                                .font(.mykMono(9.5))
+                                .foregroundStyle(MykColor.positive.color)
+                                .lineLimit(2)
+                        }
+                    }
+                    if stand.outliers > 0 {
+                        Text("\(stand.outliers) Ausreißer übersprungen (>25 %)")
+                            .font(.mykMono(9.5))
+                            .foregroundStyle(MykColor.faint.color)
+                    }
+                }
+            }
+        }
     }
 
     // MARK: Freitext-Eingabe
@@ -198,6 +325,7 @@ public struct KalkulationsWidget: View {
         // Neue Schätzung → Anpassungs-Card frisch
         faktor = 1.0
         grund = ""
+        lernen = false
         adjustmentState = .idle
         do {
             let ergebnis = try await engine.schaetze(projektID: projektID, freitext: text)
@@ -217,12 +345,44 @@ public struct KalkulationsWidget: View {
             try await engine.recordAdjustment(
                 schaetzungsID: schaetzung.schaetzungsID,
                 faktor: faktor,
-                grund: begruendung
+                grund: begruendung,
+                lernen: lernen
             )
             adjustmentState = .saved
+            // Mit gesetztem Haken kann ein neuer Kandidat entstanden sein → Sektion
+            // neu laden und aufklappen, damit der Lern-Fortschritt sofort sichtbar ist.
+            if lernen {
+                await ladeLernStand()
+                lernExpanded = true
+            }
         } catch {
             adjustmentState = .failed(error.localizedDescription)
         }
+    }
+
+    // MARK: Lern-Loop: laden + promoten
+
+    private func ladeLernStand() async {
+        do {
+            let stand = try await engine.lernUebersicht()
+            lernState = .content(stand)
+        } catch {
+            lernState = .error(error.localizedDescription)
+        }
+    }
+
+    private func promote(_ kandidat: KalkulationsKandidat) async {
+        guard promotingID == nil else { return }
+        promotingID = kandidat.id
+        promoteBestaetigung = nil
+        do {
+            try await engine.promote(candidateID: kandidat.id)
+            promoteBestaetigung = "Kalibrierung übernommen: \(kandidat.grundLabel) · \(kandidat.zielLabel)"
+            await ladeLernStand()
+        } catch {
+            lernState = .error(error.localizedDescription)
+        }
+        promotingID = nil
     }
 }
 
@@ -242,6 +402,108 @@ private enum KalkulationsRenderState {
     case loading
     case content(KostenSchaetzung)
     case error(String)
+}
+
+// MARK: - LernState
+
+private enum LernState {
+    case loading
+    case content(KalkulationsLernStand)
+    case error(String)
+}
+
+// MARK: - AktiverFaktorRow
+
+private struct AktiverFaktorRow: View {
+    let faktor: KalkulationsFaktor
+
+    var body: some View {
+        HStack(spacing: MykSpace.s3) {
+            Circle().fill(MykColor.positive.color).frame(width: 5, height: 5)
+            Text(faktor.grundLabel)
+                .font(.mykSmall).fontWeight(.medium)
+                .foregroundStyle(MykColor.inkSoft.color)
+            Text("·")
+                .font(.mykMono(9.5))
+                .foregroundStyle(MykColor.faint.color)
+            Text(faktor.zielLabel)
+                .font(.mykMono(9.5))
+                .foregroundStyle(MykColor.muted.color)
+                .lineLimit(1)
+            Spacer()
+            Text(prozentLabel)
+                .font(.mykMono(10))
+                .foregroundStyle(MykColor.positive.color)
+            Text("n=\(faktor.sampleCount)")
+                .font(.mykMono(9.5))
+                .foregroundStyle(MykColor.muted.color)
+        }
+    }
+
+    private var prozentLabel: String {
+        let p = Int(faktor.prozent.rounded())
+        return p >= 0 ? "+\(p) %" : "\(p) %"
+    }
+}
+
+// MARK: - KandidatRow
+
+private struct KandidatRow: View {
+    let kandidat: KalkulationsKandidat
+    let promoting: Bool
+    let promoteDisabled: Bool
+    let onPromote: () async -> Void
+
+    var body: some View {
+        HStack(spacing: MykSpace.s3) {
+            Circle()
+                .strokeBorder(MykColor.tasks.color, lineWidth: 1.5)
+                .frame(width: 6, height: 6)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 4) {
+                    Text(kandidat.grundLabel)
+                        .font(.mykSmall).fontWeight(.medium)
+                        .foregroundStyle(MykColor.inkSoft.color)
+                    Text("·")
+                        .font(.mykMono(9.5))
+                        .foregroundStyle(MykColor.faint.color)
+                    Text(kandidat.zielLabel)
+                        .font(.mykMono(9.5))
+                        .foregroundStyle(MykColor.muted.color)
+                        .lineLimit(1)
+                }
+                Text("\(kandidat.statusLabel) · \(prozentLabel) · n=\(kandidat.sampleCount)")
+                    .font(.mykMono(9.5))
+                    .foregroundStyle(MykColor.muted.color)
+            }
+            Spacer()
+            Button {
+                Task { await onPromote() }
+            } label: {
+                HStack(spacing: MykSpace.s2) {
+                    if promoting {
+                        ProgressView().controlSize(.small).tint(MykColor.tasks.color)
+                    }
+                    Text("Übernehmen")
+                        .font(.mykSmall).fontWeight(.semibold)
+                        .foregroundStyle(MykColor.paper.color)
+                }
+                .padding(.horizontal, MykSpace.s4)
+                .padding(.vertical, MykSpace.s2)
+                .background(
+                    RoundedRectangle(cornerRadius: MykRadius.sm)
+                        .fill(promoteDisabled ? MykColor.faint.color : MykColor.tasks.color)
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(promoteDisabled)
+        }
+    }
+
+    private var prozentLabel: String {
+        let p = Int(kandidat.prozent.rounded())
+        return p >= 0 ? "+\(p) %" : "\(p) %"
+    }
 }
 
 // MARK: - KalkulationsResultView
@@ -351,6 +613,7 @@ private struct PreisSaeule: View {
 private struct KalkulationsActionCard: View {
     @Binding var faktor: Double
     @Binding var grund: String
+    @Binding var lernen: Bool
     let state: AdjustmentState
     let onConfirm: () async -> Void
 
@@ -409,6 +672,21 @@ private struct KalkulationsActionCard: View {
                         )
                 )
                 .disabled(saving)
+
+            // „Lernen"-Schalter — ohne Haken bleibt es eine reine Einzelkorrektur.
+            Toggle(isOn: $lernen) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Für künftige Schätzungen lernen")
+                        .font(.mykSmall)
+                        .foregroundStyle(MykColor.inkSoft.color)
+                    Text("Ab drei ähnlichen Anpassungen entsteht ein Kalibrierungs-Kandidat.")
+                        .font(.mykMono(9.5))
+                        .foregroundStyle(MykColor.muted.color)
+                }
+            }
+            .toggleStyle(.switch)
+            .tint(MykColor.tasks.color)
+            .disabled(saving)
 
             // Bestätigung + Status
             HStack(spacing: MykSpace.s4) {

@@ -103,6 +103,55 @@ struct KalkulationsLearningStoreTests {
         #expect(abs((adjustmentsB.first?.percentDelta ?? 0) - (-10)) < 0.5)
     }
 
+    // MARK: Lern-Loop schließt sich und überlebt Neustart (Schritt 8)
+    // Stärkster Beweis für den Lern-Loop: drei Anpassungen mit `lernen: true` über
+    // die Engine erzeugen einen Kandidaten; `promote` macht daraus einen aktiven
+    // Faktor; nach einem Neustart (frische Store-Instanz, selbe learning.sqlite)
+    // ist der Faktor lesbar UND der EvidenceBasedEstimator nutzt ihn — die mittlere
+    // Schätzung verschiebt sich messbar gegenüber der unkalibrierten Baseline.
+    @Test func lernLoopUeberlebtNeustartUndVerschiebtSchaetzung() async throws {
+        let dir = try tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        // Baseline-Anker (eingebaut, deterministisch) liefert eine echte, positive
+        // Schätzung — der Stub-Provider ohne Anker hätte mitteNetto == 0, dann
+        // könnte keine Kalibrierung greifen.
+        let freitext = "5 laufmeter unterschränke mit linoleumfronten. 15 eichenschubkästen. Insel ca 2 x 1,2 m in Edelstahl."
+
+        let storeA = LearningStore(directory: dir)
+        let engineA = KalkulationsEngine(provider: BaselineAnchorProvider(), learningStore: storeA)
+
+        // Drei ähnliche Anpassungen (+10 %), jede mit Lernen → ab der dritten
+        // entsteht ein Kalibrierungs-Kandidat (gleicher reason/target im Store).
+        var baselineMitte = 0.0
+        for index in 0..<3 {
+            let s = try await engineA.schaetze(projektID: "P-1", freitext: freitext)
+            if index == 0 { baselineMitte = s.mitteNetto }   // noch unkalibriert
+            try await engineA.recordAdjustment(
+                schaetzungsID: s.schaetzungsID,
+                faktor: 1.10,
+                grund: "Marktpreis höher",
+                lernen: true
+            )
+        }
+        #expect(baselineMitte > 0)
+
+        // Der Kandidat ist über die Engine sichtbar und promotebar.
+        let stand = try await engineA.lernUebersicht()
+        let kandidat = try #require(stand.kandidaten.first)
+        try await engineA.promote(candidateID: kandidat.id)
+
+        // "App neu gestartet": frische Store-Instanz auf derselben learning.sqlite.
+        let storeB = LearningStore(directory: dir)
+        #expect(try storeB.activeCalibrationFactors().count >= 1)
+
+        // Eine NEUE Engine über den Cold-Start-Store schätzt höher: der aktive
+        // Faktor (+10 % auf die Gesamtschätzung) verschiebt die Mitte messbar.
+        let engineB = KalkulationsEngine(provider: BaselineAnchorProvider(), learningStore: storeB)
+        let kalibriert = try await engineB.schaetze(projektID: "P-1", freitext: freitext)
+        #expect(kalibriert.mitteNetto > baselineMitte)
+    }
+
     // MARK: Append-only: zwei Adjustments = zwei physische Zeilen nach Neustart
     @Test func appendOnlyBleibtNachNeustartErhalten() throws {
         let dir = try tempDir()

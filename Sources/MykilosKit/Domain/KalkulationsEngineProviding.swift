@@ -13,7 +13,24 @@ public protocol KalkulationsEngineProviding: AnyObject, Sendable {
     func schaetze(projektID: String, freitext: String) async throws -> KostenSchaetzung
     func geraetepreis(suchbegriff: String) async -> Double?
     func importPDF(driveFileID: String, projektID: String) async throws
-    func recordAdjustment(schaetzungsID: String, faktor: Double, grund: String) async throws
+    /// Bucht eine Anpassung gegen eine Schätzung. `lernen: true` lässt sie in die
+    /// Kalibrierungs-Kandidaten einfließen (Lern-Loop); `false` ist eine reine
+    /// Einzelkorrektur. Kein Default am Protokoll — Bequemlichkeit über die Extension.
+    func recordAdjustment(schaetzungsID: String, faktor: Double, grund: String, lernen: Bool) async throws
+    /// Aktueller Lern-Stand (aktive Faktoren, promotebare Kandidaten, Zähler) als
+    /// reine Value-Types — kein Core-Typ leakt ins Widget.
+    func lernUebersicht() async throws -> KalkulationsLernStand
+    /// Promotet einen Kalibrierungs-Kandidaten zu einem aktiven Faktor. Künftige
+    /// Schätzungen verschieben sich entsprechend. Protokolliert als AuditEntry.
+    func promote(candidateID: String) async throws
+}
+
+public extension KalkulationsEngineProviding {
+    /// Bequemlichkeits-Overload: Einzelkorrektur ohne Lernen (Status quo Schritt 7).
+    /// Hält bestehende 3-Argument-Aufrufer (Tests, alte Call-Sites) quellkompatibel.
+    func recordAdjustment(schaetzungsID: String, faktor: Double, grund: String) async throws {
+        try await recordAdjustment(schaetzungsID: schaetzungsID, faktor: faktor, grund: grund, lernen: false)
+    }
 }
 
 // MARK: - KostenSchaetzung
@@ -78,5 +95,71 @@ public struct PriceEvidence: Sendable {
         self.seite = seite
         self.originalZitat = originalZitat
         self.nettoPreis = nettoPreis
+    }
+}
+
+// MARK: - KalkulationsLernStand
+// Sichtbarer Stand des Lern-Loops, gemappt aus der Kern-`LearningSummary`. Bewusst
+// reine Value-Types in MykilosKit: das Widget sieht nie `CalibrationFactorCandidate`
+// & Co. aus MykilosKalkulationsCore (das es nicht importieren darf).
+
+public struct KalkulationsLernStand: Sendable, Equatable {
+    public let sessions: Int
+    public let adjustments: Int
+    public let outliers: Int
+    public let aktiveFaktoren: [KalkulationsFaktor]
+    public let kandidaten: [KalkulationsKandidat]
+
+    public init(
+        sessions: Int,
+        adjustments: Int,
+        outliers: Int,
+        aktiveFaktoren: [KalkulationsFaktor],
+        kandidaten: [KalkulationsKandidat]
+    ) {
+        self.sessions = sessions
+        self.adjustments = adjustments
+        self.outliers = outliers
+        self.aktiveFaktoren = aktiveFaktoren
+        self.kandidaten = kandidaten
+    }
+
+    /// Nichts gelernt und nichts in Sicht — der Leerzustand der Sektion.
+    public var istLeer: Bool { aktiveFaktoren.isEmpty && kandidaten.isEmpty }
+}
+
+/// Ein aktiver Kalibrierungsfaktor — verschiebt künftige Schätzungen messbar.
+public struct KalkulationsFaktor: Sendable, Equatable, Identifiable {
+    public let id: String
+    public let grundLabel: String
+    public let zielLabel: String
+    public let prozent: Double
+    public let sampleCount: Int
+
+    public init(id: String, grundLabel: String, zielLabel: String, prozent: Double, sampleCount: Int) {
+        self.id = id
+        self.grundLabel = grundLabel
+        self.zielLabel = zielLabel
+        self.prozent = prozent
+        self.sampleCount = sampleCount
+    }
+}
+
+/// Ein noch nicht übernommener Kandidat — der Nutzer kann ihn bewusst promoten.
+public struct KalkulationsKandidat: Sendable, Equatable, Identifiable {
+    public let id: String
+    public let grundLabel: String
+    public let zielLabel: String
+    public let prozent: Double
+    public let sampleCount: Int
+    public let statusLabel: String
+
+    public init(id: String, grundLabel: String, zielLabel: String, prozent: Double, sampleCount: Int, statusLabel: String) {
+        self.id = id
+        self.grundLabel = grundLabel
+        self.zielLabel = zielLabel
+        self.prozent = prozent
+        self.sampleCount = sampleCount
+        self.statusLabel = statusLabel
     }
 }

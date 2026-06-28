@@ -53,6 +53,49 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+### 2026-06-28 · Claude Code (Opus 4.8, S16) — Lern-Loop sichtbar: Kalibrierungs-Kandidaten + Promote-Flow (Schritt 8)
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `feat/kalkulation-calibration-loop` (abgezweigt von `feat/kalkulation-record-adjustment`)
+**Build:** ✅ | **Tests:** 198 grün (179 swift-testing + 19 XCTest)
+
+**Was gemacht wurde:**
+- `KalkulationsEngineProviding` (MykilosKit): `recordAdjustment` bekommt einen
+  `lernen: Bool`-Parameter. Kein Default am Protokoll-Requirement (Swift erlaubt das
+  nicht) — stattdessen eine `extension`-Convenience-Overload mit der alten 3-Argument-
+  Signatur (`lernen: false`), damit alle Schritt-7-Aufrufer (Tests, Call-Sites)
+  quellkompatibel bleiben und unverändert grün sind.
+- Neue Protokoll-/Engine-Methoden `lernUebersicht() -> KalkulationsLernStand` und
+  `promote(candidateID:)`. `KalkulationsLernStand`/`KalkulationsFaktor`/
+  `KalkulationsKandidat` sind neue Sendable-Value-Types in MykilosKit — die Core-Typen
+  (`CalibrationFactorCandidate` etc.) leaken NICHT ins Widget (das MykilosKalkulationsCore
+  nicht importieren darf). `KalkulationsEngine.mapLernStand` mappt die Kern-`LearningSummary`.
+- `KalkulationsEngine.recordAdjustment` reicht `learn: lernen` an `appendAdjustment`
+  durch; `promote` ruft `LearningStore.promoteCalibration` und schreibt einen `AuditEntry`
+  mit `action: .calibrationPromoted` (Sentinel-`projectID` "kalkulation", da Kalibrierung
+  projektübergreifend ist).
+- `AuditEntry.Action.calibrationPromoted` ergänzt (rawValue-persistiert → migrationssicher).
+- `KalkulationsWidget`: „Für künftige Schätzungen lernen"-Toggle an der ActionCard
+  (setzt `lernen: true`) + neue ausklappbare Sektion „Gelernte Kalibrierung" mit allen
+  Renderstates (loading / leer / Inhalt / Fehler): aktive Faktoren (grün), promotebare
+  Kandidaten mit „Übernehmen"-Button → `engine.promote` → Bestätigung sichtbar,
+  Outlier-Zähler dezent. Schreiben weiterhin nur bestätigungspflichtig über die Engine.
+
+**Neuer Cold-Start-Test (Merge-Gate):** `lernLoopUeberlebtNeustartUndVerschiebtSchaetzung`
+— 3× `recordAdjustment(lernen: true)` über die Engine (BaselineAnchorProvider für eine
+echte, positive Baseline) → Kandidat → `promote` → frische Store-Instanz auf derselben
+`learning.sqlite` → aktiver Faktor lesbar UND der `EvidenceBasedEstimator` nutzt ihn:
+`mitteNetto` verschiebt sich messbar (+10 %) gegenüber der unkalibrierten Baseline.
+
+**Berührte Daten:** nur lokale temporäre `learning.sqlite` in `NSTemporaryDirectory()`
+(Test-Verzeichnisse, im `defer` gelöscht). Keine externen Daten (Airtable/Drive/Sevdesk)
+gelesen oder geschrieben.
+
+**Status:** Branch sauber, 198 Tests grün, keine Regressions, Token-Disziplin geprüft
+(kein `.font(.system)`/`Color(red:)` im Widget). Kein Push ohne Freigabe von Johannes.
+
+---
+
 ### 2026-06-28 · Claude Code (Opus 4.8, S15) — recordAdjustment-Flow + KalkulationsActionCard (Schritt 7)
 
 **Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`

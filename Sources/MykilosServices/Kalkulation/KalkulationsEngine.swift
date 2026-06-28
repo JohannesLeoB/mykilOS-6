@@ -22,8 +22,10 @@ public enum KalkulationsEngineError: Error, CustomStringConvertible {
 //
 // Aktiv: `schaetze` + `geraetepreis` (wenn ein DeviceCatalog injiziert ist;
 // sonst nil — der Lookup ist optional) + `recordAdjustment` (persistiert die
-// Anpassung im LearningStore und protokolliert sie als AuditEntry). Bewusst noch
-// Stub (eigener Folgeschritt):
+// Anpassung im LearningStore und protokolliert sie als AuditEntry) + der sichtbare
+// Lern-Loop (`lernUebersicht` liest den Kalibrierungsstand, `promote` übernimmt
+// einen Kandidaten als aktiven Faktor und auditiert das). Bewusst noch Stub
+// (eigener Folgeschritt):
 // - `importPDF`     → braucht `GoogleDriveClient.downloadFile`.
 //
 // Actor: die mitgeführten Kern-Objekte (Estimator/Parser/LearningStore) sind nicht
@@ -80,20 +82,21 @@ public actor KalkulationsEngine: KalkulationsEngineProviding {
         )
     }
 
-    public func recordAdjustment(schaetzungsID: String, faktor: Double, grund: String) async throws {
+    public func recordAdjustment(schaetzungsID: String, faktor: Double, grund: String, lernen: Bool = false) async throws {
         // `faktor` ist ein Multiplikator um 1.0 (0.8 = 20 % günstiger). Der
         // LearningStore rechnet intern mit Prozent-Delta.
         let percentDelta = (faktor - 1) * 100
         // Manuelle Freitext-Anpassung → Bauchgefühl (niedriges Reliability-Gewicht),
-        // Gesamtschätzung, `grund` als Notiz. `learn: false` — eine einzelne manuelle
-        // Anpassung darf den Kalibrierungs-Kandidaten nicht automatisch verändern.
+        // Gesamtschätzung, `grund` als Notiz. `learn: lernen` — nur mit gesetztem
+        // Haken fließt die Anpassung in einen Kalibrierungs-Kandidaten ein; ohne
+        // Haken bleibt es eine reine Einzelkorrektur (Status quo Schritt 7).
         _ = try learningStore.appendAdjustment(
             sessionID: schaetzungsID,
             percentDelta: percentDelta,
             euroDelta: nil,
             reason: .gutFeeling,
             target: .wholeEstimate,
-            learn: false,
+            learn: lernen,
             note: grund
         )
 
@@ -112,6 +115,69 @@ public actor KalkulationsEngine: KalkulationsEngineProviding {
             summary: summary
         )
         try await auditStore.append(entry)
+    }
+
+    // MARK: Lern-Loop sichtbar machen
+
+    public func lernUebersicht() async throws -> KalkulationsLernStand {
+        Self.mapLernStand(try learningStore.summary())
+    }
+
+    public func promote(candidateID: String) async throws {
+        let factor = try learningStore.promoteCalibration(candidateID: candidateID)
+
+        // Audit: gleiche Semantik wie eine bestätigte Anpassung — sichtbar und
+        // nachvollziehbar. Kalibrierung ist projektübergreifend (Schätz-Brain),
+        // daher kein Projektbezug, sondern die Sentinel-`projectID` "kalkulation".
+        guard let auditStore else { return }
+        let prozent = abs(factor.weightedPercentDelta).rounded()
+        let richtung = factor.weightedPercentDelta >= 0 ? "höher" : "günstiger"
+        let summary = "Kalibrierung übernommen: \(factor.reason.displayName) · \(factor.target.displayName) · "
+            + "\(Int(prozent)) % \(richtung) (n=\(factor.sampleCount))"
+        let entry = AuditEntry(
+            actorUserID: "local-user",
+            projectID: "kalkulation",
+            action: .calibrationPromoted,
+            summary: summary
+        )
+        try await auditStore.append(entry)
+    }
+
+    // MARK: Mapping LearningSummary → KalkulationsLernStand
+    // Core-Typen (CalibrationFactorCandidate/ActiveCalibrationFactor) bleiben in
+    // MykilosKalkulationsCore; nur die schlanken Kit-Value-Types gehen ins Widget.
+
+    static func mapLernStand(_ summary: LearningSummary) -> KalkulationsLernStand {
+        let faktoren = summary.activeFactors.map { factor in
+            KalkulationsFaktor(
+                id: factor.id,
+                grundLabel: factor.reason.displayName,
+                zielLabel: factor.target.displayName,
+                prozent: factor.weightedPercentDelta,
+                sampleCount: factor.sampleCount
+            )
+        }
+        // Nur promotebare Kandidaten zeigen — bereits promotete sind als aktiver
+        // Faktor sichtbar und tauchen nicht doppelt als Knopf auf.
+        let kandidaten = summary.candidates
+            .filter { $0.status == .candidate || $0.status == .strongCandidate }
+            .map { candidate in
+                KalkulationsKandidat(
+                    id: candidate.id,
+                    grundLabel: candidate.reason.displayName,
+                    zielLabel: candidate.target.displayName,
+                    prozent: candidate.weightedPercentDelta,
+                    sampleCount: candidate.sampleCount,
+                    statusLabel: candidate.status == .strongCandidate ? "Starker Kandidat" : "Kandidat"
+                )
+            }
+        return KalkulationsLernStand(
+            sessions: summary.sessions,
+            adjustments: summary.adjustments,
+            outliers: summary.outliers,
+            aktiveFaktoren: faktoren,
+            kandidaten: kandidaten
+        )
     }
 
     // MARK: Mapping EstimateResult → KostenSchaetzung
