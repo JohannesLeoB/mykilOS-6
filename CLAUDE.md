@@ -147,7 +147,8 @@ Daten sind heilig; bei Datenverlust-Gefahr warnen.
 | Live-Wiring, Session 3 | ✅ | BrandsView-Navigationsbug behoben (`@FocusedBinding` nil → `onNavigateToSettings`-Callback), Live-App-Tour, OAuth-Handshake gesammelt. 169 Tests. Details: [HANDOFF_LIVE_WIRING_3.md](docs/handoffs/HANDOFF_LIVE_WIRING_3.md) |
 | Live-Wiring, Session 4 | 📋 | Clockodo Zuhörer + Partner-App Schema: 7 Airtable-Tabellen, Stundensätze, Kalkulationen/Positionen, Ownership-Modell, Merge-Plan. Details: [HANDOFF_LIVE_WIRING_4.md](docs/handoffs/HANDOFF_LIVE_WIRING_4.md) |
 | Live-Wiring, Session 5 | 📋 | mykilO$$ Vollintegration: `KalkulationsEngineProviding`-Protokoll, `AppState.kalkulationsEngine`-Slot, Airtable-Tabelle `Eingehende-Angebote` (tbliKfs5FnufjdB36), Integrationsplan. |
-| Kalkulations-Port, Schritt 1 | ✅ | Target `MykilosKalkulationsCore` (Foundation-only): 10 Dateien verbatim aus mykilO$$ portiert + 16 Core-Tests (`MykilosKalkulationsCoreTests`). Build grün, **185 Tests**. Branch `feat/kalkulation-core-port`. Nächstes: GRDB-Adapter (`LearningStore` + Cold-Start-Test). |
+| Kalkulations-Port, Schritt 1 | ✅ | Target `MykilosKalkulationsCore` (Foundation-only): 10 Dateien verbatim aus mykilO$$ portiert + 16 Core-Tests (`MykilosKalkulationsCoreTests`). Branch `feat/kalkulation-core-port`. |
+| Kalkulations-Port, Schritt 2 | ✅ | GRDB-Lern-Schicht `MykilosServices/Kalkulation/` (LearningDatabase/Records/Store verbatim) + **Cold-Start-Test (Merge-Gate)** `KalkulationsLearningStoreTests`. Build grün, **187 Tests**. Nächstes: Engine-Adapter (`KalkulationsEngine`) — braucht erst PR-#1-Protokoll auf gemeinsamer Basis. |
 
 ---
 

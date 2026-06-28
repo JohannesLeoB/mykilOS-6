@@ -53,6 +53,39 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+### 2026-06-28 · Claude Code (Opus 4.8) — Kalkulations-Lern-Schicht portiert (Schritt 2)
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `feat/kalkulation-core-port`
+**Build:** ✅ | **Tests:** 187 grün (171 swift-testing inkl. 2 Cold-Start + 16 XCTest)
+
+**Was gemacht wurde — Port-Reihenfolge Schritt 2 (GRDB-Lern-Schicht):**
+- `Sources/MykilosServices/Kalkulation/` mit 3 verbatim portierten Dateien aus mykilO$$
+  `KalkulationsData`: `LearningDatabase.swift` (GRDB-Queue, WAL, additiver Migrator v1–v3,
+  `inMemory()`), `LearningRecords.swift` (GRDB-Records + `LearningCodec` + DB-Extensions +
+  JSONL-Import), `LearningStore.swift` (append-only High-Level-API, `CalibrationFactorProviding`).
+- Einzige Änderungen am verbatim-Port: `import KalkulationsCore` → `import MykilosKalkulationsCore`;
+  modul-internes `AuditRecord` → `LearningAuditRecord` umbenannt (Kollision mit bestehendem
+  `AuditRecord` in MykilosServices).
+- **Cold-Start-Test = Merge-Gate erfüllt:** neue `KalkulationsLearningStoreTests` —
+  `lernDatenUeberlebenNeustart` (schreiben → zweite Store-Instanz öffnet dieselbe
+  `learning.sqlite` von Platte → identisch) + `appendOnlyBleibtNachNeustartErhalten`.
+  `MykilosKalkulationsCore` an die Test-Target-Deps gehängt.
+- SwiftLint: `Sources/MykilosServices/Kalkulation` als vendored ausgenommen (3 Zeilen > 200);
+  Rest von MykilosServices bleibt voll gelintet.
+
+**Bewusst NICHT in diesem Schritt:** `BrainSeedRepository`/`DeviceCatalog`/CSV/`ImportService`
+(brauchen externe Seed-Dateien) und `AirtableSyncService` (wird gelöscht, 3 Regelverstöße).
+Engine-Adapter (`KalkulationsEngine: KalkulationsEngineProviding`, `parse → estimate`, id als
+String), AppState-Verdrahtung, UI → Schritt 4+.
+
+**Basis-Konflikt bleibt offen (siehe Schritt-1-Eintrag):** PR #1 (`claude/musing-sammet`,
+~97-Test-Basis) hält das Contract/Protokoll, mein `stabilize`-Stand nicht. Schritt 2 brauchte
+das Protokoll NICHT (reine Persistenz). Vor Schritt 4 (Engine-Adapter conformt das Protokoll)
+muss EINE kanonische Basis hergestellt werden. Kein Push ohne Johannes' Freigabe.
+
+---
+
 ### 2026-06-28 · Claude Code (Opus 4.8) — mykilO$$ Kalkulations-Core portiert (Schritt 1)
 
 **Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`

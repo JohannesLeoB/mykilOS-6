@@ -60,7 +60,7 @@ let package = Package(
                     path: "Tests/MykilosKalkulationsCoreTests"),
         .testTarget(name: "MykilosServicesTests",
                     dependencies: [
-                        "MykilosServices", "MykilosKit",
+                        "MykilosServices", "MykilosKit", "MykilosKalkulationsCore",
                         .product(name: "GRDB", package: "GRDB.swift"),
                     ],
                     path: "Tests/MykilosServicesTests"),
