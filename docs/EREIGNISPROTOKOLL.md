@@ -53,6 +53,34 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+### 2026-06-28 · Claude Code (Opus 4.8) — DeviceCatalog + `geraetepreis` live (Schritt 4)
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `feat/kalkulation-core-port`
+**Build:** ✅ | **Tests:** 193 grün (174 swift-testing + 19 XCTest)
+
+**Was gemacht wurde:**
+- `DeviceCatalog.swift` + `CSVParser.swift` verbatim aus mykilO$$ `KalkulationsData` nach
+  `MykilosServices/Kalkulation/` portiert (Import → `MykilosKalkulationsCore`). CSV-backed,
+  tolerante Spaltenerkennung, Token-Score-Suche, Daten liegen in Application-Support (nie im Repo).
+- **`geraetepreis(suchbegriff:)` scharf geschaltet:** `KalkulationsEngine` nimmt optional einen
+  injizierten `DeviceCatalog`; `geraetepreis` → `search().first?.sellNet` (MYKILOS-VK vor Liste) →
+  Double. Ohne Katalog weiterhin nil (optionaler Lookup, kein Crash).
+- **Tests:** 3 synthetische DeviceCatalog-Port-Tests (parse/BOM/Suche, in-memory) + 1 Engine-Test
+  (`geraetepreis` mit injiziertem Katalog → 2190; Fehlsuche → nil). Der mykilO$$-Import-Test
+  (`importCatalog`→defaultURL) bewusst NICHT übernommen — würde an den echten App-Support-Pfad
+  schreiben und reale Daten berühren.
+- SwiftLint-Ausnahme um die 2 neuen vendored Dateien erweitert.
+
+**Datensicherheit:** Das echte Preisbuch (PREISLISTEN-CSV, 13.419 Artikel mit EK-Preisen) bleibt
+extern (`~/Library/Application Support/MYKILOS/Kalkulationslabor/Devices/catalog.csv`), nie im Repo.
+Das tatsächliche Laden der echten CSV ist ein separater Daten-Schritt (Johannes' Freigabe).
+
+**Adapter-Stand:** `schaetze` ✅ + `geraetepreis` ✅ | Stubs: `importPDF` (Drive-Download),
+`recordAdjustment` (Persistenz/Bestätigungs-Flow). Kein Push ohne Freigabe.
+
+---
+
 ### 2026-06-28 · Claude Code (Opus 4.8) — Contract + Engine-Adapter (Schritt 3)
 
 **Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`

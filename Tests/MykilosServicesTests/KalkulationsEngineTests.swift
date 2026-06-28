@@ -50,7 +50,32 @@ struct KalkulationsEngineTests {
         await #expect(throws: KalkulationsEngineError.self) {
             try await engine.recordAdjustment(schaetzungsID: "s-1", faktor: 1.1, grund: "Test")
         }
+        // Ohne injizierten Katalog ist geraetepreis bewusst nil (optionaler Lookup).
         let preis = await engine.geraetepreis(suchbegriff: "spüle")
         #expect(preis == nil)
+    }
+
+    // Synthetisch — niemals reale Preisbuch-Daten.
+    private static let syntheticCSV = """
+    Suchtext,Artikelnummer,Hersteller,Kategorie,Artikelbeschreibung,Netto-Verkaufspreis LISTE (€),Netto-Einkaufspreis (€),Netto-Verkaufspreis MYKILOS (€)
+    gaggenau backofen,G-200,Gaggenau,Backofen,Gaggenau Backofen Serie 200,3200,2100,2890
+    bora kochfeld abzug,B-PUR,BORA,Kochfeld,BORA Pure Kochfeldabzug,2450,1600,2190
+    """
+
+    @Test func geraetepreisLiefertPreisAusInjiziertemKatalog() async throws {
+        let catalog = try DeviceCatalog(csv: Self.syntheticCSV)
+        let engine = KalkulationsEngine(
+            provider: StubAnchorProvider(),
+            learningStore: try tempStore(),
+            deviceCatalog: catalog
+        )
+
+        // Treffer → MYKILOS-VK (sellNet bevorzugt mykilosNet vor Liste)
+        let bora = await engine.geraetepreis(suchbegriff: "bora kochfeld")
+        #expect(bora == 2190)
+
+        // Kein Treffer → nil
+        let none = await engine.geraetepreis(suchbegriff: "nichtvorhandenerbegriffxyz")
+        #expect(none == nil)
     }
 }

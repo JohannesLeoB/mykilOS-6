@@ -20,8 +20,8 @@ public enum KalkulationsEngineError: Error, CustomStringConvertible {
 // mykilO$$-Kern. `schaetze` ist der zweistufige Einstieg: `parse` (Semantik) →
 // `estimate` (Preislogik) → Mapping `EstimateResult` → `KostenSchaetzung`.
 //
-// Aktiv: `schaetze`. Bewusst noch Stubs (eigene Folgeschritte):
-// - `geraetepreis`  → DeviceCatalog noch nicht portiert.
+// Aktiv: `schaetze` + `geraetepreis` (wenn ein DeviceCatalog injiziert ist;
+// sonst nil — der Lookup ist optional). Bewusst noch Stubs (eigene Folgeschritte):
 // - `importPDF`     → braucht `GoogleDriveClient.downloadFile`.
 // - `recordAdjustment` → braucht persistierte Session + Reason/Target-Mapping
 //   und den Bestätigungs-Flow (Action-Card → Audit).
@@ -31,12 +31,19 @@ public enum KalkulationsEngineError: Error, CustomStringConvertible {
 public actor KalkulationsEngine: KalkulationsEngineProviding {
     private let provider: PriceAnchorProviding
     private let learningStore: LearningStore
+    private let deviceCatalog: DeviceCatalog?
     private let parser = EstimateRequestParser()
     private let maxEvidences: Int
 
-    public init(provider: PriceAnchorProviding, learningStore: LearningStore, maxEvidences: Int = 5) {
+    public init(
+        provider: PriceAnchorProviding,
+        learningStore: LearningStore,
+        deviceCatalog: DeviceCatalog? = nil,
+        maxEvidences: Int = 5
+    ) {
         self.provider = provider
         self.learningStore = learningStore
+        self.deviceCatalog = deviceCatalog
         self.maxEvidences = maxEvidences
     }
 
@@ -48,7 +55,10 @@ public actor KalkulationsEngine: KalkulationsEngineProviding {
     }
 
     public func geraetepreis(suchbegriff: String) async -> Double? {
-        nil
+        guard let deviceCatalog else { return nil }
+        guard let best = deviceCatalog.search(suchbegriff, limit: 1).first,
+              let preis = best.sellNet else { return nil }
+        return Self.double(preis)
     }
 
     public func importPDF(driveFileID: String, projektID: String) async throws {
