@@ -79,6 +79,15 @@ Notizen, Clockodo, Kontakte, Bilder, Angebote).
 
 ## Wo wir stehen
 
+> **🜂 EINSTIEG: [HYPERBUILD.md](HYPERBUILD.md) — der Brühwürfel. Bei Session-Start
+> ZUERST lesen.** mykilOS 6+ Hyperbuild = die ganze App hochkonzentriert auf einer Seite:
+> echter Stand (Branch `polish/dampflok`, 270 Tests, Core-Repair-Strang), Architektur-Skelett,
+> die eine Lektion (Proxy- statt Ziel-Optimierung), „fertig"=Hustadt-Live-Gate, die einzige
+> To-do-Liste (Core Repair A–G, Polish L24–L30, manuelle Aktionen M1–M7), eiserne Regeln.
+> Historie komprimiert: [docs/handoffs/_archiv/](docs/handoffs/_archiv/INDEX.md) (53 Handoffs)
+> + [docs/_archiv/](docs/_archiv/INDEX.md) (erledigte Pläne). Der Verlauf unten bleibt als
+> Detail-Nachschlagewerk.
+
 ## ⚠️ P0-HARD-GATE: Projekt-„Übersicht” überlagert die Sidebar
 
 **Status: FIX COMMITTED (9ddf75a) · Live-Abnahme durch Johannes ausstehend.**
