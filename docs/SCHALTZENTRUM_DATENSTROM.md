@@ -41,6 +41,7 @@ Verstöße werfen vor jedem Netzwerkzugriff.
 | DATAFLOW_LOG_WRITE | Airtable | WRITE | DataFlowLogger → Datenstrom-Log | bei jedem Sync | append-only | – |
 | DATAFLOW_HANDBOOK_WRITE | Airtable | WRITE | Pflege → Datenstrom-Handbuch | onDemand | append-only | – |
 | GMAIL_FULL_CACHE | Gmail | READ | Gmail-API (Paginierung) → GRDB-Cache | Startup | read-only | **Ja** · *Welle 2* |
+| POLISH_LOG_WRITE | Airtable | WRITE | Dampflok-Loop → Polish-Log (tblberJMgRArGSypE) | pro Session | append-only | – |
 
 ---
 
