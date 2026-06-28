@@ -89,7 +89,8 @@ public final class AppState {
         self.kalkulationsEngine = KalkulationsEngine(
             provider: BaselineAnchorProvider(),
             learningStore: LearningStore(),
-            deviceCatalog: DeviceCatalog.loadDefault()
+            deviceCatalog: DeviceCatalog.loadDefault(),
+            auditStore: audit   // bestätigte Anpassungen landen im Audit-Log
         )
     }
 

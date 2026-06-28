@@ -17,6 +17,17 @@ public struct KalkulationsWidget: View {
     @State private var freitext: String = ""
     @State private var state: KalkulationsRenderState = .empty
 
+    // Anpassungs-Card (erscheint erst nach einer Schätzung)
+    @State private var faktor: Double = 1.0
+    @State private var grund: String = ""
+    @State private var adjustmentState: AdjustmentState = .idle
+
+    /// Die aktuell angezeigte Schätzung — Referenz für `recordAdjustment`.
+    private var currentSchaetzung: KostenSchaetzung? {
+        if case .content(let s) = state { return s }
+        return nil
+    }
+
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             content
@@ -49,6 +60,17 @@ public struct KalkulationsWidget: View {
 
             // Ergebnis-Bereich
             resultArea
+
+            // Anpassung vorschlagen — nur nach einer Schätzung
+            if let schaetzung = currentSchaetzung {
+                Divider().overlay(MykColor.line.color)
+                KalkulationsActionCard(
+                    faktor: $faktor,
+                    grund: $grund,
+                    state: adjustmentState,
+                    onConfirm: { await anpassen(schaetzung: schaetzung) }
+                )
+            }
         }
         .padding(MykSpace.s6)
     }
@@ -173,6 +195,10 @@ public struct KalkulationsWidget: View {
         let text = freitext.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { state = .empty; return }
         state = .loading
+        // Neue Schätzung → Anpassungs-Card frisch
+        faktor = 1.0
+        grund = ""
+        adjustmentState = .idle
         do {
             let ergebnis = try await engine.schaetze(projektID: projektID, freitext: text)
             state = .content(ergebnis)
@@ -180,6 +206,33 @@ public struct KalkulationsWidget: View {
             state = .error(error.localizedDescription)
         }
     }
+
+    // MARK: Anpassung bestätigen (Bestätigung → recordAdjustment → Audit)
+
+    private func anpassen(schaetzung: KostenSchaetzung) async {
+        let begruendung = grund.trimmingCharacters(in: .whitespaces)
+        guard !begruendung.isEmpty else { return }
+        adjustmentState = .saving
+        do {
+            try await engine.recordAdjustment(
+                schaetzungsID: schaetzung.schaetzungsID,
+                faktor: faktor,
+                grund: begruendung
+            )
+            adjustmentState = .saved
+        } catch {
+            adjustmentState = .failed(error.localizedDescription)
+        }
+    }
+}
+
+// MARK: - AdjustmentState
+
+private enum AdjustmentState: Equatable {
+    case idle
+    case saving
+    case saved
+    case failed(String)
 }
 
 // MARK: - KalkulationsRenderState
@@ -288,6 +341,132 @@ private struct PreisSaeule: View {
         formatter.currencyCode = "EUR"
         formatter.maximumFractionDigits = 0
         return formatter.string(from: NSNumber(value: betrag)) ?? "–"
+    }
+}
+
+// MARK: - KalkulationsActionCard
+// Vorschlag einer Anpassung. Schreibt NIE automatisch — erst der Bestätigungs-Button
+// löst recordAdjustment (LearningStore + Audit) aus. Gleiche Semantik wie die
+// Action-Cards im AssistantWidget.
+private struct KalkulationsActionCard: View {
+    @Binding var faktor: Double
+    @Binding var grund: String
+    let state: AdjustmentState
+    let onConfirm: () async -> Void
+
+    private var prozent: Int { Int(((faktor - 1) * 100).rounded()) }
+
+    private var prozentLabel: String {
+        if prozent == 0 { return "unverändert" }
+        return prozent > 0 ? "+\(prozent) % höher" : "\(prozent) % günstiger"
+    }
+
+    private var grundLeer: Bool {
+        grund.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private var saving: Bool {
+        if case .saving = state { return true }
+        return false
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MykSpace.s4) {
+            Text("Anpassung vorschlagen")
+                .font(.mykMono(9.5))
+                .foregroundStyle(MykColor.muted.color)
+
+            // Faktor-Schieberegler
+            VStack(alignment: .leading, spacing: MykSpace.s2) {
+                HStack {
+                    Text("Faktor")
+                        .font(.mykSmall)
+                        .foregroundStyle(MykColor.inkSoft.color)
+                    Spacer()
+                    Text(prozentLabel)
+                        .font(.mykMono(10))
+                        .foregroundStyle(prozent == 0 ? MykColor.muted.color
+                                         : (prozent > 0 ? MykColor.drive.color : MykColor.positive.color))
+                }
+                Slider(value: $faktor, in: 0.5...1.5, step: 0.05)
+                    .tint(MykColor.tasks.color)
+                    .disabled(saving)
+            }
+
+            // Begründung
+            TextField("Grund (z. B. Aufmaß war kleiner)", text: $grund, axis: .vertical)
+                .font(.mykBody)
+                .foregroundStyle(MykColor.ink.color)
+                .lineLimit(1...3)
+                .textFieldStyle(.plain)
+                .padding(MykSpace.s4)
+                .background(
+                    RoundedRectangle(cornerRadius: MykRadius.sm)
+                        .fill(MykColor.card.color)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: MykRadius.sm)
+                                .stroke(MykColor.line.color, lineWidth: 1)
+                        )
+                )
+                .disabled(saving)
+
+            // Bestätigung + Status
+            HStack(spacing: MykSpace.s4) {
+                Button {
+                    Task { await onConfirm() }
+                } label: {
+                    HStack(spacing: MykSpace.s3) {
+                        if saving {
+                            ProgressView().controlSize(.small).tint(MykColor.tasks.color)
+                        }
+                        Text("Anpassung buchen")
+                            .font(.mykSmall).fontWeight(.semibold)
+                            .foregroundStyle(MykColor.paper.color)
+                    }
+                    .padding(.horizontal, MykSpace.s5)
+                    .padding(.vertical, MykSpace.s3)
+                    .background(
+                        RoundedRectangle(cornerRadius: MykRadius.sm)
+                            .fill((grundLeer || saving) ? MykColor.faint.color : MykColor.tasks.color)
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(grundLeer || saving)
+
+                statusLabel
+                Spacer()
+            }
+        }
+        .padding(MykSpace.s5)
+        .background(
+            RoundedRectangle(cornerRadius: MykRadius.sm)
+                .fill(MykColor.card.color.opacity(0.5))
+        )
+    }
+
+    @ViewBuilder
+    private var statusLabel: some View {
+        switch state {
+        case .idle, .saving:
+            EmptyView()
+        case .saved:
+            HStack(spacing: MykSpace.s2) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(MykColor.positive.color)
+                Text("Im Audit protokolliert")
+                    .font(.mykMono(9.5))
+                    .foregroundStyle(MykColor.positive.color)
+            }
+        case .failed(let msg):
+            HStack(spacing: MykSpace.s2) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(MykColor.critical.color)
+                Text(msg)
+                    .font(.mykMono(9.5))
+                    .foregroundStyle(MykColor.critical.color)
+                    .lineLimit(1)
+            }
+        }
     }
 }
 

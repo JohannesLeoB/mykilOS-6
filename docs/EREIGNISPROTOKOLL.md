@@ -53,6 +53,39 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+### 2026-06-28 · Claude Code (Opus 4.8, S15) — recordAdjustment-Flow + KalkulationsActionCard (Schritt 7)
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `feat/kalkulation-record-adjustment` (abgezweigt von `feat/kalkulation-core-port`)
+**Build:** ✅ | **Tests:** 197 grün (178 swift-testing + 19 XCTest)
+
+**Was gemacht wurde:**
+- `KalkulationsEngine.recordAdjustment` implementiert (vorher Stub): bestätigte
+  Anpassung → `LearningStore.appendAdjustment` (append-only) + `AuditEntry`
+  (`action: .estimateAdjusted`). `faktor → percentDelta = (faktor-1)*100`,
+  `reason: .gutFeeling`, `target: .wholeEstimate`, `learn: false`, `grund → note`.
+- `schaetze` persistiert jetzt die `EstimateSession` (`saveSession`) und gibt deren
+  ID als neues Feld `KostenSchaetzung.schaetzungsID` zurück — vorher wurde keine
+  Session persistiert, es gäbe keine ID, gegen die man eine Anpassung buchen kann.
+- `AuditEntry.Action.estimateAdjusted` ergänzt (rawValue-persistiert → migrationssicher).
+- `KalkulationsEngine.init` nimmt optionalen `auditStore`; `AppState` übergibt `audit`.
+  In-Memory-Map `projektIDBySession` liefert das `projectID` für den Audit-Eintrag.
+- `KalkulationsActionCard` im `KalkulationsWidget`: Faktor-Schieberegler + Freitext-
+  Begründung + „Anpassung buchen"-Button + Statuszeile. Erscheint erst nach einer
+  Schätzung, Bestätigungspflicht (kein Auto-Write), schreibt nur über die Engine.
+- **Vorab-Commit** (eigener Commit): `WindowGuard.guardWindowPositionOnAppear()` +
+  Verdrahtung in `ProjectDetailView` gegen Fenster-Drift durch async Widget-Loads
+  (lag uncommitted im Worktree).
+
+**Neuer Cold-Start-Test:** `recordAdjustmentUeberlebtNeustart` — Anpassung über den
+echten Engine-Pfad geschrieben, nach Neustart aus frischer Store-Instanz lesbar.
+Plus `recordAdjustmentBuchtAnpassungGegenSchaetzung` und
+`recordAdjustmentMitUnbekannterSessionWirft` (Engine-Tests).
+
+**Status:** Branch sauber, 197 Tests grün, keine Regressions. Kein Push ohne Freigabe.
+
+---
+
 ### 2026-06-28 · Claude Code (Sonnet 4.6, S14) — KalkulationsWidget + Kalkulations-Tab (Schritt 6)
 
 **Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`

@@ -19,6 +19,9 @@ public protocol KalkulationsEngineProviding: AnyObject, Sendable {
 // MARK: - KostenSchaetzung
 
 public struct KostenSchaetzung: Sendable {
+    /// Stabile ID der persistierten `EstimateSession` (LearningStore). Referenz für
+    /// `recordAdjustment` — eine Anpassung wird immer gegen genau diese Schätzung gebucht.
+    public let schaetzungsID: String
     public let projektID: String
     public let minNetto: Double
     public let maxNetto: Double
@@ -30,6 +33,7 @@ public struct KostenSchaetzung: Sendable {
     public let topEvidences: [PriceEvidence]
 
     public init(
+        schaetzungsID: String,
         projektID: String,
         minNetto: Double,
         maxNetto: Double,
@@ -40,6 +44,7 @@ public struct KostenSchaetzung: Sendable {
         kostenbodenRatio: Double,
         topEvidences: [PriceEvidence]
     ) {
+        self.schaetzungsID = schaetzungsID
         self.projektID = projektID
         self.minNetto = minNetto
         self.maxNetto = maxNetto

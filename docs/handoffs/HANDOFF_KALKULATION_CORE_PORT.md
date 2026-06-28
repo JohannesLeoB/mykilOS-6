@@ -1,10 +1,10 @@
-# Handoff: mykilO$ Kalkulations-Core Port (Schritte 1–5)
+# Handoff: mykilO$ Kalkulations-Core Port (Schritte 1–7)
 
 ```
 Pfad:   /Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/
-Branch: feat/kalkulation-core-port
+Branch: feat/kalkulation-record-adjustment (Schritt 7) / feat/kalkulation-core-port (1–6)
 Build:  ✅ swift build grün
-Tests:  ✅ 194 Tests grün (175 swift-testing + 19 XCTest)
+Tests:  ✅ 197 Tests grün (178 swift-testing + 19 XCTest)
 Datum:  2026-06-28
 ```
 
@@ -143,7 +143,8 @@ Engine. `schaetze` liefert echte konservative Schätzungen bereits mit Baseline-
 | Methode | Blocker | Nächster Schritt |
 |---|---|---|
 | `importPDF` | `GoogleDriveClient.downloadFile()` fehlt | Nach Drive-Ausbau |
-| `recordAdjustment` | ActionCard → Bestätigungs-Flow fehlt | UI-Schritt Kalkulations-Widget |
+
+`recordAdjustment` ist seit Schritt 7 vollständig implementiert (siehe unten).
 
 ---
 
@@ -214,13 +215,65 @@ Neue und geänderte Dateien:
 
 ---
 
+### Schritt 7 — recordAdjustment-Flow + KalkulationsActionCard
+
+**Commit:** (dieser PR, Branch `feat/kalkulation-record-adjustment`)
+
+`recordAdjustment` ist kein Stub mehr: eine bestätigte Anpassung wird append-only
+im `LearningStore` abgelegt UND als `AuditEntry` protokolliert — gleiche Semantik
+wie die Action-Cards im `AssistantWidget` (kein automatisches Schreiben).
+
+Geänderte/neue Stellen:
+
+- `Sources/MykilosKit/Domain/AuditEntry.swift` — neuer `Action.estimateAdjusted`
+  (rawValue-basiert persistiert → migrationssicher, keine DB-Migration nötig).
+- `Sources/MykilosKit/Domain/KalkulationsEngineProviding.swift` — `KostenSchaetzung`
+  trägt jetzt `schaetzungsID` (stabile `EstimateSession.id`). Referenz, gegen die
+  eine Anpassung gebucht wird.
+- `Sources/MykilosServices/Kalkulation/KalkulationsEngine.swift`:
+  - `schaetze` persistiert die Session via `learningStore.saveSession(from:)` und
+    gibt deren `id` als `schaetzungsID` zurück (vorher wurde **gar keine** Session
+    persistiert — ohne ID gäbe es nichts, wogegen man eine Anpassung buchen könnte).
+  - In-Memory-Map `projektIDBySession` merkt sich je Schätzung das Projekt (das
+    Protokoll `recordAdjustment(schaetzungsID:faktor:grund:)` führt kein `projektID`;
+    schaetze → recordAdjustment läuft sequenziell in einer Sitzung).
+  - `recordAdjustment`: `faktor → percentDelta = (faktor-1)*100`, `grund → note`,
+    `reason: .gutFeeling` (niedriges Reliability-Gewicht), `target: .wholeEstimate`,
+    `learn: false` (eine einzelne manuelle Anpassung verändert den Kalibrierungs-
+    Kandidaten NICHT automatisch). Danach `AuditEntry(action: .estimateAdjusted)`
+    über den injizierten `AuditStore`.
+  - Neuer `init`-Parameter `auditStore: AuditStore? = nil` (optional → bestehende
+    Engine-Unit-Tests laufen ohne Audit weiter; die Anpassung wird trotzdem persistiert).
+- `Sources/MykilosApp/Data/AppState.swift` — `auditStore: audit` an die Engine übergeben.
+- `Sources/MykilosWidgets/Kinds/KalkulationsWidget.swift` — `KalkulationsActionCard`:
+  Faktor-Schieberegler (0.5…1.5, Prozent-Label), Freitext-Begründung,
+  „Anpassung buchen"-Button (disabled bei leerem Grund/Saving), Statuszeile
+  („Im Audit protokolliert" / Fehler). Erscheint erst nach einer Schätzung,
+  Reset bei jeder neuen Schätzung. Schreibt nur über `engine.recordAdjustment`
+  (Regel: keine Schreibvorgänge aus Views).
+
+**Tests:**
+- `KalkulationsEngineTests`: `nochNichtVerdrahteteFaehigkeitenWerfenKlar` deckt
+  nur noch `importPDF` (echter Stub) ab. Neu:
+  `recordAdjustmentBuchtAnpassungGegenSchaetzung` (schaetze → recordAdjustment →
+  1 Adjustment mit korrektem percentDelta/note) und
+  `recordAdjustmentMitUnbekannterSessionWirft`.
+- `KalkulationsLearningStoreTests`: neuer Cold-Start-Test
+  `recordAdjustmentUeberlebtNeustart` — Anpassung über den **echten Engine-Pfad**
+  (nicht direkt über den Store) geschrieben, nach Neustart aus frischer
+  Store-Instanz lesbar.
+
+**Ergebnis:** 197 Tests grün (178 swift-testing + 19 XCTest), keine Regressions.
+
+---
+
 ## Nächste Schritte (nicht in diesem PR)
 
 1. **Seed-Provider**: `BrainSeedRepository` mit destillierten Ankern aus SQLite +
    4 CSV-Dateien (aus mykilO$ Application-Support). Erfordert explizite Freigabe
    für Datei-Copy.
-2. **`recordAdjustment` vervollständigen**: ActionCard → Bestätigung → `AuditEntry` →
-   `LearningStore.appendAdjustment`.
-3. **`importPDF`**: Erst nach `GoogleDriveClient.downloadFile()`.
-4. **PREISLISTEN CSV**: `~/.../Devices/catalog.csv` aus mykilO$ Application-Support
+2. **`importPDF`**: Erst nach `GoogleDriveClient.downloadFile()`.
+3. **PREISLISTEN CSV**: `~/.../Devices/catalog.csv` aus mykilO$ Application-Support
    kopieren → `geraetepreis` liefert echte Preise. Explizite Freigabe erforderlich.
+4. **Kalibrierung sichtbar machen** (optional): Adjustments mit `learn: true` +
+   `promoteCalibration` UI, damit wiederkehrende Anpassungen echte Anker verschieben.

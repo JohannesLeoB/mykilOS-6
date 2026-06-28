@@ -44,15 +44,43 @@ struct KalkulationsEngineTests {
     @Test func nochNichtVerdrahteteFaehigkeitenWerfenKlar() async throws {
         let engine = KalkulationsEngine(provider: StubAnchorProvider(), learningStore: try tempStore())
 
+        // importPDF bleibt bewusst ein Stub (braucht GoogleDriveClient).
         await #expect(throws: KalkulationsEngineError.self) {
             try await engine.importPDF(driveFileID: "x", projektID: "P-1")
-        }
-        await #expect(throws: KalkulationsEngineError.self) {
-            try await engine.recordAdjustment(schaetzungsID: "s-1", faktor: 1.1, grund: "Test")
         }
         // Ohne injizierten Katalog ist geraetepreis bewusst nil (optionaler Lookup).
         let preis = await engine.geraetepreis(suchbegriff: "spüle")
         #expect(preis == nil)
+    }
+
+    // MARK: recordAdjustment — persistiert die Anpassung append-only
+
+    @Test func recordAdjustmentBuchtAnpassungGegenSchaetzung() async throws {
+        let store = try tempStore()
+        let engine = KalkulationsEngine(provider: StubAnchorProvider(), learningStore: store)
+
+        // Eine Schätzung erzeugt die persistierte Session + stabile schaetzungsID.
+        let schaetzung = try await engine.schaetze(projektID: "P-7", freitext: "5 lfm unterschränke")
+        #expect(!schaetzung.schaetzungsID.isEmpty)
+
+        // Anpassung gegen genau diese Schätzung — wirft NICHT mehr.
+        try await engine.recordAdjustment(schaetzungsID: schaetzung.schaetzungsID, faktor: 0.8, grund: "Aufmaß kleiner")
+
+        // Genau ein Adjustment, korrekt gegen die Session gebucht.
+        let adjustments = try store.estimateAdjustments()
+        #expect(adjustments.count == 1)
+        #expect(adjustments.first?.sessionID == schaetzung.schaetzungsID)
+        // faktor 0.8 → −20 % Prozent-Delta (Toleranz für Decimal-Rundung)
+        #expect(abs((adjustments.first?.percentDelta ?? 0) - (-20)) < 0.5)
+        #expect(adjustments.first?.note == "Aufmaß kleiner")
+    }
+
+    @Test func recordAdjustmentMitUnbekannterSessionWirft() async throws {
+        let engine = KalkulationsEngine(provider: StubAnchorProvider(), learningStore: try tempStore())
+        // Ohne vorherige Schätzung gibt es keine Session → klarer Fehler.
+        await #expect(throws: (any Error).self) {
+            try await engine.recordAdjustment(schaetzungsID: "gibt-es-nicht", faktor: 1.1, grund: "Test")
+        }
     }
 
     // Synthetisch — niemals reale Preisbuch-Daten.
