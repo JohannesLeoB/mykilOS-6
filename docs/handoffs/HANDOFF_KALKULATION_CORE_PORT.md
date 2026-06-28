@@ -186,15 +186,41 @@ Tests/MykilosServicesTests/
 
 ---
 
+---
+
+### Schritt 6 — KalkulationsWidget + KalkulationsView Tab (UI)
+
+**Commit:** (aktueller Stand)
+
+Neue und geänderte Dateien:
+
+- `Sources/MykilosKit/Domain/WidgetFoundation.swift` — `.kalkulation` zu `WidgetKind` hinzugefügt
+- `Sources/MykilosWidgets/SourceChip.swift` — `iconName` für `.kalkulation`: `"eurosign.square"`
+- `Sources/MykilosWidgets/WidgetContainer.swift` — `.kalkulation` → `.tasks` (Ocker-Akzent)
+- `Sources/MykilosWidgets/Kinds/KalkulationsWidget.swift` — **neu**:
+  - Alle 6 Renderstates (empty / loading / content / error / permissionRequired/offline = empty)
+  - Freitext-Eingabe + "Schätzen"-Button → `engine.schaetze(projektID:, freitext:)`
+  - Ergebnis: Min/Mitte/Max-Netto als `PreisSaeule`, Konfidenz-Badge (grün ≥70%, Ocker ≥40%, rot)
+  - Top-3-Evidenzen als `EvidenceRow` mit Lieferant, Dokument, Zitat, Preis
+  - Kostenboden + Evidenz-Anzahl als Metazeile
+  - Quellenzeile: `KALKULATION · BASELINE-ANKER`
+  - Dependency nur über `KalkulationsEngineProviding`-Protokoll (kein GRDB, kein direkter Store)
+- `Sources/MykilosApp/MykilOS6App.swift` — `AppModule.kalkulation` + `KalkulationsPageView`:
+  - Neuer Sidebar-Tab "Kalkulation" (nach "Angebote", vor "Einstellungen")
+  - `KalkulationsPageView` bettet `KalkulationsWidget(projektID: "global", engine: appState.kalkulationsEngine)` ein
+  - Navigation-Menü: ⌘6 = Kalkulation, ⌘7 = Einstellungen
+
+**Tests:** 175 Tests grün, keine Regressions (kein neues persistierbares Feature → kein neuer Cold-Start-Test nötig).
+
+---
+
 ## Nächste Schritte (nicht in diesem PR)
 
-1. **Kalkulations-Widget / UI**: `KalkulationsView`-Tab + `KalkulationsActionCard`
-   im AssistantWidget. Engine ist injiziert in `AppState`, Zugriff ist vorbereitet.
-2. **Seed-Provider**: `BrainSeedRepository` mit destillierten Ankern aus SQLite +
+1. **Seed-Provider**: `BrainSeedRepository` mit destillierten Ankern aus SQLite +
    4 CSV-Dateien (aus mykilO$ Application-Support). Erfordert explizite Freigabe
    für Datei-Copy.
-3. **`recordAdjustment` vervollständigen**: ActionCard → Bestätigung → `AuditEntry` →
+2. **`recordAdjustment` vervollständigen**: ActionCard → Bestätigung → `AuditEntry` →
    `LearningStore.appendAdjustment`.
-4. **`importPDF`**: Erst nach `GoogleDriveClient.downloadFile()`.
-5. **PREISLISTEN CSV**: `~/.../Devices/catalog.csv` aus mykilO$ Application-Support
+3. **`importPDF`**: Erst nach `GoogleDriveClient.downloadFile()`.
+4. **PREISLISTEN CSV**: `~/.../Devices/catalog.csv` aus mykilO$ Application-Support
    kopieren → `geraetepreis` liefert echte Preise. Explizite Freigabe erforderlich.

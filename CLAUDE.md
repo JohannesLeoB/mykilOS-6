@@ -152,6 +152,7 @@ Daten sind heilig; bei Datenverlust-Gefahr warnen.
 | Kalkulations-Port, Schritt 3 | ✅ | Contract `KalkulationsEngineProviding` (aus PR #1, `recordAdjustment` → String) + Engine-Adapter `KalkulationsEngine` (`actor`): `schaetze` live (parse→estimate→Mapping). **189 Tests**. |
 | Kalkulations-Port, Schritt 4 | ✅ | `DeviceCatalog` + `CSVParser` portiert; **`geraetepreis` live** (injizierter Katalog, MYKILOS-VK). +3 DeviceCatalog-Tests +1 Engine-Test. **193 Tests**. Adapter-Stubs übrig: `importPDF` (Drive), `recordAdjustment` (Flow). |
 | Kalkulations-Port, Schritt 5 | ✅ | `BaselineAnchors` + `BaselineAnchorProvider` portiert; **`AppState.kalkulationsEngine` live verdrahtet** (echte Schätzungen ohne externe Daten). App-Preview bestätigt: kein Crash, Heute-Board/Projekte/Navigation in Ordnung. **194 Tests**. Details: [HANDOFF_KALKULATION_CORE_PORT.md](docs/handoffs/HANDOFF_KALKULATION_CORE_PORT.md). Offen: Kalkulations-Widget-UI, Seed-Provider, `recordAdjustment`-Flow, `importPDF`. |
+| Kalkulations-Port, Schritt 6 | ✅ | **KalkulationsWidget + Sidebar-Tab live**: `WidgetKind.kalkulation`, `KalkulationsWidget.swift` (alle 6 Renderstates, Freitext, Min/Mitte/Max, Konfidenz-Badge, Top-Evidenzen), `AppModule.kalkulation` (⌘6), `KalkulationsPageView`. **175 Tests**. |
 
 ---
 

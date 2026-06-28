@@ -17,6 +17,7 @@ public enum WidgetKind: String, Codable, CaseIterable, Sendable {
     case clockodo       // Zeiterfassung · Ocker
     case recentActivity // Letzte Aktivität · Terrakotta
     case mail           // E-Mails · Pflaume
+    case kalkulation    // Schätz-Brain · Ocker
     // Akt 3+: sevdesk…
 }
 

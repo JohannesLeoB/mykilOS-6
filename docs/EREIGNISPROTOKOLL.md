@@ -53,6 +53,26 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+### 2026-06-28 · Claude Code (Sonnet 4.6, S14) — KalkulationsWidget + Kalkulations-Tab (Schritt 6)
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `feat/kalkulation-core-port`
+**Build:** ✅ | **Tests:** 175 grün
+
+**Was gemacht wurde:**
+- `WidgetKind.kalkulation` in `WidgetFoundation.swift` ergänzt
+- `SourceChip.swift` um `.kalkulation` → `"eurosign.square"` erweitert
+- `WidgetContainer.swift` um `.kalkulation` → `.tasks` (Ocker-Akzent) erweitert
+- `KalkulationsWidget.swift` neu: alle 6 Renderstates, Freitext-Eingabe, Schätz-Button,
+  Min/Mitte/Max-Netto, Konfidenz-Badge, Top-3-Evidenzen, Kostenboden, Quellenzeile
+- `AppModule.kalkulation` + `KalkulationsPageView` in `MykilOS6App.swift` (Sidebar-Tab
+  nach "Angebote", ⌘6, reicht `appState.kalkulationsEngine` durch)
+- `HANDOFF_KALKULATION_CORE_PORT.md` um Schritt 6 ergänzt
+
+**Kein neues persistierbares Feature → kein neuer Cold-Start-Test nötig.**
+
+---
+
 ### 2026-06-28 · Claude Code (Sonnet 4.6) — Session-Abschluss Kalkulations-Port + App-Preview
 
 **Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`

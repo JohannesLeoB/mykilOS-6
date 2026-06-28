@@ -183,6 +183,7 @@ extension WidgetKind {
         case .mail:           .mail
         case .clockodo:       .tasks
         case .recentActivity: .drive
+        case .kalkulation:    .tasks
         }
     }
 }

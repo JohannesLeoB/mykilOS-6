@@ -43,21 +43,23 @@ struct MykilOS6App: App {
 
 // MARK: - AppModule
 enum AppModule: String, CaseIterable, Identifiable {
-    case today      = "Heute"
-    case projects   = "Projekte"
-    case assistant  = "Assistent"
-    case brands     = "Marken & Daten"
-    case offers     = "Angebote"
-    case settings   = "Einstellungen"
+    case today        = "Heute"
+    case projects     = "Projekte"
+    case assistant    = "Assistent"
+    case brands       = "Marken & Daten"
+    case offers       = "Angebote"
+    case kalkulation  = "Kalkulation"
+    case settings     = "Einstellungen"
     var id: String { rawValue }
     var icon: String {
         switch self {
-        case .today:     "sun.min"
-        case .projects:  "square.grid.2x2"
-        case .assistant: "sparkles"
-        case .brands:    "building.2"
-        case .offers:    "doc.text"
-        case .settings:  "gearshape"
+        case .today:       "sun.min"
+        case .projects:    "square.grid.2x2"
+        case .assistant:   "sparkles"
+        case .brands:      "building.2"
+        case .offers:      "doc.text"
+        case .kalkulation: "eurosign.square"
+        case .settings:    "gearshape"
         }
     }
 }
@@ -137,12 +139,13 @@ struct ContentView: View {
     @ViewBuilder
     private var moduleView: some View {
         switch module {
-        case .today:     TodayView()
-        case .projects:  ProjectGalleryView()
-        case .assistant: AssistantPageView()
-        case .offers:    GlobalOffersView()
-        case .brands:    BrandsView(onNavigateToSettings: { module = .settings })
-        case .settings:  SettingsView()
+        case .today:       TodayView()
+        case .projects:    ProjectGalleryView()
+        case .assistant:   AssistantPageView()
+        case .offers:      GlobalOffersView()
+        case .brands:      BrandsView(onNavigateToSettings: { module = .settings })
+        case .kalkulation: KalkulationsPageView()
+        case .settings:    SettingsView()
         }
     }
 }
@@ -180,6 +183,44 @@ struct AssistantPageView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .background(MykColor.paper.color)
+    }
+}
+
+// MARK: - KalkulationsPageView
+// Eigenständiger Sidebar-Tab "Kalkulation". Bettet KalkulationsWidget ein und
+// reicht AppState.kalkulationsEngine als Dependency durch.
+// projektID "global" = Tab-weite Schätzung, nicht an ein einzelnes Projekt gebunden.
+struct KalkulationsPageView: View {
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            Divider().overlay(MykColor.line.color)
+            ScrollView {
+                KalkulationsWidget(
+                    projektID: "global",
+                    engine: appState.kalkulationsEngine
+                )
+                .padding(MykSpace.s7)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(MykColor.paper.color)
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: MykSpace.s2) {
+            Text("Kalkulation")
+                .font(.mykDisplay)
+                .foregroundStyle(MykColor.ink.color)
+            Text("Schätze Projektkosten auf Basis historischer Baseline-Anker.")
+                .font(.mykSmall)
+                .foregroundStyle(MykColor.muted.color)
+        }
+        .padding(.horizontal, MykSpace.s9)
+        .padding(.top, MykSpace.s9)
+        .padding(.bottom, MykSpace.s5)
     }
 }
 
@@ -257,8 +298,10 @@ struct AppCommands: Commands {
                 .keyboardShortcut("4", modifiers: .command)
             Button("Angebote")        { activeModule = .offers }
                 .keyboardShortcut("5", modifiers: .command)
-            Button("Einstellungen")   { activeModule = .settings }
+            Button("Kalkulation")     { activeModule = .kalkulation }
                 .keyboardShortcut("6", modifiers: .command)
+            Button("Einstellungen")   { activeModule = .settings }
+                .keyboardShortcut("7", modifiers: .command)
         }
     }
 }

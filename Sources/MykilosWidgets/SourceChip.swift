@@ -36,6 +36,7 @@ extension WidgetKind {
         case .mail:           "envelope"
         case .clockodo:       "clock"
         case .recentActivity: "bolt"
+        case .kalkulation:    "eurosign.square"
         }
     }
 }
