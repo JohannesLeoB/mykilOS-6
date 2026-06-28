@@ -96,7 +96,7 @@ public final class AppState {
         // Preisbuch-CSV aus Application-Support, falls vorhanden — sonst nil-Lookup).
         // Muss vor ConversationEngine initialisiert werden, damit die Registry sie bekommt.
         let kalkulationsEngine = KalkulationsEngine(
-            provider: BaselineAnchorProvider(),
+            provider: BrainSeedProvider(),
             learningStore: LearningStore(),
             deviceCatalog: DeviceCatalog.loadDefault(),
             auditStore: audit   // bestätigte Anpassungen landen im Audit-Log
