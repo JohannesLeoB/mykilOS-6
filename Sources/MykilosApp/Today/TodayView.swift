@@ -18,6 +18,8 @@ struct TodayView: View {
             VStack(spacing: 0) {
                 commandBar
                 Divider().overlay(MykColor.line.color)
+                DriveFolderRefreshBar()
+                Divider().overlay(MykColor.line.color.opacity(0.4))
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: MykSpace.s8) {
                         greeting
@@ -62,8 +64,6 @@ struct TodayView: View {
                     .tracking(0.5)
             }
             Spacer()
-            // Signal-Demo-Knopf — zeigt die Engine in Aktion
-            HomeForcePollButton()
         }
         .padding(.horizontal, MykSpace.s9)
         .padding(.vertical, MykSpace.s5)
@@ -143,59 +143,62 @@ private struct SignalPill: View {
     }
 }
 
-// MARK: - HomeForcePollButton
-// Löst sofort einen Drive-Poll für alle aktiven Projekte mit verlinktem
-// Drive-Ordner aus, statt Fake-Signale zu emittieren — derselbe
-// DriveOfferWatcher, der ohnehin alle 60 s pro offener Projektseite pollt
-// (siehe ProjectDetailView), hier nur als manueller Sofort-Trigger über
-// alle Projekte auf der Heute-Seite.
-private struct HomeForcePollButton: View {
+// MARK: - DriveFolderRefreshBar
+// Vollbreite Status-Leiste: zeigt den letzten Drive-Poll-Zustand aller
+// aktiven Projektordner und löst auf Knopfdruck sofort einen neuen aus
+// (dieselbe `pollAllActiveProjectsForOffers`-Logik wie der 300s-Hintergrund-
+// Loop weiter oben). Optik identisch mit dem Status-Balken im Dateien-Tab.
+private struct DriveFolderRefreshBar: View {
     @Environment(AppState.self) private var appState
     @Environment(StudioContext.self) private var context
     @State private var isPolling = false
+    @State private var lastPolled: Date?
     @State private var lastResultCount: Int?
 
     var body: some View {
-        Button {
-            Task { await forcePollAll() }
-        } label: {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 6, height: 6)
-                    .animation(.easeInOut(duration: 0.3), value: isPolling)
-                Text(label)
-                    .font(.mykMono(10))
-                    .foregroundStyle(MykColor.muted.color)
+        HStack(spacing: MykSpace.s4) {
+            Circle()
+                .fill(dotColor)
+                .frame(width: 7, height: 7)
+                .animation(.easeInOut(duration: 0.3), value: isPolling)
+            Text(statusText)
+                .font(.mykMono(10))
+                .foregroundStyle(MykColor.muted.color)
+            Spacer()
+            Button("Jetzt prüfen") {
+                Task { await poll() }
             }
-            .padding(.horizontal, MykSpace.s4)
-            .padding(.vertical, 7)
-            .background(
-                Capsule()
-                    .stroke(MykColor.line.color, lineWidth: 1)
-            )
+            .font(.mykMono(10))
+            .foregroundStyle(isPolling ? MykColor.muted.color : MykColor.drive.color)
+            .buttonStyle(.plain)
+            .disabled(isPolling)
         }
-        .buttonStyle(.plain)
-        .disabled(isPolling)
+        .padding(.horizontal, MykSpace.s9)
+        .padding(.vertical, MykSpace.s3)
+        .background(MykColor.line.color.opacity(0.18))
     }
 
-    private var statusColor: Color {
+    private var dotColor: Color {
         if isPolling { return MykColor.tasks.color }
-        if let lastResultCount, lastResultCount > 0 { return MykColor.positive.color }
-        return MykColor.faint.color
+        if let count = lastResultCount, count > 0 { return MykColor.positive.color }
+        return MykColor.muted.color.opacity(0.5)
     }
 
-    private var label: String {
-        if isPolling { return "Prüfe Drive …" }
-        if let lastResultCount {
-            return lastResultCount > 0 ? "\(lastResultCount) neue Angebote" : "Keine neuen Angebote"
+    private var statusText: String {
+        if isPolling { return "Drive-Ordner werden geprüft …" }
+        guard let polled = lastPolled else { return "Drive-Ordner noch nicht geprüft" }
+        let h = Calendar.current.component(.hour,   from: polled)
+        let m = Calendar.current.component(.minute, from: polled)
+        if let count = lastResultCount, count > 0 {
+            return String(format: "Zuletzt geprüft %02d:%02d · %d neue Belege", h, m, count)
         }
-        return "Jetzt prüfen"
+        return String(format: "Zuletzt geprüft %02d:%02d · Keine neuen Belege", h, m)
     }
 
-    private func forcePollAll() async {
+    private func poll() async {
         isPolling = true
         lastResultCount = await appState.pollAllActiveProjectsForOffers(into: context)
+        lastPolled = Date()
         isPolling = false
     }
 }
