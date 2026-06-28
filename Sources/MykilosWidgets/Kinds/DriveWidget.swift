@@ -18,6 +18,7 @@ public struct DriveWidget: View {
     }
 
     @State private var loader = DriveFolderLoader()
+    @Environment(StudioContext.self) private var context
 
     public var body: some View {
         WidgetContainer(
@@ -33,6 +34,16 @@ public struct DriveWidget: View {
         }
         .task(id: driveFolderID) {
             await loader.load(folderID: driveFolderID)
+            emitDriveSignals()
+        }
+    }
+
+    private func emitDriveSignals() {
+        guard case .content = loader.renderState else { return }
+        // Neueste Datei (keine Ordner) als Signal — Assistent sieht sie
+        let files = loader.files.filter { $0.mimeType != "application/vnd.google-apps.folder" }
+        if let newest = files.sorted(by: { ($0.modifiedAt ?? .distantPast) > ($1.modifiedAt ?? .distantPast) }).first {
+            context.emit(.driveFileAdded(projectID: projectID, fileName: newest.name))
         }
     }
 
@@ -87,18 +98,12 @@ private final class DriveFolderLoader {
     private(set) var renderState: WidgetRenderState = .loading
 
     private let client: GoogleDriveFetching
-    // Generation-Token: nur das jüngste load() darf committen. Schützt gegen
-    // ein langsames altes Ergebnis (Projektwechsel) UND gegen den Retry-Button,
-    // dessen Task nie gecancelt wird. (Task.isCancelled reichte nicht.)
-    private var loadGeneration = 0
 
     init(client: GoogleDriveFetching = GoogleDriveClient()) {
         self.client = client
     }
 
     func load(folderID: String?) async {
-        loadGeneration &+= 1
-        let generation = loadGeneration
         guard let folderID, folderID.isEmpty == false else {
             files = []
             renderState = .empty
@@ -107,15 +112,12 @@ private final class DriveFolderLoader {
         renderState = .loading
         do {
             let result = try await client.listFolder(folderID: folderID)
-            guard generation == loadGeneration else { return }
             files = result
             renderState = result.isEmpty ? .empty : .content
         } catch GoogleDriveError.notConnected {
-            guard generation == loadGeneration else { return }
             files = []
             renderState = .permissionRequired
         } catch {
-            guard generation == loadGeneration else { return }
             files = []
             renderState = .error(String(describing: error))
         }

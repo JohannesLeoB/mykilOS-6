@@ -14,10 +14,6 @@ struct ProjectDetailView: View {
     @Environment(AppState.self)      private var appState
     @State private var activeTab: ProjectTab = .overview
 
-    // Wie oft der Drive-Ordner auf neue Angebots-PDFs gepollt wird, solange das
-    // Projekt offen ist. Bewusst gemächlich — read-only, schont API-Quota.
-    private static let offerPollInterval: Duration = .seconds(60)
-
     private var boardStore: WidgetBoardStore { appState.board(for: project.projectNumber, kind: project.kind) }
     private var noteStore:  NoteStore        { appState.notes(for: project.projectNumber) }
 
@@ -25,59 +21,29 @@ struct ProjectDetailView: View {
         ZStack(alignment: .bottom) {
             MykColor.paper.color.ignoresSafeArea()
             VStack(spacing: 0) {
-                // Fester Header (Hero + Tabs) — immer sichtbar, nicht scrollbar.
-                ProjectHeroView(
-                    project:  project,
-                    customer: appState.registry.customer(for: project),
-                    onBack:   onBack
-                )
-                tabBar
-                Divider().overlay(MykColor.line.color)
-                // Chat braucht volle Höhe; alle anderen Tabs scrollen.
-                if activeTab.isFullHeight {
-                    tabContent
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 0) {
-                            SignalDemoView(projectID: project.projectNumber, driveFolderID: project.links.driveFolderID)
-                            tabContent
-                        }
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ProjectHeroView(
+                            project:  project,
+                            customer: appState.registry.customer(for: project),
+                            onBack:   onBack
+                        )
+                        tabBar
+                        Divider().overlay(MykColor.line.color)
+                        SignalDemoView(projectID: project.projectNumber)
+                        tabContent
                     }
                 }
             }
-            // Sichtbarer Speichern-Vertrag für das Widget-Board — nur bei scrollbaren Tabs.
-            if activeTab.isFullHeight == false {
-                SaveStateBar(state: boardStore.saveState) {
-                    try? boardStore.save()
-                }
+            // Sichtbarer Speichern-Vertrag für das Widget-Board
+            SaveStateBar(state: boardStore.saveState) {
+                try? boardStore.save()
             }
         }
-        // Identischer Fix wie in ProjectGalleryView: ohne diese Angabe würde
-        // der VStack eine spezifisch breite Preferred-Size nach oben propagieren
-        // (ProjectHeroView + TabBar haben eine eigene Idealbreite, die kleiner als
-        // die des Gallery-Grids sein kann) → NSHostingView verschiebt das Fenster.
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             context.focus(project: project.projectNumber)
             try? boardStore.load()
             try? noteStore.load()
-        }
-        // Live-Quelle für offerDetected: solange das Projekt offen ist, pollt der
-        // Watcher den verlinkten Drive-Ordner. Der erste Lauf legt nur die
-        // Baseline an (meldet nichts); danach erzeugt jedes neu aufgetauchte
-        // Angebots-PDF ein Signal → Mediator → CashWidget-Review-Vorschlag.
-        .task(id: project.links.driveFolderID) {
-            guard let folderID = project.links.driveFolderID, folderID.isEmpty == false else { return }
-            // Gecachten, projektweiten Watcher holen — seine Baseline/„seen"-Menge
-            // überlebt so Navigation, statt bei jeder neuen Detailseite zu
-            // re-baselinen (was neue Angebote unsichtbar machte).
-            let offerWatcher = appState.offerWatcher(for: project.projectNumber)
-            while Task.isCancelled == false {
-                let signals = await offerWatcher.poll(projectID: project.projectNumber, folderID: folderID)
-                for signal in signals { context.emit(signal) }
-                try? await Task.sleep(for: Self.offerPollInterval)
-            }
         }
     }
 
@@ -107,45 +73,15 @@ struct ProjectDetailView: View {
                 llmProvider: appState.claudeAuth.status == .connected ? appState.assistantLLM : nil,
                 projectID: project.projectNumber,
                 driveFolderID: project.links.driveFolderID,
-                clickUpListID: project.links.clickUpListID,
                 calendarQuery: project.links.calendarQuery,
                 contactsQuery: project.links.contactsQuery,
-                mailQuery: project.links.mailQuery,
-                sevdeskRef: project.links.sevdeskRef,
-                budget: project.links.budget
+                mailQuery: project.links.mailQuery
             )
                 .padding(.horizontal, MykSpace.s9)
                 .padding(.top, MykSpace.s7)
-                .padding(.bottom, 64)   // Platz für SaveStateBar
-        case .chat:
-            // Konversationeller Assistent, scoped auf dieses Projekt.
-            // Gleiche Engine wie der globale Assistent — Verlauf je Scope getrennt.
-            AssistantChatView(
-                scope: .project(project.projectNumber),
-                chatStore: appState.chat,
-                engine: appState.conversation,
-                isConnected: appState.claudeAuth.status == .connected,
-                modelName: (try? appState.claudeAuth.storedCredentials()?.model)
-                    ?? ClaudeAuthService.defaultModel,
-                projects: appState.registry.projects,
-                focusedProjectID: project.projectNumber,
-                profile: appState.profile.profile
-            )
+                .padding(.bottom, 64)
         case .files:
-            FilesTabView(
-                projectID: project.projectNumber,
-                driveFolderID: project.links.driveFolderID
-            )
-        case .offers:
-            OffersTabView(
-                projectID: project.projectNumber,
-                driveFolderID: project.links.driveFolderID
-            )
-        case .material:
-            MaterialTabView(
-                projectID: project.projectNumber,
-                driveFolderID: project.links.driveFolderID
-            )
+            ProjectFilesTabView(project: project)
         default:
             ComingTabView(tab: activeTab)
         }
@@ -160,12 +96,9 @@ private struct ProjectWidgetBoardView: View {
     let llmProvider: (any AssistantLLMProviding)?
     let projectID:  String
     let driveFolderID: String?
-    let clickUpListID: String?
     let calendarQuery: String?
     let contactsQuery: String?
     let mailQuery: String?
-    let sevdeskRef: String?
-    let budget: Double?
 
     @State private var dropTargetID: UUID?
 
@@ -220,9 +153,9 @@ private struct ProjectWidgetBoardView: View {
     private func projectWidgetView(for instance: WidgetInstance) -> some View {
         switch instance.kind {
         case .drive:     DriveWidget(projectID: projectID, driveFolderID: driveFolderID)
-        case .tasks:     TasksWidget(projectID: projectID, clickUpListID: clickUpListID)
+        case .tasks:     TasksWidget(projectID: projectID)
         case .contacts:  ContactsWidget(projectID: projectID, contactsQuery: contactsQuery)
-        case .cash:      CashWidget(projectID: projectID, sevdeskRef: sevdeskRef, budget: budget, auditStore: auditStore)
+        case .cash:      CashWidget(projectID: projectID)
         case .calendar:  CalendarWidget(projectID: projectID, calendarQuery: calendarQuery)
         case .notes:     NotesWidget(projectID: projectID, noteStore: noteStore)
         case .assistant: AssistantWidget(projectID: projectID, auditStore: auditStore, llmProvider: llmProvider)
@@ -247,13 +180,7 @@ private struct ProjectWidgetBoardView: View {
 }
 
 private struct RowLayout: Identifiable {
-    let items: [WidgetInstance]; let totalColumns: Int
-    // Stabile Identität aus dem ersten Widget der Zeile. Mit `id = UUID()` bekam
-    // jede Zeile bei JEDEM Re-Render (z. B. wenn der SaveState wechselt) eine
-    // neue Identität → SwiftUI riss alle Widgets ab und baute sie neu auf
-    // (Loader-Churn + Mit-Ursache des Notiz-Datenverlusts).
-    var id: UUID { items.first?.id ?? Self.emptyRowID }
-    private static let emptyRowID = UUID()
+    let id = UUID(); let items: [WidgetInstance]; let totalColumns: Int
     var usedSpan: Int { items.reduce(0) { $0 + $1.size.columnSpan } }
     var fillerSpan: Int { totalColumns - usedSpan }
     var needsFiller: Bool { fillerSpan > 0 }
@@ -261,13 +188,9 @@ private struct RowLayout: Identifiable {
 
 // MARK: - Tab-Helfer
 enum ProjectTab: String, CaseIterable, Identifiable {
-    case overview = "Übersicht"; case chat = "Assistent"
-    case files = "Dateien"; case offers = "Angebote"
+    case overview = "Übersicht"; case files = "Dateien"; case offers = "Angebote"
     case timeline = "Timeline"; case material = "Material"
     var id: String { rawValue }
-
-    // Chat braucht volle Höhe und darf nicht in einen äußeren ScrollView geraten.
-    var isFullHeight: Bool { self == .chat }
 }
 
 private struct TabButton: View {
@@ -290,7 +213,7 @@ private struct ComingTabView: View {
     let tab: ProjectTab
     var body: some View {
         VStack { Spacer().frame(height: 80)
-            Text("\(tab.rawValue) — in Vorbereitung").font(.mykBody).foregroundStyle(MykColor.muted.color)
+            Text("\(tab.rawValue) — kommt in Akt 3").font(.mykBody).foregroundStyle(MykColor.muted.color)
         }.frame(maxWidth: .infinity).padding(MykSpace.s9)
     }
 }
