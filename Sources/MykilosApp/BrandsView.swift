@@ -73,6 +73,10 @@ struct BrandsView: View {
 
                 Divider().overlay(MykColor.line.color)
 
+                SchaltzentrumView()
+
+                Divider().overlay(MykColor.line.color)
+
                 Button {
                     onNavigateToSettings()
                 } label: {
