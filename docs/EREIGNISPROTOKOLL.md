@@ -30,6 +30,26 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-28 · S10 Learning — Tisch-Session: Architektur-Klärungen + S17 gestartet
+
+```
+Branch: main (S17 auf feat/security-haertung)
+Build:  ✅ 198 Tests (S16-Stand)
+```
+
+**Entscheidungen und neue Regeln:**
+- **Studio-Stundensätze** (KO-DE+H 120€/h, PRMG 5.000€) — KOMPLETT GETRENNT von KalkulationsEngine. Engine schätzt nur Tischlerarbeiten.
+- **Artikel- & Einkaufsdatenbank** `appdxTeT6bhSBmwx5` entdeckt. 13.419 Studio-Produkte (Leuchten, Armaturen, Öfen). **READ ONLY** — write-Tabu in Charter + Gedächtnis verankert.
+- **PAT-Sicherheitslücke** identifiziert: bestehender PAT hat write-Zugriff auf Artikel-DB + MYKILOS-SCHATZ-Workspace (alter mykilO$$$-Tryout). S17 bereinigt.
+- **ConversationEngine-Architektur** (S16-Korrektur): Tool-Use-Schleife, kein Intent-Switch. S18 + S19 bauen neue Tools in `AssistantToolRegistry`.
+- **S18 Kalkulations-Chat-Tool**: projektID via `scope`-Threading, `schaetze` darf schreiben (EstimateSession für Lern-Loop-Referenz).
+- **Roadmap aktualisiert**: S17 Security+PAT, S18 Kalkulations-Chat-Tool, S19 Artikel-Suche-Tool, S20 Clockodo.
+- **TEAM_BRIEFING.md** erstellt (`docs/TEAM_BRIEFING.md`) — Onboarding-Dokument für alle künftigen Sessions.
+
+**S17 gestartet** — `claude-sonnet-4-6`, Normal Effort.
+
+---
+
 ## Branch-Übersicht (Stand 2026-06-28)
 
 | Branch | Basis | Tests | Zweck |
