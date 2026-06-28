@@ -22,8 +22,11 @@ public struct ToolRunResult: Sendable, Equatable {
     /// Optionaler Aktions-URL, den die Engine als `.calendarAction`-Block in der
     /// Nachricht speichert (nur Anzeige, nie an die API gesendet).
     public let actionURL: String?
-    public init(text: String, isError: Bool = false, actionURL: String? = nil) {
-        self.text = text; self.isError = isError; self.actionURL = actionURL
+    /// Optionale Kostenschätzung — die Engine speichert sie als `.kalkulationsSchaetzung`-
+    /// Block (nur Anzeige, nie an die API gesendet).
+    public let schaetzung: KostenSchaetzung?
+    public init(text: String, isError: Bool = false, actionURL: String? = nil, schaetzung: KostenSchaetzung? = nil) {
+        self.text = text; self.isError = isError; self.actionURL = actionURL; self.schaetzung = schaetzung
     }
 }
 
@@ -224,6 +227,53 @@ public struct SuggestCalendarEventTool: AssistantTool {
     }
 }
 
+// MARK: - KostenSchaetzungTool (read-only, lokale Engine) — S18
+// Ruft die lokale KalkulationsEngine auf. Kein Netzwerkzugriff — arbeitet auf
+// BaselineAnchors + LearningStore (beide lokal). Das Ergebnis erscheint als
+// `.kalkulationsSchaetzung`-Block in der Nachricht (nur Anzeige, nie an die API).
+public struct KostenSchaetzungTool: AssistantTool {
+    private let engine: any KalkulationsEngineProviding
+    public init(engine: any KalkulationsEngineProviding) { self.engine = engine }
+
+    public let name = "schaetze_projekt"
+    public let description =
+        "Erstellt eine Kostenschätzung für ein Innenausbau-Projekt (Küche/Beleuchtung/Ausbau) "
+        + "auf Basis einer Freitext-Beschreibung. Gibt Min/Mitte/Max-Netto und Konfidenz zurück. "
+        + "Nur aufrufbar, wenn ein Projekt im Fokus steht."
+    public var parameters: [ToolParameter] {
+        [ToolParameter(name: "beschreibung", description: "Freitext-Beschreibung (Raum, Materialien, Größe, Besonderheiten)")]
+    }
+
+    public func run(input: [String: String]) async -> ToolRunResult {
+        let beschreibung = (input["beschreibung"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let projektID    = (input["_projektID"]   ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard beschreibung.isEmpty == false else {
+            return ToolRunResult(text: "Keine Beschreibung angegeben.", isError: true)
+        }
+        guard projektID.isEmpty == false else {
+            return ToolRunResult(text: "Kein Projekt im Fokus — Schätzung nur im Projekt-Chat möglich.", isError: true)
+        }
+        do {
+            let s = try await engine.schaetze(projektID: projektID, freitext: beschreibung)
+            return ToolRunResult(text: Self.formatSummary(s), schaetzung: s)
+        } catch {
+            return ToolRunResult(text: "Schätzung fehlgeschlagen: \(error.localizedDescription)", isError: true)
+        }
+    }
+
+    private static func formatSummary(_ s: KostenSchaetzung) -> String {
+        let fmt = NumberFormatter()
+        fmt.numberStyle = .decimal
+        fmt.locale = Locale(identifier: "de_DE")
+        fmt.maximumFractionDigits = 0
+        let min   = fmt.string(from: NSNumber(value: s.minNetto))   ?? "\(Int(s.minNetto))"
+        let mitte = fmt.string(from: NSNumber(value: s.mitteNetto)) ?? "\(Int(s.mitteNetto))"
+        let max   = fmt.string(from: NSNumber(value: s.maxNetto))   ?? "\(Int(s.maxNetto))"
+        return "Kostenschätzung: \(min)–\(mitte)–\(max) € netto (\(Int(s.confidence * 100)) % Konfidenz, \(s.evidenceCount) Belege)"
+    }
+}
+
 // MARK: - AssistantToolRegistry (Whitelist, default-deny)
 public struct AssistantToolRegistry: Sendable {
     private let tools: [any AssistantTool]
@@ -232,15 +282,21 @@ public struct AssistantToolRegistry: Sendable {
 
     /// Standard-Read-only-Whitelist. SEVDESK ist hier bewusst NICHT enthalten und
     /// wird auch nie ergänzt (NO-GO: Sevdesk nie lesen/schreiben).
+    /// `kalkulationsEngine` ergänzt `schaetze_projekt`, wenn vorhanden.
     public static func standard(
         gmail: GoogleGmailFetching = GoogleGmailClient(),
-        calendar: GoogleCalendarFetching = GoogleCalendarClient()
+        calendar: GoogleCalendarFetching = GoogleCalendarClient(),
+        kalkulationsEngine: (any KalkulationsEngineProviding)? = nil
     ) -> AssistantToolRegistry {
-        AssistantToolRegistry(tools: [
+        var tools: [any AssistantTool] = [
             SearchGmailTool(client: gmail),
             ListCalendarTool(client: calendar),
             SuggestCalendarEventTool(),
-        ])
+        ]
+        if let engine = kalkulationsEngine {
+            tools.append(KostenSchaetzungTool(engine: engine))
+        }
+        return AssistantToolRegistry(tools: tools)
     }
 
     public var toolNames: [String] { tools.map(\.name) }
@@ -250,11 +306,14 @@ public struct AssistantToolRegistry: Sendable {
     }
 
     /// Führt ein Tool aus. Unbekannter/nicht erlaubter Name → Deny-Ergebnis, ohne etwas auszuführen.
-    public func run(name: String, inputJSON: Data) async -> ToolRunResult {
+    /// `projektID` wird als `_projektID` in den Input injiziert — kein Protokollbruch,
+    /// da `_`-Präfix-Keys von Claude nicht als echte Parameter gesendet werden.
+    public func run(name: String, inputJSON: Data, projektID: String? = nil) async -> ToolRunResult {
         guard let tool = tools.first(where: { $0.name == name }) else {
             return ToolRunResult(text: "Tool nicht erlaubt oder unbekannt: \(name)", isError: true)
         }
-        let input = Self.stringDict(from: inputJSON)
+        var input = Self.stringDict(from: inputJSON)
+        if let id = projektID { input["_projektID"] = id }
         return await tool.run(input: input)
     }
 

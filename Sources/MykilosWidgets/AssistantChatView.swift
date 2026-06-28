@@ -263,6 +263,13 @@ struct ChatMessageBubble: View {
                 ForEach(Array(calendarActions.enumerated()), id: \.offset) { _, action in
                     CalendarActionCard(url: action.url, label: action.label)
                 }
+                // Kostenschätzungskarten nach der Antwort.
+                ForEach(Array(kalkulationsSchaetzungen.enumerated()), id: \.offset) { _, s in
+                    KalkulationsSchaetzungCard(
+                        minNetto: s.minNetto, maxNetto: s.maxNetto, mitteNetto: s.mitteNetto,
+                        confidence: s.confidence, evidenceCount: s.evidenceCount
+                    )
+                }
                 if case .failed = message.status {
                     Label("Erneut versuchen über erneutes Senden", systemImage: "exclamationmark.triangle")
                         .font(.mykMono(9.5)).foregroundStyle(MykColor.critical.color)
@@ -281,6 +288,18 @@ struct ChatMessageBubble: View {
     private var calendarActions: [(url: String, label: String)] {
         message.blocks.compactMap {
             if case let .calendarAction(url, label) = $0 { (url, label) } else { nil }
+        }
+    }
+
+    private struct SchaetzungData {
+        let minNetto: Double; let maxNetto: Double; let mitteNetto: Double
+        let confidence: Double; let evidenceCount: Int
+    }
+    private var kalkulationsSchaetzungen: [SchaetzungData] {
+        message.blocks.compactMap {
+            if case let .kalkulationsSchaetzung(_, _, min, max, mitte, conf, cnt) = $0 {
+                SchaetzungData(minNetto: min, maxNetto: max, mitteNetto: mitte, confidence: conf, evidenceCount: cnt)
+            } else { nil }
         }
     }
 
@@ -374,5 +393,78 @@ struct ToolCallRow: View {
         .padding(.horizontal, MykSpace.s4)
         .padding(.vertical, 3)
         .background(Capsule().fill(MykColor.card.color))
+    }
+}
+
+// MARK: - KalkulationsSchaetzungCard
+// Kostenschätzungskarte (S18). Zeigt Min/Mitte/Max-Netto + Konfidenz.
+// Öffnet keine URL — reine Anzeige der lokalen Engine-Ausgabe.
+struct KalkulationsSchaetzungCard: View {
+    let minNetto: Double
+    let maxNetto: Double
+    let mitteNetto: Double
+    let confidence: Double
+    let evidenceCount: Int
+
+    private static let fmt: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.locale = Locale(identifier: "de_DE")
+        f.maximumFractionDigits = 0
+        return f
+    }()
+
+    private func euro(_ v: Double) -> String {
+        (Self.fmt.string(from: NSNumber(value: v)) ?? "\(Int(v))") + " €"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MykSpace.s3) {
+            HStack(spacing: MykSpace.s3) {
+                Image(systemName: "function")
+                    .font(.mykCaption)
+                    .foregroundStyle(MykColor.tasks.color)
+                Text("KOSTENSCHÄTZUNG")
+                    .font(.mykMono(10))
+                    .foregroundStyle(MykColor.tasks.color)
+                Spacer()
+                Text("\(Int(confidence * 100)) % Konfidenz")
+                    .font(.mykMono(9.5))
+                    .foregroundStyle(MykColor.muted.color)
+            }
+            HStack(spacing: 0) {
+                priceColumn("MIN",   value: minNetto)
+                Divider().frame(height: 28)
+                priceColumn("MITTE", value: mitteNetto)
+                Divider().frame(height: 28)
+                priceColumn("MAX",   value: maxNetto)
+            }
+            Text("\(evidenceCount) Preisbelege · netto")
+                .font(.mykMono(9))
+                .foregroundStyle(MykColor.faint.color)
+        }
+        .padding(.horizontal, MykSpace.s5)
+        .padding(.vertical, MykSpace.s4)
+        .background(
+            RoundedRectangle(cornerRadius: MykRadius.md)
+                .fill(MykColor.card.color)
+                .overlay(
+                    RoundedRectangle(cornerRadius: MykRadius.md)
+                        .stroke(MykColor.tasks.color.opacity(0.3), lineWidth: 1)
+                )
+        )
+        .frame(maxWidth: 360)
+    }
+
+    private func priceColumn(_ label: String, value: Double) -> some View {
+        VStack(spacing: 2) {
+            Text(label)
+                .font(.mykMono(8))
+                .foregroundStyle(MykColor.faint.color)
+            Text(euro(value))
+                .font(.mykBody)
+                .foregroundStyle(MykColor.ink.color)
+        }
+        .frame(maxWidth: .infinity)
     }
 }

@@ -90,9 +90,11 @@ public final class ConversationEngine {
         // API-Konversation: persistierter Verlauf (ohne den leeren Platzhalter),
         // plus die transienten tool_use/tool_result-Turns dieser Runde.
         var convo = chatStore.messages(for: scope).filter { $0.id != placeholder.id }
+        let kalkulationsEnabled = toolsEnabled && (registry?.toolNames.contains("schaetze_projekt") == true)
         let system = AssistantGrounding.systemPrompt(
             profile: profile, focusedProjectID: focusedProjectID,
-            signals: signals, projects: projects, now: now, toolsEnabled: toolsEnabled
+            signals: signals, projects: projects, now: now, toolsEnabled: toolsEnabled,
+            kalkulationsEnabled: kalkulationsEnabled
         )
         let tools = (toolsEnabled ? registry?.definitions() : nil) ?? []
 
@@ -102,7 +104,7 @@ public final class ConversationEngine {
             let onTextDelta: (String) -> Void = { [chatStore] text in
                 chatStore.updateStreamingText(id: placeholderID, text: text, in: scope)
             }
-            let finalText = try await runLoop(convo: &convo, activities: &activities, system: system, tools: tools, onTextDelta: onTextDelta)
+            let finalText = try await runLoop(convo: &convo, activities: &activities, system: system, tools: tools, focusedProjectID: focusedProjectID, onTextDelta: onTextDelta)
             // Tool-Spuren (Transparenz) vor die Antwort; nur Anzeige, nicht an die API.
             try chatStore.updateAssistantTurn(
                 id: placeholder.id, blocks: activities + [.text(finalText)], status: .complete, in: scope
@@ -126,6 +128,7 @@ public final class ConversationEngine {
         activities: inout [ChatContentBlock],
         system: String,
         tools: [ClaudeToolDefinition],
+        focusedProjectID: String? = nil,
         onTextDelta: ((String) -> Void)? = nil
     ) async throws -> String {
         // Tool-loses Streaming: Claude gibt garantiert keinen tool_use zurück →
@@ -152,7 +155,7 @@ public final class ConversationEngine {
             // Tools ausführen → tool_result-Turn (role user) anhängen + Anzeige-Spur.
             var resultBlocks: [ChatContentBlock] = []
             for toolUse in response.toolUses {
-                let result = await (registry?.run(name: toolUse.name, inputJSON: toolUse.inputJSON)
+                let result = await (registry?.run(name: toolUse.name, inputJSON: toolUse.inputJSON, projektID: focusedProjectID)
                     ?? ToolRunResult(text: "Keine Tools verfügbar.", isError: true))
                 resultBlocks.append(.toolResult(toolUseID: toolUse.id, summary: result.text, isError: result.isError))
                 activities.append(.toolActivity(
@@ -162,6 +165,18 @@ public final class ConversationEngine {
                 if let url = result.actionURL {
                     // Aktionskarte als sichtbarer Block — nie an die API gesendet.
                     activities.append(.calendarAction(url: url, label: "Im Kalender öffnen"))
+                }
+                if let s = result.schaetzung {
+                    // Schätzungskarte — nur Anzeige, nie an die API gesendet.
+                    activities.append(.kalkulationsSchaetzung(
+                        schaetzungsID: s.schaetzungsID,
+                        projektID: s.projektID,
+                        minNetto: s.minNetto,
+                        maxNetto: s.maxNetto,
+                        mitteNetto: s.mitteNetto,
+                        confidence: s.confidence,
+                        evidenceCount: s.evidenceCount
+                    ))
                 }
             }
             convo.append(ChatMessage(role: .user, blocks: resultBlocks, status: .complete))
@@ -193,6 +208,7 @@ public final class ConversationEngine {
         case "search_gmail":              base = "Gmail durchsucht"
         case "list_calendar_events":      base = "Kalender gelesen"
         case "suggest_calendar_event":    base = "Kalender-Link generiert"
+        case "schaetze_projekt":          base = "Kostenschätzung erstellt"
         default:                          base = name
         }
         if let query, query.isEmpty == false { return "\(base) · \(query)" }

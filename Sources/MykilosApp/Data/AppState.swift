@@ -73,13 +73,6 @@ public final class AppState {
         self.profile = ProfileStore(db: database)
         let chatStore = ChatStore(db: database)
         self.chat = chatStore
-        // Read-only Tool-Whitelist (Sevdesk NIE enthalten). Tools laufen nur,
-        // wenn der Nutzer das Opt-in aktiviert (siehe AssistantChatView).
-        self.conversation = ConversationEngine(
-            chatStore: chatStore,
-            provider: ClaudeChatClient(),
-            registry: .standard()
-        )
         self.googleAuth = GoogleAuthService()
         self.clockodoAuth = ClockodoAuthService()
         self.clickUpAuth = ClickUpAuthService()
@@ -90,11 +83,21 @@ public final class AppState {
         self.assistantLLM = ClaudeMessagesClient(credentialsStore: claudeCredentials)
         // Engine live: Baseline-Anker (eingebaut) + DeviceCatalog (lädt die echte
         // Preisbuch-CSV aus Application-Support, falls vorhanden — sonst nil-Lookup).
-        self.kalkulationsEngine = KalkulationsEngine(
+        // Muss vor ConversationEngine initialisiert werden, damit die Registry sie bekommt.
+        let kalkulationsEngine = KalkulationsEngine(
             provider: BaselineAnchorProvider(),
             learningStore: LearningStore(),
             deviceCatalog: DeviceCatalog.loadDefault(),
             auditStore: audit   // bestätigte Anpassungen landen im Audit-Log
+        )
+        self.kalkulationsEngine = kalkulationsEngine
+        // Read-only Tool-Whitelist (Sevdesk NIE enthalten). Tools laufen nur,
+        // wenn der Nutzer das Opt-in aktiviert (siehe AssistantChatView).
+        // schaetze_projekt ist über die KalkulationsEngine lokal verfügbar.
+        self.conversation = ConversationEngine(
+            chatStore: chatStore,
+            provider: ClaudeChatClient(),
+            registry: .standard(kalkulationsEngine: kalkulationsEngine)
         )
     }
 

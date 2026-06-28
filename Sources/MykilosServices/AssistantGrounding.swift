@@ -14,7 +14,8 @@ public enum AssistantGrounding {
         signals: [WidgetSignal],
         projects: [Project],
         now: Date,
-        toolsEnabled: Bool = false
+        toolsEnabled: Bool = false,
+        kalkulationsEnabled: Bool = false
     ) -> String {
         var lines: [String] = []
         var intro = "Du bist der mykilOS-Projektassistent für ein Design-/Küchenstudio. "
@@ -52,14 +53,18 @@ public enum AssistantGrounding {
 
         lines.append("")
         if toolsEnabled {
-            lines.append(
-                "Wichtig: Erfinde keine Fakten. Du hast LIVE-Lesezugriff auf Gmail (search_gmail) "
+            var toolMsg = "Wichtig: Erfinde keine Fakten. Du hast LIVE-Lesezugriff auf Gmail (search_gmail) "
                 + "und Google Kalender (list_calendar_events) — nutze diese Tools, wenn Mails oder "
                 + "Termine gefragt sind. Für Terminvorschläge nutze suggest_calendar_event: es erstellt "
                 + "einen Kalender-Link, den der Nutzer im Browser öffnen kann (kein API-Write). "
-                + "Für Drive, Aufgaben und Rechnungen hast du KEINE Live-Zugriffe. "
+            if kalkulationsEnabled {
+                toolMsg += "Für Kostenschätzungen nutze schaetze_projekt: beschreibe Raum, Material "
+                    + "und Größe als Freitext — du erhältst Min/Mitte/Max-Netto-Preise aus der lokalen "
+                    + "Kalkulationsdatenbank (kein Netzwerkzugriff, nur lesen). "
+            }
+            toolMsg += "Für Drive, Aufgaben und Rechnungen hast du KEINE Live-Zugriffe. "
                 + "Mails versenden darfst du nur als Vorschlag formulieren, nie als erledigt darstellen."
-            )
+            lines.append(toolMsg)
         } else {
             lines.append(
                 "Wichtig: Erfinde keine Fakten. Du hast in dieser Version KEINE Live-Zugriffe auf "

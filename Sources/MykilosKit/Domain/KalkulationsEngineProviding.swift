@@ -35,7 +35,7 @@ public extension KalkulationsEngineProviding {
 
 // MARK: - KostenSchaetzung
 
-public struct KostenSchaetzung: Sendable {
+public struct KostenSchaetzung: Sendable, Equatable {
     /// Stabile ID der persistierten `EstimateSession` (LearningStore). Referenz für
     /// `recordAdjustment` — eine Anpassung wird immer gegen genau diese Schätzung gebucht.
     public let schaetzungsID: String
@@ -76,7 +76,7 @@ public struct KostenSchaetzung: Sendable {
 
 // MARK: - PriceEvidence
 
-public struct PriceEvidence: Sendable {
+public struct PriceEvidence: Sendable, Equatable {
     public let lieferant: String
     public let dokument: String
     public let seite: Int?
