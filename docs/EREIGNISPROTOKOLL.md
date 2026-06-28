@@ -51,6 +51,16 @@ Tests:  ✅ 207 Tests grün (+6 neue: BrainSeedProviderTests)
 - `BrainSeedProviderTests.swift`: 6 Tests — CSV-Parse, Fallback, Smoke DoT > 0.
 - Commit: 51b8ed0. Polish-Log L1: done.
 
+**L4 — Lern-Loop-Politur:**
+- `KalkulationsWidget.anpassen()`: nach `.saved` 2,5 s → `.idle` + Felder-Reset
+  (faktor/grund/lernen), damit sofortige Folgeanpassung möglich.
+- `KalkulationsWidget.promote()`: `promoteBestaetigung` nach 3 s auto-clear.
+- `promoteSchreibtAuditEntry()` GATE-Test: end-to-end Audit-Pfad verifiziert
+  (3× recordAdjustment → Kandidat → promote → AuditEntry.calibrationPromoted,
+  3× AuditEntry.estimateAdjusted in GRDBDatabase).
+- Bestehende Cold-Start-Tests grün (Regression geprüft).
+- 216 Tests grün. Commit: 60c9abd. Polish-Log L4: done.
+
 **L3 — Geräte & Stundensätze:**
 - `StundensatzLoader.swift`: `merge(airtableRecords:base:)` merged Airtable-Werte
   aus Clockodo-Leistungen gegen CostModel.stages-Hardcode (8 Keys). Name-Matching
