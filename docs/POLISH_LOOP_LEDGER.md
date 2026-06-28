@@ -22,24 +22,24 @@ Reihenfolge = Priorität. Status: `pending` | `done` | `blocked`.
 | L5 | Alle Ströme instrumentieren (DataFlowLogger) | done | 5d50c26 | 217 | ConversationEngine.runLoop loggt jeden Tool-Call (success/error); AppState injiziert dataFlow; GATE-Test dataFlowLoggerLogtJedesToolRun |
 | L6 | Knoten-Link (mykilos://datastream/<ID>) im Handbuch | done | e17d07e | 223 | DatastromManifest.json (22 Weichen) + 6 GATE-Tests (Existenz/JSON/Count/IDs/Felder/Link-Format) |
 | L7 | SchaltzentrumView — Live-Anzeige Weichen + letzter Handshake | done | 1af4888 | 225 | SettingsView verdrahtet + KatalogeView-Quote-Fix |
-| L8 | Vollständigkeits-Audit (SCHALTZENTRUM_DATENSTROM.md) | pending | — | — | |
+| L8 | Vollständigkeits-Audit (SCHALTZENTRUM_DATENSTROM.md) | done | 40da1bf | 225 | Kein Gap — 3 statische IDs + 5 Tool-Namen abgedeckt; ausstehende Weichen korrekt |
 
 ## Block 3 — Artikel-Hirn (Kataloge)
 
 | ID | Titel | Status | Commit | Tests | Notiz |
 |----|-------|--------|--------|-------|-------|
-| L9 | Sidebar-Umbau: brands → kataloge; Dashboard → Settings | pending | — | — | |
-| L10 | KatalogeView: Artikel-Airtable read-only + Suche/Filter | pending | — | — | |
-| L11 | search_katalog-Tool im Assistenten | pending | — | — | |
+| L9 | Sidebar-Umbau: brands → kataloge; Dashboard → Settings | done | 40da1bf | 225 | AppModule.kataloge + KatalogeView bereits verdrahtet (vorab committed) |
+| L10 | KatalogeView: Artikel-Airtable read-only + Suche/Filter | done | 1af4888 | 225 | KatalogeView vollständig (CSV, Search, Table, emptyState, Hover) — vorab committed |
+| L11 | search_katalog-Tool im Assistenten | done | 1af4888 | 225 | SearchKatalogTool + Registry.standard — vorab committed |
 
 ## Block 4 — Assistent-Vollendung
 
 | ID | Titel | Status | Commit | Tests | Notiz |
 |----|-------|--------|--------|-------|-------|
-| L12 | Tool-Transparenz: Quellzeile je Tool-Lauf im Chat | pending | — | — | |
-| L13 | Gmail-Labels (Ablageort) im Detail-Fetch | pending | — | — | |
-| L14 | Streaming/Activity-Politur | pending | — | — | |
-| L15 | Capability-Ehrlichkeit + Connect-Check | pending | — | — | |
+| L12 | Tool-Transparenz: Quellzeile je Tool-Lauf im Chat | done | 1af4888 | 225 | ToolCallRow + activityLabel(name:inputJSON:) — vorab committed |
+| L13 | Gmail-Labels (Ablageort) im Detail-Fetch | done | 1af4888 | 225 | placement(from:) + humanLabel(_:) in SearchGmailTool — vorab committed |
+| L14 | Streaming/Activity-Politur | done | d5c1509 | 230 | Cursor ▌ am tippenden Text (isStreaming + displayText) |
+| L15 | Capability-Ehrlichkeit + Connect-Check | done | ccc925f | 230 | AssistantCapability + AssistantCapabilityChip — 7 Chips, farbig wenn aktiv |
 
 ## Block 5 — Datei-Vorschau
 
