@@ -1,0 +1,282 @@
+# mykilOS 6 — Ereignisprotokoll
+
+**Lebendes Dokument. Jede Session, jeder Agent, jedes Tool trägt hier ein.**
+Ziel: lückenlose Nachverfolgung aller Entwicklungsschritte — was wurde gebaut,
+was ist kaputt gegangen, was ist offen, wer hat was gemacht, auf welchem Branch.
+
+---
+
+## Pflicht-Header für jeden Eintrag
+
+```
+## [DATUM] [AGENT/TOOL] — [KURZTITEL]
+Pfad:   /Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/
+Branch: <branch>
+Build:  ✅/❌
+Tests:  N grün / M fehlgeschlagen
+```
+
+---
+
+## Kanonischer Ordner (immer)
+
+```
+/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/
+GitHub: https://github.com/JohannesLeoB/mykilOS-6
+```
+
+Temporäre Worktrees liegen unter `~/Desktop/CLAUDE/` — das sind Wegwerfkopien,
+nie dauerhafter Arbeitsort.
+
+---
+
+## Branch-Übersicht (Stand 2026-06-28)
+
+| Branch | Basis | Tests | Zweck |
+|---|---|---|---|
+| `main` | älteste Basis | ~97 | Post-Akt-5 Aufgaben 1–5 |
+| `stabilize/from-0b7c366-2026-06-28` | `0b7c366` | **169** ✅ | Codex Recovery — aktuell sauberster Stand |
+| `sprint/shared-drive-widget-oauth` | `0b7c366` | 169 | Aktive Features (Wiring-Sessions 1–3) + Session-Docs |
+| `feat/conversational-assistant` | älter | 163 | Konversationeller Assistent Phase 1–2 |
+| `clickup-integration` | älter | 103 | ClickUp-Widget (gemergt in sprint?) |
+| `drive-offer-watcher` | älter | 114 | DriveOfferWatcher (gemergt in sprint?) |
+| `claude/musing-sammet-3abd94` | sehr alt | ~97 | Claude Code Desktop Worktree — VERALTET |
+| `claude/hungry-ardinghelli-8e798a` | sehr alt | ? | Claude Code Desktop Worktree — VERALTET |
+| `claude/loving-shamir-c7ff05` | sehr alt | ? | Claude Code Desktop Worktree — VERALTET |
+
+**Aktiver Entwicklungs-Branch:** `stabilize/from-0b7c366-2026-06-28`
+(oder nach Merge: `main`)
+
+---
+
+## Einträge (neueste zuerst)
+
+---
+
+### 2026-06-28 · Claude Code Desktop — Eiserne Regel + Ereignisprotokoll
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `stabilize/from-0b7c366-2026-06-28`
+**Build:** ✅ (Build complete)
+**Tests:** 169 grün
+
+**Was passiert ist:**
+- Neue EISERNE REGEL in `CLAUDE.md` eingetragen: kanonischer Pfad, Branch-Pflichtcheck,
+  Handoff-Header-Pflicht. Verhindert künftig die Ordner-/Branch-Konfusion.
+- Dieses `EREIGNISPROTOKOLL.md` angelegt als dauerhaftes Nachverfolgungsdokument.
+
+**Offene Punkte aus dieser Session:**
+- `sprint/shared-drive-widget-oauth` hat Session-Docs-Commits (4b3df08, 8c28443) die noch
+  nicht auf `stabilize/` sind. Inhalt: Codex-Handoffs, Drive-Tab-Docs, Orientierungs-Docs.
+  → Codex oder Johannes: prüfen ob diese Docs nach `stabilize/` oder `main` gemergt werden.
+- `ProjectFilesTabView.swift` aus Worktree wurde in `sprint/shared-drive-widget-oauth` committed.
+  Aber der Hauptordner hat bereits `FilesTabView.swift` (fortgeschrittener). Duplikat aufräumen.
+
+---
+
+### 2026-06-28 · Codex — Forensic Recovery Point
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `stabilize/from-0b7c366-2026-06-28` (neu erstellt von Codex)
+**Build:** ✅
+**Tests:** 169 grün
+**Commit:** `130e6c0 docs: mark forensic recovery point from 0b7c366`
+
+**Was passiert ist:**
+- Codex hat den Branch `stabilize/from-0b7c366-2026-06-28` von `0b7c366` aus erstellt.
+- Keine Code-Änderungen. Nur forensische Dokumentation des letzten bekannten guten Stands.
+- Ergebnis: 169 Tests grün, Build grün, stabiler Ausgangspunkt gesichert.
+
+---
+
+### 2026-06-27/28 · Claude Code Desktop (Session musing-sammet-3abd94) — Worktree-Ordner-Konfusion
+
+**Pfad (Worktree):** `~/Desktop/CLAUDE/_mykilOS/mykilOS6/musing-sammet-3abd94/`
+**Pfad (Ziel):** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch Worktree:** `claude/musing-sammet-3abd94`
+**Branch Hauptordner:** `sprint/shared-drive-widget-oauth`
+
+**Was passiert ist (Problem):**
+- Claude Code Desktop-Session arbeitete im temporären Worktree unter Desktop/CLAUDE/.
+- Der Worktree war auf einem ÄLTEREN Commit-Stand basierend auf `main` (~97 Tests, Version 6.0.x).
+- Der Hauptordner (gelber MYKILOS-6-Ordner) war bereits auf `sprint/shared-drive-widget-oauth`
+  mit Version 6.3.0 und 169 Tests.
+- Dateien wurden vom Worktree in den Hauptordner kopiert (`feat: sync all session work`).
+- Dabei wurden ÄLTERE Dateien auf neuere Versionen kopiert — potenzielle Regression.
+
+**Betroffene Dateien (kopiert von alt → neu, Risiko):**
+- `AppState.swift` — Worktree-Version OHNE `chat`, `conversation`, `profile`, `pendingProjectSelection`
+  wurde auf die Hauptordner-Version MIT diesen Feldern kopiert. Hätte Build brechen können.
+  **Stand nach Analyse:** Build war zu diesem Zeitpunkt auf `stabilize/` bereits 169-Test-grün.
+  Die Kopier-Commits landeten nur auf `sprint/shared-drive-widget-oauth`, nicht auf `stabilize/`.
+- `DriveWidget.swift` — Ältere Worktree-Version, fehlte Signal-Emission. Neu hinzugefügt.
+- `ProjectDetailView.swift` — Ältere Version. Überschrieben.
+
+**Ergebnis:**
+- Auf `sprint/shared-drive-widget-oauth`: mögliche Regression durch ältere Datei-Kopien.
+- Auf `stabilize/from-0b7c366-2026-06-28`: UNBESCHÄDIGT, weil Kopier-Commits nur auf `sprint/` gingen.
+- **Empfehlung:** `sprint/shared-drive-widget-oauth` vor weiterem Merge gründlich `swift build + swift test` prüfen.
+
+**Neu erstellt in dieser Session (im Worktree, danach auf sprint/ committet):**
+- `Sources/MykilosApp/Detail/ProjectFilesTabView.swift` — Drive-Browser (ABER: Hauptordner hat bereits `FilesTabView.swift` mit gleicher Funktion + mehr Features)
+- `script/airtable_verify.sh` — Prüfskript für alle Airtable-Tabellen
+- `docs/handoffs/MASTER_HANDOFF_CODEX.md` — Codex-Gesamtbauplan
+- `docs/handoffs/CODEX_ORIENTATION.md` — Wer ist Johannes, Tools, Konnektoren
+- `docs/handoffs/CODEX_START_PROMPT.md` — Copy-paste Startprompt
+- `docs/handoffs/CODEX_SESSIONS.md` — Session-Übersicht A–F
+- `docs/handoffs/CODEX_HANDOFF_KALKULATION.md` — Kalkulations-Port-Anleitung
+
+**Bekanntes Problem identifiziert:**
+- Keychain-Feld `baseID` enthält fälschlich einen zweiten PAT-Token statt der echten Base-ID.
+- Fix: App öffnen → Einstellungen → Airtable → Base-ID = `appuVMh3KDfKw4OoQ` eintragen.
+- **Johannes muss das manuell korrigieren.**
+
+---
+
+### 2026-06-27 · Claude Code Desktop — Live-Wiring Session 3 (BrandsView-Fix)
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `sprint/shared-drive-widget-oauth`
+**Build:** ✅ | **Tests:** 169 grün
+**Handoff:** [HANDOFF_LIVE_WIRING_3.md](handoffs/HANDOFF_LIVE_WIRING_3.md)
+
+**Was passiert ist:**
+- `BrandsView`-Navigationsbug behoben: `@FocusedBinding` war `nil` bei inaktivem Fenster →
+  Klick auf "Einstellungen" in BrandsView tat nichts. Fix: `onNavigateToSettings`-Callback.
+- Version `6.3.0` · 169 Tests grün.
+- Live-App-Tour: OAuth-Handshake dokumentiert, erster echter Google-Login-Flow beobachtet.
+
+**Offene Punkte:**
+- Google OAuth live noch nicht mit echtem Account vollständig durchlaufen (nur Token-Exchange beobachtet)
+- Streaming bei toolsEnabled=true: nicht-streaming wenn Claude keine Tools aufruft (V1 ok)
+- CalendarActionCard-Persistenz: korrekt und gewollt, aber noch nicht live-getestet
+
+---
+
+### 2026-06-27 · Claude Code Desktop — Post-Akt-5 Aufgaben 15–21 (Release 6.3.0)
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `sprint/shared-drive-widget-oauth` (und Vorgänger-Branches)
+**Build:** ✅ | **Tests:** 169 grün
+**Handoff:** [HANDOFF_POST_AKT5_15_SURFACE_COMPLETION.md](handoffs/HANDOFF_POST_AKT5_15_SURFACE_COMPLETION.md)
+
+**Was diese Aufgaben gebracht haben:**
+- **Aufg. 15** — Projekt-Assistent-Tab: `AssistantChatView` scoped auf `project.projectNumber`
+- **Aufg. 16** — Profil-Sektion in Settings: Name + Rolle direkt editierbar
+- **Aufg. 17** — `GlobalOffersView`: Angebote als globales Sidebar-Modul
+- **Aufg. 18** — `FilesTabView` (Drive-Dateien-Browser) + `BrandsView` (Integrations-Dashboard)
+- **Aufg. 19** — UX-Polishing: Begrüßung, Cmd+1..6, Signal-Strip, Sidebar-Profil
+- **Aufg. 20** — Phase 3: `SuggestCalendarEventTool` + `CalendarActionCard` (URL → Browser)
+- **Aufg. 21** — Signal-Badges in Galerie, projektspezifische Beispielfragen
+
+---
+
+### 2026-06-27 · Claude Code Desktop — Post-Akt-5 Aufgaben 12–14 (Release 6.1–6.2)
+
+**Handoff:** [HANDOFF_POST_AKT5_12_ASSISTANT_PLAN.md](handoffs/HANDOFF_POST_AKT5_12_ASSISTANT_PLAN.md) /
+[HANDOFF_POST_AKT5_13_ASSISTANT_RELEASE.md](handoffs/HANDOFF_POST_AKT5_13_ASSISTANT_RELEASE.md) /
+[HANDOFF_POST_AKT5_14_BUGFIXES.md](handoffs/HANDOFF_POST_AKT5_14_BUGFIXES.md)
+
+- **Aufg. 12** — Konversationeller Assistent: `ChatStore`, `ConversationEngine`, Multi-Turn-Chat,
+  Tool-Use mit Gmail-Labels und Kalender (read-only, Opt-in). 155 Tests, Version 6.1.0.
+- **Aufg. 13** — First-Run-Onboarding-Wizard + `UserProfile`/`ProfileStore`. 158 Tests.
+- **Aufg. 14** — SSE-Streaming live-tippend, UserProfile im System-Prompt, 2 Bugfixes:
+  Integer-Decode-Bug in Tool-Inputs, Wizard ohne Schließen-Button. 163 Tests, Version 6.2.0.
+
+---
+
+### 2026-06-26/27 · Codex — Post-Akt-5 Aufgaben 9–11 (Stabilisierung)
+
+**Handoff:** [HANDOFF_POST_AKT5_11.md](handoffs/HANDOFF_POST_AKT5_11.md)
+
+- **Aufg. 9** — `DriveOfferWatcher`: Polling auf Drive → `offerDetected`-Signal, Baseline-Semantik
+- **Aufg. 10** — Angebote-Tab live: Belege aus Drive via `DriveOfferWatcher.detectOffers`
+- **Aufg. 11** — Kritische Crash-Fixes:
+  - Projektdetail-Crash (100% reproduzierbar auf macOS 26): content-dimensioniertes Fenster +
+    `.move`-Transition → `Update-Constraints`-Endlosschleife. Fix: `.opacity`-Transition +
+    `WindowGuard` + feste Mindestrahmen an ContentView.
+  - Galerie-Hang ("Lade Projekte…"): `RegistryStore` lief nicht auf `@MainActor`. Fix: `@MainActor`.
+  - Multi-Agent-Bug-Audit: Notiz-Datenverlust, Signal-Leck, Loader-Races u.a. behoben.
+  - 118 Tests, live verifiziert.
+
+---
+
+### 2026-06-26 · Codex — Live-Wiring Sessions 1–2
+
+**Handoffs:** [HANDOFF_LIVE_WIRING_1.md](handoffs/HANDOFF_LIVE_WIRING_1.md) /
+[HANDOFF_LIVE_WIRING_2.md](handoffs/HANDOFF_LIVE_WIRING_2.md)
+
+- **Wiring 1**: Airtable "mykilOS Mastermind" (Schema + 69 Records live), 31 echte Projekte
+  statt DemoSeed, Force-Poll-Buttons, Angebote-Tab-Bugfix.
+- **Wiring 2**: Google-Login client_secret-Fix, Fenster-Drift-Guard (WindowGuard.swift),
+  Projekt-Favoriten klickbar (heute → projektdetail), Drive-Routing über alle 31 Projekte.
+  **Status: Alle code-fertig, Live-Verifikation mit echtem Account ausstehend.**
+
+---
+
+## Bekannte offene Punkte (Stand 2026-06-28)
+
+### Sofort — erfordert Johannes' Aktion
+
+| # | Was | Warum dringend |
+|---|---|---|
+| 1 | Airtable-Keychain-Bug: App → Einstellungen → Airtable → Base-ID = `appuVMh3KDfKw4OoQ` | Alle Airtable-Checks scheitern (404). `baseID` im Keychain enthält fälschlich PAT. |
+| 2 | Google OAuth vollständig live testen (Drive, Kalender, Mail) | Noch nicht mit echtem Account end-to-end durchlaufen |
+| 3 | Branch-Merge: `sprint/shared-drive-widget-oauth` → `main` beschließen | Drei Feature-Branches divergieren |
+
+### Technisch offen (kein Blocker für Beta)
+
+| # | Was | Details |
+|---|---|---|
+| 4 | `ProjectFilesTabView.swift` auf `sprint/` ist Duplikat von `FilesTabView.swift` | Aufräumen nach Merge |
+| 5 | Clockodo-Widget zeigt Demo-Daten, keine echten Zeiten | `ClockodoClient` implementiert, aber nicht mit echtem User-Token live |
+| 6 | `ProjectFilesTabView.swift` nutzt älteres Render-Pattern | `FilesTabView.swift` hat Generation-Token für Race-Freiheit — Pattern angleichen |
+| 7 | `airtable_verify.sh` warnt bei falscher Base-ID, gibt aber nur Fallback-ID | Muss nach Keychain-Fix (Punkt 1) erneut getestet werden |
+| 8 | Streaming bei toolsEnabled=true ist non-streaming wenn Claude keine Tools nutzt | V1 akzeptabel, aber sichtbar für den Nutzer |
+| 9 | mykilO$$ Kalkulations-Core-Target (MykilosKalkulationsCore) noch nicht portiert | `KalkulationsEngineProviding`-Protokoll + nil-Slot existieren, aber 10 Dateien fehlen noch |
+| 10 | Clockodo Zuhörer (Chat → Zeitbuchung → Draft → Wochenabschluss → POST) | Live-Wiring Session 4, noch nicht begonnen |
+
+### Architektur-Hinweise für nächste Session
+
+- `MykilosKit` darf NIE SwiftUI oder GRDB importieren
+- `MykilosWidgets` darf NIE GRDB importieren
+- Sevdesk: vollständiger NO-GO (nicht in Tool-Whitelist, nicht lesen, nicht schreiben)
+- Signale sind VORSCHLÄGE — Schreiben immer nur über ActionCard → Bestätigung → AuditEntry
+- Jede neue Persistenz: Cold-Start-Test ist Merge-Gate
+
+---
+
+## Airtable-Mastermind-Base (appuVMh3KDfKw4OoQ) — Live-Tabellen
+
+| Tabelle | ID | Status |
+|---|---|---|
+| Kunden | `tblXXX` (→ per Verify ermitteln) | Live, 69 Records |
+| Projekte | `tblYYY` | Live, 31 Projekte |
+| Clockodo-Nutzer | `tblPbly2br8mR2kaU` | Live, 4 Team-Mitglieder |
+| Clockodo-Buchungen | `tblYQxlauwej7FD1w` | Live |
+| Clockodo-Leistungen | `tblRtsegocdpM8CJd` | Live, 8 Services |
+| Kalkulationen | `tblO3y2jdmxDnuiZj` | Live |
+| Kalkulations-Positionen | `tblNamx3cHTus6gtk` | Live |
+| Eingehende-Angebote | `tbliKfs5FnufjdB36` | Live |
+| Preis-Beobachtungen | (noch nicht angelegt) | Geplant für mykilO$$-Destillation |
+
+**PAT im Keychain:** `security find-generic-password -s "com.mykilos6.airtable" -a "pat" -w`
+
+---
+
+## Keychain-Service-Namen (vollständig)
+
+| Service | Account | Inhalt |
+|---|---|---|
+| `com.mykilos6.airtable` | `pat` | Airtable PAT |
+| `com.mykilos6.airtable` | `baseID` | ⚠️ enthält fälschlich zweiten PAT — muss `appuVMh3KDfKw4OoQ` sein |
+| `com.mykilos6.google` | — | Google OAuth Tokens |
+| `com.mykilos6.clockodo` | — | Clockodo API-Key |
+| `com.mykilos6.claude` | `apiKey` | Anthropic API-Key |
+| `com.mykilos6.claude` | `model` | Default: `claude-sonnet-4-6` |
+| `com.mykilos6.clickup` | — | ClickUp API-Key |
+
+---
+
+_Letzter Eintrag: 2026-06-28 · Claude Code Desktop_
+_Nächster Eintrag bitte am Anfang der Einträge-Liste hinzufügen (neueste zuerst)._

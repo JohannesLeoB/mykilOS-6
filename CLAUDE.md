@@ -5,6 +5,62 @@ Das Cockpit, das alles kann. macOS 14+, SwiftUI, local-first.
 
 ---
 
+## ⛔ EISERNE REGEL: Kanonischer Ordner + Branch-Verifikation
+
+**Diese Regel gilt für JEDEN Agenten, jede Session, jedes Tool — Claude, Codex, GitHub Actions, alles.**
+
+### Kanonischer Arbeitsordner (nicht verhandelbar)
+
+```
+/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/
+```
+
+**GitHub:** https://github.com/JohannesLeoB/mykilOS-6 (privat)
+
+Der Desktop-Ordner `~/Desktop/CLAUDE/` enthält NUR temporäre Worktrees von Claude Code-Sessions.
+Diese sind WEGWERFKOPIEN. Nie dauerhaft darin arbeiten. Immer in den gelben MYKILOS-6-Ordner.
+
+### Pflichtprüfung vor JEDER Handoff / Startprompt / Anweisung
+
+```bash
+# Schritt 1: Bin ich im richtigen Ordner?
+pwd
+# Muss enden mit: /Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6
+
+# Schritt 2: Welcher Branch ist aktiv? Ist er sauber?
+git status
+git branch
+
+# Schritt 3: Build und Tests grün?
+swift build && swift test 2>&1 | tail -3
+```
+
+Erst wenn alle drei Checks bestanden sind, darf ein Handoff / Startprompt / eine Anweisung
+geschrieben werden. Andernfalls: zuerst den Fehler beheben, dann dokumentieren.
+
+### Jeder Handoff MUSS im Header enthalten
+
+```
+Pfad:   /Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/
+Branch: <aktueller branch-name>
+Build:  ✅ swift build grün
+Tests:  ✅ N Tests grün (swift test)
+Datum:  YYYY-MM-DD
+```
+
+### Warum diese Regel existiert
+
+Am 2026-06-27/28 gab es parallel laufende Entwicklung in:
+- Desktop/CLAUDE/ Worktrees (Claude Code Desktop Sessions) — VERALTET
+- Sprint-Branches (sprint/shared-drive-widget-oauth) — aktive Features
+- Stabilisierungs-Branches (stabilize/from-0b7c366-2026-06-28) — Codex Recovery
+
+Dateien wurden zwischen diesen Orten kopiert und dabei teilweise neuere Versionen
+durch ältere überschrieben. Das Ereignisprotokoll dokumentiert den genauen Hergang:
+[docs/EREIGNISPROTOKOLL.md](docs/EREIGNISPROTOKOLL.md)
+
+---
+
 ## Ideen & Backlog
 
 **Vor jeder Session lesen, am Ende aktualisieren:**
@@ -571,6 +627,20 @@ und Session-Regeln: `docs/codex/WORKFLOW.md`.
 - `docs/handoffs/HANDOFF_POST_AKT5_12_ASSISTANT_PLAN.md` — Multi-Agent-Synthese-Plan für den konversationellen Assistenten (Phasen 0–4, NO-GO-Durchsetzung, offene Entscheidungen)
 - `docs/handoffs/HANDOFF_POST_AKT5_13_ASSISTANT_RELEASE.md` — Release 6.1.0: ehrlicher Reality-Check, feste Vision, fester Nächste-Session-Plan, **Startprompt**
 - `docs/handoffs/HANDOFF_POST_AKT5_15_SURFACE_COMPLETION.md` — Release 6.3.0: App-Vollständigkeit (Aufgaben 15–21), Phase 3 CalendarActionCard, Signal-Badges, Grounding-Update, 169 Tests
+- `docs/handoffs/HANDOFF_LIVE_WIRING_1.md` — Live-Wiring Session 1: Airtable Mastermind, 31 echte Projekte, Force-Poll-Buttons
+- `docs/handoffs/HANDOFF_LIVE_WIRING_2.md` — Live-Wiring Session 2: client_secret-Fix, WindowGuard, Favoriten-Navigation, Drive-Routing
+- `docs/handoffs/HANDOFF_LIVE_WIRING_3.md` — Live-Wiring Session 3: BrandsView-Navigationsbug, 169 Tests, Live-App-Tour
+- `docs/handoffs/HANDOFF_LIVE_WIRING_4.md` — Live-Wiring Session 4 (geplant): Clockodo Zuhörer
+- `docs/handoffs/HANDOFF_LIVE_WIRING_5.md` — Live-Wiring Session 5 (geplant): mykilO$$ Vollintegration
+
+---
+
+## Ereignisprotokoll + Kanonischer Pfad
+
+Lückenloses Protokoll aller Entwicklungsschritte (wer, was, wann, welcher Branch, welche Fehler):
+**[docs/EREIGNISPROTOKOLL.md](docs/EREIGNISPROTOKOLL.md)**
+
+⚠️ Dieses Dokument MUSS bei jedem Handoff und jeder Session-Dokumentation aktualisiert werden.
 - `docs/handoffs/HANDOFF_POST_AKT5_14_BUGFIXES.md` — Bugfixes #1/#2 + Streaming Phase 1e + UserProfile im Prompt + dynamische Beispielfragen + Chat-Löschen (163 Tests, Version 6.2.0)
 - `docs/handoffs/HANDOFF_LIVE_WIRING_1.md` — Airtable Mastermind-Base live (Schema + 69 Records), ClickUp-Testspace, Angebote-Tab-Bugfix, DemoSeed → echte Projekte, hartkodierte Bugs + Force-Poll erledigt
 - `docs/handoffs/HANDOFF_LIVE_WIRING_2.md` — Google-Login-Fix, Fenster-Drift-Guard, Projekt-Favoriten klickbar, Drive-Routing über alle Projekte, Assistent-Ausbauplan, Startprompt für Session 3
