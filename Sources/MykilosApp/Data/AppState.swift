@@ -175,6 +175,14 @@ public final class AppState {
         await registry.seedIfEmpty()
         await registry.load()
 
+        // B2-Fix: wenn Google verbunden aber kein UserInfo gecacht (z. B. Login vor S17),
+        // einmal im Hintergrund nachladen — non-fatal, Sidebar zeigt Name ohne Flackern.
+        if googleAuth.status == .connected, googleAuth.currentUser == nil {
+            Task {
+                await googleAuth.refreshUserInfoIfNeeded()
+            }
+        }
+
         guard airtableAuth.status == .connected else { return }
         do {
             guard let credentials = try airtableAuth.storedCredentials() else { return }

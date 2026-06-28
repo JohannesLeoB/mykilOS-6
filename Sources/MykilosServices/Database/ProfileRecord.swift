@@ -14,19 +14,25 @@ struct ProfileRecord: Codable, FetchableRecord, PersistableRecord {
     var displayName: String
     var role: String
     var updatedAt: Double
+    var clockodoUserID: String?
+    var googleDomain: String?
 
     init(from profile: UserProfile) {
         self.id = Self.localID
         self.displayName = profile.displayName
         self.role = profile.role
         self.updatedAt = profile.updatedAt.timeIntervalSince1970
+        self.clockodoUserID = profile.clockodoUserID
+        self.googleDomain = profile.googleDomain
     }
 
     func toDomain() -> UserProfile {
         UserProfile(
             displayName: displayName,
             role: role,
-            updatedAt: Date(timeIntervalSince1970: updatedAt)
+            updatedAt: Date(timeIntervalSince1970: updatedAt),
+            clockodoUserID: clockodoUserID,
+            googleDomain: googleDomain
         )
     }
 }

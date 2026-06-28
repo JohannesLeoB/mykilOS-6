@@ -28,4 +28,10 @@ public struct CachedProjectRegistry: ProjectRegistry {
     // Vom Airtable-Sync aufgerufen (Akt 3):
     public func replaceCustomers(_ list: [Customer]) throws { try customers.saveAll(list) }
     public func replaceProjects(_ list: [Project]) throws { try projects.saveAll(list) }
+
+    /// Löscht den lokalen Cache vollständig. Nächster seedIfEmpty() lädt den Seed neu.
+    public func clearCache() throws {
+        try customers.saveAll([])
+        try projects.saveAll([])
+    }
 }

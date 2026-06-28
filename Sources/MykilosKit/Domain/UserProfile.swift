@@ -8,16 +8,26 @@ public struct UserProfile: Equatable, Sendable, Codable {
     public var displayName: String
     public var role: String
     public var updatedAt: Date
+    // Nutzer-spezifische Identitäts-Felder (Private Area, optional)
+    public var clockodoUserID: String?
+    public var googleDomain: String?
 
-    public init(displayName: String, role: String, updatedAt: Date = Date()) {
+    public init(
+        displayName: String,
+        role: String,
+        updatedAt: Date = Date(),
+        clockodoUserID: String? = nil,
+        googleDomain: String? = nil
+    ) {
         self.displayName = displayName
         self.role = role
         self.updatedAt = updatedAt
+        self.clockodoUserID = clockodoUserID
+        self.googleDomain = googleDomain
     }
 
     public static let empty = UserProfile(displayName: "", role: "", updatedAt: .distantPast)
 
-    /// Ein Profil gilt als eingerichtet, sobald ein Anzeigename existiert.
     public var isComplete: Bool {
         displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
     }

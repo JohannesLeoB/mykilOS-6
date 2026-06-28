@@ -107,4 +107,16 @@ public final class GoogleAuthService {
         currentUser = nil
         status = .disconnected
     }
+
+    /// Lädt GoogleUserInfo nach, wenn verbunden aber kein Cache vorhanden (B2-Fix).
+    /// Non-fatal: Fehler werden still geschluckt — fehlendes UserInfo blockiert nie die App.
+    public func refreshUserInfoIfNeeded() async {
+        guard status == .connected, currentUser == nil else { return }
+        do {
+            let token = try await GoogleAccessTokenProvider(tokenStore: tokenStore).validAccessToken()
+            let info = try await userInfoClient.fetchUserInfo(accessToken: token)
+            try tokenStore.storeUserInfo(info)
+            currentUser = info
+        } catch {}
+    }
 }

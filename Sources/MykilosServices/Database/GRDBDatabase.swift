@@ -108,6 +108,15 @@ public final class GRDBDatabase: Sendable {
             }
         }
 
+        // v5_profile_identity — nutzer-spezifische Identitätsfelder (Private Area).
+        // Nullable ALTER COLUMNs: bestehende Zeilen bekommen NULL — kein Datenverlust.
+        migrator.registerMigration("v5_profile_identity") { db in
+            try db.alter(table: "userProfile") { t in
+                t.add(column: "clockodoUserID", .text)
+                t.add(column: "googleDomain",   .text)
+            }
+        }
+
         try migrator.migrate(queue)
     }
 

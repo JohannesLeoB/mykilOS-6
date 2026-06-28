@@ -75,6 +75,19 @@ public final class RegistryStore {
         }
     }
 
+    // MARK: Cache leeren (Settings-Button „Neu laden")
+    public func clearLocalCache() async {
+        guard let reg = registry else { return }
+        do {
+            try reg.clearCache()
+            projects = []
+            customers = []
+            await seedIfEmpty()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     // MARK: Initiale Live-Daten-Einstiegspunkt
     public func seedIfEmpty() async {
         guard let reg = registry else { return }

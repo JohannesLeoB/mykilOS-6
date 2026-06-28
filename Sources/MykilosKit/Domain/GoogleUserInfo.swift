@@ -12,4 +12,10 @@ public struct GoogleUserInfo: Equatable, Sendable, Codable {
         self.email = email
         self.displayName = displayName
     }
+
+    /// Domain-Anteil der E-Mail (z. B. "mykilos.com" aus "jo@mykilos.com").
+    public var domain: String? {
+        let parts = email.components(separatedBy: "@")
+        return parts.count == 2 ? parts[1] : nil
+    }
 }
