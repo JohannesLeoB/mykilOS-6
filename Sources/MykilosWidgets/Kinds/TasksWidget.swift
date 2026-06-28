@@ -17,6 +17,7 @@ public struct TasksWidget: View {
     }
 
     @State private var loader = ClickUpTasksLoader()
+    @Environment(StudioContext.self) private var context
 
     public var body: some View {
         WidgetContainer(
@@ -32,6 +33,15 @@ public struct TasksWidget: View {
         }
         .task(id: clickUpListID) {
             await loader.load(listID: clickUpListID)
+            let now = Date()
+            let sevenDays: TimeInterval = 7 * 24 * 3600
+            for task in loader.tasks {
+                guard let due = task.dueDate else { continue }
+                let secs = due.timeIntervalSince(now)
+                guard secs >= 0 && secs <= sevenDays else { continue }
+                let days = Calendar.current.dateComponents([.day], from: now, to: due).day ?? 0
+                context.emit(.deadlineNear(projectID: projectID, days: max(0, days)))
+            }
         }
     }
 
