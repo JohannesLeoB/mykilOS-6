@@ -141,6 +141,8 @@ struct ProjectDetailView: View {
                     ?? ClaudeAuthService.defaultModel,
                 projects: appState.registry.projects,
                 focusedProjectID: project.projectNumber,
+                focusedDriveFolderID: project.links.driveFolderID,
+                focusedClickUpListID: project.links.clickUpListID,
                 profile: appState.profile.profile
             )
         case .files:

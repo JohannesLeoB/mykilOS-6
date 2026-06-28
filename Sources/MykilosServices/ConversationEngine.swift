@@ -68,6 +68,7 @@ public final class ConversationEngine {
         scope: ChatScope,
         focusedProjectID: String?,
         focusedDriveFolderID: String? = nil,
+        focusedClickUpListID: String? = nil,
         signals: [WidgetSignal],
         projects: [Project],
         toolsEnabled: Bool = false,
@@ -91,11 +92,20 @@ public final class ConversationEngine {
         // API-Konversation: persistierter Verlauf (ohne den leeren Platzhalter),
         // plus die transienten tool_use/tool_result-Turns dieser Runde.
         var convo = chatStore.messages(for: scope).filter { $0.id != placeholder.id }
-        let kalkulationsEnabled = toolsEnabled && (registry?.toolNames.contains("schaetze_projekt") == true)
+        let has: (String) -> Bool = { name in toolsEnabled && (self.registry?.toolNames.contains(name) == true) }
+        let kalkulationsEnabled = has("schaetze_projekt")
+        // Werkzeuge nennen wir dem Modell nur, wenn sie a) registriert UND b) im
+        // aktuellen Scope sinnvoll sind (Drive/ClickUp brauchen eine Projekt-Handle).
+        let driveEnabled      = has("list_drive_folder")   && (focusedDriveFolderID?.isEmpty == false)
+        let clickUpEnabled    = has("list_clickup_tasks")  && (focusedClickUpListID?.isEmpty == false)
+        let contactsEnabled   = has("search_contacts")
+        let studioBrainEnabled = has("query_studio_knowledge")
         let system = AssistantGrounding.systemPrompt(
             profile: profile, focusedProjectID: focusedProjectID,
             signals: signals, projects: projects, now: now, toolsEnabled: toolsEnabled,
-            kalkulationsEnabled: kalkulationsEnabled
+            kalkulationsEnabled: kalkulationsEnabled,
+            driveEnabled: driveEnabled, contactsEnabled: contactsEnabled,
+            clickUpEnabled: clickUpEnabled, studioBrainEnabled: studioBrainEnabled
         )
         let tools = (toolsEnabled ? registry?.definitions() : nil) ?? []
 
@@ -105,7 +115,7 @@ public final class ConversationEngine {
             let onTextDelta: (String) -> Void = { [chatStore] text in
                 chatStore.updateStreamingText(id: placeholderID, text: text, in: scope)
             }
-            let finalText = try await runLoop(convo: &convo, activities: &activities, system: system, tools: tools, focusedProjectID: focusedProjectID, focusedDriveFolderID: focusedDriveFolderID, onTextDelta: onTextDelta)
+            let finalText = try await runLoop(convo: &convo, activities: &activities, system: system, tools: tools, focusedProjectID: focusedProjectID, focusedDriveFolderID: focusedDriveFolderID, focusedClickUpListID: focusedClickUpListID, onTextDelta: onTextDelta)
             // Tool-Spuren (Transparenz) vor die Antwort; nur Anzeige, nicht an die API.
             try chatStore.updateAssistantTurn(
                 id: placeholder.id, blocks: activities + [.text(finalText)], status: .complete, in: scope
@@ -131,6 +141,7 @@ public final class ConversationEngine {
         tools: [ClaudeToolDefinition],
         focusedProjectID: String? = nil,
         focusedDriveFolderID: String? = nil,
+        focusedClickUpListID: String? = nil,
         onTextDelta: ((String) -> Void)? = nil
     ) async throws -> String {
         // Tool-loses Streaming: Claude gibt garantiert keinen tool_use zurück →
@@ -157,7 +168,7 @@ public final class ConversationEngine {
             // Tools ausführen → tool_result-Turn (role user) anhängen + Anzeige-Spur.
             var resultBlocks: [ChatContentBlock] = []
             for toolUse in response.toolUses {
-                let result = await (registry?.run(name: toolUse.name, inputJSON: toolUse.inputJSON, projektID: focusedProjectID, driveFolderID: focusedDriveFolderID)
+                let result = await (registry?.run(name: toolUse.name, inputJSON: toolUse.inputJSON, projektID: focusedProjectID, driveFolderID: focusedDriveFolderID, clickUpListID: focusedClickUpListID)
                     ?? ToolRunResult(text: "Keine Tools verfügbar.", isError: true))
                 resultBlocks.append(.toolResult(toolUseID: toolUse.id, summary: result.text, isError: result.isError))
                 activities.append(.toolActivity(

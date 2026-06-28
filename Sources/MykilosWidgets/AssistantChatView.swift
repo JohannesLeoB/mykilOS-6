@@ -15,6 +15,8 @@ public struct AssistantChatView: View {
     let modelName: String
     let projects: [Project]
     let focusedProjectID: String?
+    let focusedDriveFolderID: String?
+    let focusedClickUpListID: String?
     let profile: UserProfile?
 
     @Environment(StudioContext.self) private var context
@@ -32,6 +34,8 @@ public struct AssistantChatView: View {
         modelName: String,
         projects: [Project],
         focusedProjectID: String?,
+        focusedDriveFolderID: String? = nil,
+        focusedClickUpListID: String? = nil,
         profile: UserProfile? = nil
     ) {
         self.scope = scope
@@ -41,6 +45,8 @@ public struct AssistantChatView: View {
         self.modelName = modelName
         self.projects = projects
         self.focusedProjectID = focusedProjectID
+        self.focusedDriveFolderID = focusedDriveFolderID
+        self.focusedClickUpListID = focusedClickUpListID
         self.profile = profile
     }
 
@@ -165,9 +171,9 @@ public struct AssistantChatView: View {
                 Text(toolsEnabled ? "Live-Zugriffe aktiv" : "Live-Zugriffe aus")
                     .font(.mykMono(9.5)).foregroundStyle(MykColor.muted.color)
                 Text(toolsEnabled
-                     ? "Mail/Kalender werden bei Bedarf gelesen und an Anthropic gesendet."
-                     : "Aktivieren, damit der Assistent deine Mail/Kalender lesen darf.")
-                    .font(.mykMono(9)).foregroundStyle(MykColor.faint.color).lineLimit(1)
+                     ? "Mail, Kalender, Drive, Aufgaben, Kontakte & Studio-Wissen werden bei Bedarf gelesen und an Anthropic gesendet."
+                     : "Aktivieren, damit der Assistent Mail, Kalender, Drive, Aufgaben & Kontakte lesen darf.")
+                    .font(.mykMono(9)).foregroundStyle(MykColor.faint.color).lineLimit(2)
             }
             Spacer()
             Toggle("", isOn: $toolsEnabled).labelsHidden().toggleStyle(.switch).scaleEffect(0.8)
@@ -214,6 +220,8 @@ public struct AssistantChatView: View {
         Task {
             await engine.send(
                 toSend, scope: scope, focusedProjectID: focusedProjectID,
+                focusedDriveFolderID: focusedDriveFolderID,
+                focusedClickUpListID: focusedClickUpListID,
                 signals: signals, projects: projects, toolsEnabled: toolsEnabled,
                 profile: profile
             )

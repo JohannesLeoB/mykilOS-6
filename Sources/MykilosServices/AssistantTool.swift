@@ -330,6 +330,110 @@ struct ListDriveFolderTool: AssistantTool {
     }
 }
 
+// MARK: - SearchContactsTool (read-only) — beantwortet „Wer ist …? Kontaktdaten?"
+struct SearchContactsTool: AssistantTool {
+    private let client: GoogleContactsFetching
+    init(client: GoogleContactsFetching = GoogleContactsClient()) { self.client = client }
+
+    var name: String { "search_contacts" }
+    var description: String {
+        "Durchsucht die Google-Kontakte des verbundenen Accounts (nur lesen). "
+        + "Gibt Name, E-Mail, Telefon und Organisation passender Kontakte zurück."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "query", description: "Suchbegriff (Name, Firma, E-Mail-Fragment)")]
+    }
+
+    func run(input: [String: String]) async -> ToolRunResult {
+        let query = (input["query"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard query.isEmpty == false else { return ToolRunResult(text: "Leere Suchabfrage.", isError: true) }
+        do {
+            let contacts = try await client.searchContacts(query: query)
+            guard contacts.isEmpty == false else {
+                return ToolRunResult(text: "Keine Kontakte für „\(query)“ gefunden.")
+            }
+            let lines = contacts.prefix(15).map { c -> String in
+                var parts = ["• \(c.displayName)"]
+                if let org = c.organization, org.isEmpty == false { parts.append("(\(org))") }
+                if let mail = c.email, mail.isEmpty == false { parts.append("· \(mail)") }
+                if let tel = c.phone, tel.isEmpty == false { parts.append("· \(tel)") }
+                return parts.joined(separator: " ")
+            }
+            return ToolRunResult(text: lines.joined(separator: "\n"))
+        } catch GoogleContactsError.notConnected {
+            return ToolRunResult(text: "Google ist nicht verbunden. Bitte in den Einstellungen verbinden.", isError: true)
+        } catch {
+            return ToolRunResult(text: "Kontaktsuche fehlgeschlagen: \(error)", isError: true)
+        }
+    }
+}
+
+// MARK: - ListClickUpTasksTool (read-only) — beantwortet „Was ist offen?"
+// _clickUpListID wird von der Registry injiziert (kein echter Tool-Parameter).
+struct ListClickUpTasksTool: AssistantTool {
+    private let client: ClickUpFetching
+    init(client: ClickUpFetching = ClickUpClient()) { self.client = client }
+
+    var name: String { "list_clickup_tasks" }
+    var description: String {
+        "Listet die offenen ClickUp-Aufgaben des aktuellen Projekts (nur lesen) "
+        + "mit Status, Fälligkeit und Zuständigkeit. Nur im Projekt-Chat verfügbar."
+    }
+    var parameters: [ToolParameter] { [] }
+
+    func run(input: [String: String]) async -> ToolRunResult {
+        let listID = (input["_clickUpListID"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard listID.isEmpty == false else {
+            return ToolRunResult(text: "Keine ClickUp-Liste für dieses Projekt verknüpft.", isError: true)
+        }
+        do {
+            let tasks = try await client.tasks(listID: listID)
+            guard tasks.isEmpty == false else { return ToolRunResult(text: "Keine offenen Aufgaben in dieser Liste.") }
+            let lines = tasks.prefix(25).map { t -> String in
+                var parts = ["• \(t.name) [\(t.status)]"]
+                if t.isUrgent { parts.append("· DRINGEND") }
+                if let due = t.dueDate { parts.append("· fällig \(toolDateFormatter.string(from: due))") }
+                if let who = t.assignee, who.isEmpty == false { parts.append("· \(who)") }
+                return parts.joined(separator: " ")
+            }
+            return ToolRunResult(text: lines.joined(separator: "\n"))
+        } catch ClickUpError.notConnected {
+            return ToolRunResult(text: "ClickUp ist nicht verbunden. Bitte in den Einstellungen verbinden.", isError: true)
+        } catch {
+            return ToolRunResult(text: "ClickUp-Abruf fehlgeschlagen: \(error)", isError: true)
+        }
+    }
+}
+
+// MARK: - QueryStudioKnowledgeTool (read-only, lokal) — die „allwissende" Wissensbasis
+struct QueryStudioKnowledgeTool: AssistantTool {
+    private let brain: StudioBrain
+    init(brain: StudioBrain) { self.brain = brain }
+
+    var name: String { "query_studio_knowledge" }
+    var description: String {
+        "Durchsucht die lokale Studio-Wissensbasis aus der Projekthistorie "
+        + "(Projekte mit Phase/Problem-Signalen/Beträgen, Lieferanten, Team). "
+        + "Nutze sie für Fragen zu früheren oder laufenden Projekten, Kunden und Lieferanten. "
+        + "Leere/allgemeine Anfrage gibt eine Gesamtübersicht (Kennzahlen, Top-Köpfe/Lieferanten)."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "query", description: "Kunde, Projekt, Ort oder Lieferant (leer = Übersicht)", required: false)]
+    }
+
+    func run(input: [String: String]) async -> ToolRunResult {
+        let query = (input["query"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if query.isEmpty || ["übersicht", "overview", "statistik", "gesamt", "stats"].contains(query.lowercased()) {
+            return ToolRunResult(text: brain.overview)
+        }
+        let hits = brain.lookup(query)
+        guard hits.isEmpty == false else {
+            return ToolRunResult(text: "Keine Treffer in der Studio-Wissensbasis für „\(query)“. Tipp: Kundenname, Ort oder Lieferant.")
+        }
+        return ToolRunResult(text: hits.map(brain.describe).joined(separator: "\n"))
+    }
+}
+
 // MARK: - AssistantToolRegistry (Whitelist, default-deny)
 public struct AssistantToolRegistry: Sendable {
     private let tools: [any AssistantTool]
@@ -343,6 +447,9 @@ public struct AssistantToolRegistry: Sendable {
         gmail: GoogleGmailFetching = GoogleGmailClient(),
         calendar: GoogleCalendarFetching = GoogleCalendarClient(),
         drive: GoogleDriveFetching = GoogleDriveClient(),
+        contacts: GoogleContactsFetching = GoogleContactsClient(),
+        clickUp: ClickUpFetching = ClickUpClient(),
+        studioBrain: StudioBrain? = StudioBrain.shared,
         kalkulationsEngine: (any KalkulationsEngineProviding)? = nil
     ) -> AssistantToolRegistry {
         var tools: [any AssistantTool] = [
@@ -350,7 +457,12 @@ public struct AssistantToolRegistry: Sendable {
             ListCalendarTool(client: calendar),
             SuggestCalendarEventTool(),
             ListDriveFolderTool(client: drive),
+            SearchContactsTool(client: contacts),
+            ListClickUpTasksTool(client: clickUp),
         ]
+        if let studioBrain {
+            tools.append(QueryStudioKnowledgeTool(brain: studioBrain))
+        }
         if let engine = kalkulationsEngine {
             tools.append(KostenSchaetzungTool(engine: engine))
         }
@@ -366,13 +478,14 @@ public struct AssistantToolRegistry: Sendable {
     /// Führt ein Tool aus. Unbekannter/nicht erlaubter Name → Deny-Ergebnis.
     /// `projektID` → `_projektID`, `driveFolderID` → `_driveFolderID` (injiziert,
     /// kein Protokollbruch: `_`-Präfix-Keys sendet Claude nicht selbst).
-    public func run(name: String, inputJSON: Data, projektID: String? = nil, driveFolderID: String? = nil) async -> ToolRunResult {
+    public func run(name: String, inputJSON: Data, projektID: String? = nil, driveFolderID: String? = nil, clickUpListID: String? = nil) async -> ToolRunResult {
         guard let tool = tools.first(where: { $0.name == name }) else {
             return ToolRunResult(text: "Tool nicht erlaubt oder unbekannt: \(name)", isError: true)
         }
         var input = Self.stringDict(from: inputJSON)
-        if let id  = projektID     { input["_projektID"]     = id }
-        if let fid = driveFolderID { input["_driveFolderID"] = fid }
+        if let id  = projektID     { input["_projektID"]      = id }
+        if let fid = driveFolderID { input["_driveFolderID"]  = fid }
+        if let lid = clickUpListID { input["_clickUpListID"]  = lid }
         return await tool.run(input: input)
     }
 
