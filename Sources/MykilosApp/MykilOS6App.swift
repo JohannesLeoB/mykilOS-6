@@ -125,10 +125,16 @@ struct ContentView: View {
     private var shell: some View {
         HStack(spacing: 0) {
             if !sidebarCollapsed {
-                SidebarView(selection: $module, onOpenProfile: {
-                    if appState.profile.profile?.isComplete == true { module = .settings }
-                    else { showOnboarding = true }
-                })
+                SidebarView(
+                    selection: $module,
+                    onOpenProfile: {
+                        if appState.profile.profile?.isComplete == true { module = .settings }
+                        else { showOnboarding = true }
+                    },
+                    onToggleSidebar: {
+                        withAnimation(.easeInOut(duration: 0.22)) { sidebarCollapsed.toggle() }
+                    }
+                )
                 .fixedSize(horizontal: true, vertical: false)
                 .layoutPriority(1)
                 .zIndex(1)

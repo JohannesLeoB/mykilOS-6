@@ -17,6 +17,8 @@ public enum MykColor {
     case personal   // Pflaume — Notizen
     // Status (selten, nie als Fläche)
     case positive, critical
+    // Brand-Akzent — MYKILOS Orange #EA5B25 (Sidebar-Actions, Home-Button)
+    case brand
 
     public var color: Color {
         switch self {
@@ -36,6 +38,7 @@ public enum MykColor {
         case .personal: Self.adaptive(light: 0x8A5B73, dark: 0xA27389)
         case .positive: Self.adaptive(light: 0x3E7A4E, dark: 0x5A9A68)
         case .critical: Self.adaptive(light: 0xB4503C, dark: 0xCC6854)
+        case .brand:    Self.adaptive(light: 0xEA5B25, dark: 0xEA5B25)
         }
     }
 

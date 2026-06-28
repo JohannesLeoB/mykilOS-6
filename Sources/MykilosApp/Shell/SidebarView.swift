@@ -7,6 +7,7 @@ import MykilosDesign
 struct SidebarView: View {
     @Binding var selection: AppModule
     var onOpenProfile: () -> Void = {}
+    var onToggleSidebar: () -> Void = {}
     @Environment(AppState.self) private var appState
     @State private var profileHovered = false
 
@@ -47,10 +48,10 @@ struct SidebarView: View {
         .padding(.leading, MykSpace.s4)
     }
 
-    // MARK: Navigations-Items
+    // MARK: Navigations-Items (ohne Settings — kommt als Icon in den Footer)
     private var navItems: some View {
         VStack(spacing: 2) {
-            ForEach(AppModule.allCases) { module in
+            ForEach(AppModule.allCases.filter { $0 != .settings }) { module in
                 NavItem(module: module, isSelected: selection == module) {
                     withAnimation(.easeInOut(duration: 0.18)) { selection = module }
                 }
@@ -58,35 +59,55 @@ struct SidebarView: View {
         }
     }
 
-    // MARK: Fußzeile — Profil & Verbindungen (öffnet den Onboarding-Wizard erneut)
+    // MARK: Fußzeile — Profil + Icon-Strip (Settings + Sidebar-Toggle)
     private var navFoot: some View {
-        Button(action: onOpenProfile) {
-            HStack(spacing: 10) {
-                Circle()
-                    .fill(footIndicatorColor)
-                    .frame(width: 6, height: 6)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(footDisplayName)
-                        .font(.mykSmall)
-                        .foregroundStyle(MykColor.inkSoft.color)
-                        .lineLimit(1)
-                    Text(footSubtitle)
-                        .font(.mykMono(9))
-                        .foregroundStyle(MykColor.faint.color)
-                        .lineLimit(1)
+        VStack(spacing: 4) {
+            // Profil-Button (kompakt, wie bisher)
+            Button(action: onOpenProfile) {
+                HStack(spacing: 10) {
+                    Circle()
+                        .fill(footIndicatorColor)
+                        .frame(width: 6, height: 6)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(footDisplayName)
+                            .font(.mykSmall)
+                            .foregroundStyle(MykColor.inkSoft.color)
+                            .lineLimit(1)
+                        Text(footSubtitle)
+                            .font(.mykMono(9))
+                            .foregroundStyle(MykColor.faint.color)
+                            .lineLimit(1)
+                    }
+                    Spacer()
                 }
-                Spacer()
+                .padding(.vertical, 8)
+                .padding(.horizontal, MykSpace.s4)
+                .background(
+                    RoundedRectangle(cornerRadius: 11)
+                        .fill(profileHovered ? MykColor.paper2.color : Color.clear)
+                )
             }
-            .padding(.vertical, 8)
+            .buttonStyle(.plain)
+            .onHover { profileHovered = $0 }
+
+            // Icon-Strip: Settings-Icon + Sidebar-Toggle, beide MYKILOS Orange
+            HStack(spacing: 0) {
+                Spacer()
+                SidebarIconButton(
+                    systemName: "gearshape",
+                    help: "Einstellungen"
+                ) {
+                    withAnimation(.easeInOut(duration: 0.18)) { selection = .settings }
+                }
+                SidebarIconButton(
+                    systemName: "sidebar.left",
+                    help: "Sidebar ausblenden (⌘⇧S)",
+                    action: onToggleSidebar
+                )
+            }
             .padding(.horizontal, MykSpace.s4)
-            .background(
-                RoundedRectangle(cornerRadius: 11)
-                    .fill(profileHovered ? MykColor.paper2.color : Color.clear)
-            )
+            .padding(.bottom, MykSpace.s3)
         }
-        .buttonStyle(.plain)
-        .onHover { profileHovered = $0 }
-        .padding(.bottom, MykSpace.s3)
     }
 
     private var footIndicatorColor: Color {
@@ -107,6 +128,31 @@ struct SidebarView: View {
             return google.email
         }
         return "Profil & Verbindungen"
+    }
+}
+
+// MARK: - SidebarIconButton
+// Kompakter Icon-Button in MYKILOS Orange für den Sidebar-Footer.
+private struct SidebarIconButton: View {
+    let systemName: String
+    let help: String
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(isHovered ? MykColor.brand.color.opacity(0.7) : MykColor.brand.color)
+                .frame(width: 36, height: 36)
+                .background(
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(isHovered ? MykColor.paper2.color : Color.clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help(help)
     }
 }
 
