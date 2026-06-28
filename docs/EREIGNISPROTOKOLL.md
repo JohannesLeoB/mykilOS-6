@@ -30,6 +30,37 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-28 · Claude Code — Forensik-Session + Übergabe Core Repair
+
+```
+Branch: polish/dampflok HEAD 00d3833
+Build:  ✅ swift build grün
+Tests:  ✅ 243 Tests grün — keine Änderung
+```
+
+**Keine Code-Änderungen.** Reine Forensik-Session.
+
+**Forensik-Audit (60 Agenten, 51 Befunde, 42 bestätigt):**
+- Wurzel-Ursache identifiziert: Proxy-Optimierung (Tests grün, Ledger-Checkmark) statt
+  Ziel-Verifikation (Feature läuft live mit echten Daten für echten Nutzer).
+- L23 GmailCacheStore: committed ✅ aber nie in Production verdrahtet ❌.
+- DataFlowLogger Bug: `toolUse.name` ("search_gmail") statt Manifest-ID ("GMAIL_SEARCH")
+  → Schaltzentrum zeigt 0 Handshakes für alle 8 Tool-Zeilen.
+- `driveReadonly` Scope fehlt in `readOnlyDefaults` → nie angefragt bei Login.
+- `driveFolderPath` existiert, wird nie befüllt.
+- OffersTabView: kein Rekursion, kein nextPageToken, keine Tests.
+- `AppDatabase.production` verwendet `try!` → 7 IPS Crash-Reports.
+- Zwei divergente Datenstrom-Manifests (docs vs Resources).
+- AGENTS.md: veralteter Stand (Akt-5, 80 Tests), nicht synchron mit CLAUDE.md.
+
+**Übergabe:** 13 Forensik-Fragen vollständig beantwortet mit Ursache/Datei/Test-Gap/
+Gegenmaßnahme → `docs/handoffs/HANDOFF_POLISH_DAMPFLOK.md`.
+
+**Nächste Session:** Core Repair (Codex-Mandate A–G). Abnahme-Kriterium: Hustadt-Projekt
+(`driveFolderID: 13ITPqAMdz6JrS13u8y7JvkTVXAWznA_S`) besteht Live-Gate.
+
+---
+
 ## 2026-06-28 · Dampflok Iter. 0 + L1 — polish/dampflok Branch Setup + BrainSeedProvider
 
 ```
