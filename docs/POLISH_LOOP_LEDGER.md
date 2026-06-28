@@ -54,8 +54,8 @@ Reihenfolge = Priorität. Status: `pending` | `done` | `blocked`.
 
 | ID | Titel | Status | Commit | Tests | Notiz |
 |----|-------|--------|--------|-------|-------|
-| L20 | Angebote-Tab 04/05 getrennt + Suche/Sortierung + Preview | pending | — | — | |
-| L21 | Angebote-Sammler GlobalOffersView über alle Projekte | pending | — | — | |
+| L20 | Angebote-Tab 04/05 getrennt + Suche/Sortierung + Preview | done | 11b2326 | 237 | Suchfeld + Datum/Name-Toggle + Preview-Popover (Icon-Klick → FilePreviewView) |
+| L21 | Angebote-Sammler GlobalOffersView über alle Projekte | done | (bereits implementiert) | 237 | Projektliste links + OffersTabView rechts, bereits live |
 
 ## Block 7 — Menschen/Projekt-Hirn (Signal-Nervensystem)
 
