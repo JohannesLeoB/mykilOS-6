@@ -71,6 +71,16 @@ Tests:  ✅ 207 Tests grün (+6 neue: BrainSeedProviderTests)
   in Airtable Datenstrom-Handbuch registriert.
 - 215 Tests grün. Commit: 573c16e. Polish-Log L3: done.
 
+**L5 — Alle Ströme instrumentieren (DataFlowLogger):**
+- `ConversationEngine.swift`: `dataFlowLogger: DataFlowLogger?` in `init` aufgenommen.
+  `runLoop`: nach jedem `registry.run(...)` → `dataFlowLogger?.log(integrationID: toolUse.name, ...)`.
+  Loggt `.success` oder `.error` je Tool-Ergebnis.
+- `AppState.swift`: `ConversationEngine(... dataFlowLogger: dataFlow)` — `dataFlow` wird live injiziert.
+- `ConversationEngineTests.swift`: `dataFlowLoggerLogtJedesToolRun()` GATE-Test — scripted
+  `schaetze_projekt` tool_use → Logger enthält genau 1 Entry mit integrationID==„schaetze_projekt",
+  action==.success.
+- 217 Tests grün. Commit: 5d50c26. Polish-Log L5: done.
+
 **L2 — Schätzchat-Toggle:**
 - `AssistantTool.swift`: `schaetzDefinitions()` → nur `schaetze_projekt`.
 - `ConversationEngine.swift`: `schaetzModusEnabled: Bool` Parameter, isoliert Tool-Liste,
