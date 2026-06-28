@@ -11,7 +11,7 @@ Reihenfolge = Priorität. Status: `pending` | `done` | `blocked`.
 | ID | Titel | Status | Commit | Tests | Notiz |
 |----|-------|--------|--------|-------|-------|
 | L1 | Kalkulation echt — BrainSeedProvider verdrahten | done | 51b8ed0 | 207 | Parsing.swift küche-Pattern + 6 neue Tests |
-| L2 | Kalkulator im Assistenten + Schätzchat-Toggle | pending | — | — | |
+| L2 | Kalkulator im Assistenten + Schätzchat-Toggle | done | d5b1c1a | 209 | schaetzDefinitions, ConversationEngine schaetzModusEnabled, AssistantChatView Toggle, 2 GATE-Tests |
 | L3 | Geräte & Stundensätze (DeviceCatalog CSV + Airtable-Fallback) | pending | — | — | |
 | L4 | Lern-Loop-Politur (Promote-Flow + Audit) | pending | — | — | |
 

@@ -51,6 +51,15 @@ Tests:  ✅ 207 Tests grün (+6 neue: BrainSeedProviderTests)
 - `BrainSeedProviderTests.swift`: 6 Tests — CSV-Parse, Fallback, Smoke DoT > 0.
 - Commit: 51b8ed0. Polish-Log L1: done.
 
+**L2 — Schätzchat-Toggle:**
+- `AssistantTool.swift`: `schaetzDefinitions()` → nur `schaetze_projekt`.
+- `ConversationEngine.swift`: `schaetzModusEnabled: Bool` Parameter, isoliert Tool-Liste,
+  setzt `effectiveProjectID = "schaetzung"` wenn kein Projekt; Mail/Kalender/Drive-Sperre.
+- `AssistantChatView.swift`: `@AppStorage("assistant.schaetzModus")`, optInBar zweigeteilt,
+  Composer-Tint amber + Placeholder-Wechsel bei aktivem Modus.
+- `ConversationEngineTests.swift`: 2 GATE-Tests + `FakeKalkulationsEngine`.
+- 209 Tests grün. Commit: d5b1c1a. Polish-Log L2: done.
+
 ---
 
 ## 2026-06-28 · S17 — Security-Härtung + Google Identity (feat/security-haertung)
