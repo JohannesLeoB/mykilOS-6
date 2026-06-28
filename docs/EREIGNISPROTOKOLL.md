@@ -53,6 +53,39 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+### 2026-06-28 · Claude Code (Opus 4.8) — Contract + Engine-Adapter (Schritt 3)
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `feat/kalkulation-core-port`
+**Build:** ✅ | **Tests:** 189 grün (173 swift-testing + 16 XCTest)
+
+**Team-Abstimmung (S10-Kanal):** niemand konsolidiert die Basis; ich cherry-picke nur was ich
+brauche; kanonische Basis = `stabilize`/mein Branch; `recordAdjustment` = **String**; ich besitze
+den Engine-Port allein.
+
+**Was gemacht wurde:**
+- **Contract übernommen:** `Sources/MykilosKit/Domain/KalkulationsEngineProviding.swift` aus PR #1
+  (`claude/musing-sammet`) auf die kanonische Basis geholt. Einzige Änderung: `recordAdjustment(
+  schaetzungsID:)` von `UUID` → **`String`** (stabiler Schlüssel = `EstimateSession.id`). Nur die
+  Datei übernommen (nicht der ganze Commit — der AppState-Slot würde auf `stabilize` kollidieren).
+- **Engine-Adapter:** `Sources/MykilosServices/Kalkulation/KalkulationsEngine.swift` (`actor`,
+  conformt `KalkulationsEngineProviding`). `schaetze` voll implementiert: `parse → estimate →
+  Mapping EstimateResult→KostenSchaetzung` (inkl. Kostenboden aus `bottomUpCost.total`,
+  Div-by-Zero-Guard für `kostenbodenRatio`, EvidenceCase→PriceEvidence).
+- **Bewusste Stubs (eigene Folgeschritte, werfen klar `KalkulationsEngineError.notYetImplemented`):**
+  `geraetepreis` (DeviceCatalog fehlt), `importPDF` (Drive-Download fehlt), `recordAdjustment`
+  (braucht persistierte Session + Reason/Target-Mapping + Bestätigungs-Flow).
+- **Tests:** `KalkulationsEngineTests` (Stub-Anker, seed-frei): Mapping-Verdrahtung + Guard +
+  dass die Stubs sauber werfen.
+- SwiftLint: Lern-Schicht-Ausnahme auf die **3 vendored Dateien** verengt — eigener Adapter-Code
+  in `Kalkulation/` ist voll gelintet.
+
+**Nächste Schritte:** (5) Seed-Provider `BrainSeedRepository`/`DeviceCatalog` — braucht Seed-`sqlite`
++ CSVs nach Application-Support (externe Daten, Johannes' Freigabe). (4b) `recordAdjustment`
+vervollständigen, wenn Persistenz-/Bestätigungs-Flow steht. Kein Push ohne Freigabe.
+
+---
+
 ### 2026-06-28 · Claude Code (Opus 4.8) — Kalkulations-Lern-Schicht portiert (Schritt 2)
 
 **Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`

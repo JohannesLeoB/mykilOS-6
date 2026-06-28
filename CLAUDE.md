@@ -148,7 +148,8 @@ Daten sind heilig; bei Datenverlust-Gefahr warnen.
 | Live-Wiring, Session 4 | 📋 | Clockodo Zuhörer + Partner-App Schema: 7 Airtable-Tabellen, Stundensätze, Kalkulationen/Positionen, Ownership-Modell, Merge-Plan. Details: [HANDOFF_LIVE_WIRING_4.md](docs/handoffs/HANDOFF_LIVE_WIRING_4.md) |
 | Live-Wiring, Session 5 | 📋 | mykilO$$ Vollintegration: `KalkulationsEngineProviding`-Protokoll, `AppState.kalkulationsEngine`-Slot, Airtable-Tabelle `Eingehende-Angebote` (tbliKfs5FnufjdB36), Integrationsplan. |
 | Kalkulations-Port, Schritt 1 | ✅ | Target `MykilosKalkulationsCore` (Foundation-only): 10 Dateien verbatim aus mykilO$$ portiert + 16 Core-Tests (`MykilosKalkulationsCoreTests`). Branch `feat/kalkulation-core-port`. |
-| Kalkulations-Port, Schritt 2 | ✅ | GRDB-Lern-Schicht `MykilosServices/Kalkulation/` (LearningDatabase/Records/Store verbatim) + **Cold-Start-Test (Merge-Gate)** `KalkulationsLearningStoreTests`. Build grün, **187 Tests**. Nächstes: Engine-Adapter (`KalkulationsEngine`) — braucht erst PR-#1-Protokoll auf gemeinsamer Basis. |
+| Kalkulations-Port, Schritt 2 | ✅ | GRDB-Lern-Schicht `MykilosServices/Kalkulation/` (LearningDatabase/Records/Store verbatim) + **Cold-Start-Test (Merge-Gate)** `KalkulationsLearningStoreTests`. **187 Tests**. |
+| Kalkulations-Port, Schritt 3 | ✅ | Contract `KalkulationsEngineProviding` (aus PR #1, `recordAdjustment` → String) + Engine-Adapter `KalkulationsEngine` (`actor`): `schaetze` live (parse→estimate→Mapping). `geraetepreis`/`importPDF`/`recordAdjustment` werfen klar `notYetImplemented`. **189 Tests**. Nächstes: Seed-Provider (externe Daten) + `recordAdjustment`-Vervollständigung. |
 
 ---
 

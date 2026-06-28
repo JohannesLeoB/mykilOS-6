@@ -8,10 +8,11 @@ excluded:
                                      # wird NICHT umformatiert — externe Daten-Tabellen
                                      # (MaterialLexicon u.a.) sprengen line_length absichtlich.
                                      # Kein SwiftUI → Token-Custom-Rules ohnehin n/a.
-  - Sources/MykilosServices/Kalkulation # verbatim portierte GRDB-Lern-Schicht
-                                     # (LearningDatabase/Records/Store aus mykilO$$).
-                                     # Vendored — nicht umformatiert; Rest von MykilosServices
-                                     # bleibt voll gelintet.
+  # verbatim portierte GRDB-Lern-Schicht aus mykilO$$ (vendored, nicht umformatiert).
+  # Nur diese drei Dateien — eigener Adapter-Code in Kalkulation/ bleibt voll gelintet.
+  - Sources/MykilosServices/Kalkulation/LearningDatabase.swift
+  - Sources/MykilosServices/Kalkulation/LearningRecords.swift
+  - Sources/MykilosServices/Kalkulation/LearningStore.swift
 
 custom_rules:
   no_system_font_in_features:
