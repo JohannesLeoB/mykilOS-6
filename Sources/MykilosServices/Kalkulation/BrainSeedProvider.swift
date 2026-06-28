@@ -2,14 +2,16 @@ import Foundation
 import MykilosKalkulationsCore
 
 // MARK: - BrainSeedProvider
-// Lädt die ECHTEN Preis-Anker aus dem destillierten Korpus
-// (~/Library/Application Support/MYKILOS/Kalkulationslabor/Brain/active_price_anchors.csv,
-// ~200 release-fertige Anker aus realen Lieferanten-PDFs). Damit liefert `schaetze`
-// echte Zahlen statt der 6 konservativen Regelanker.
+// Lädt die ECHTEN Preis-Anker aus dem destillierten Korpus.
+// Suchpfad (erster Treffer gewinnt):
+//   1. ~/Claude/Projects/mykilOS/MYKILOS 6/_Daten/Kalkulation/Brain/active_price_anchors.csv
+//      → Gelber mykilOS-Mac-Ordner: primäre Datenquelle, immer aktuell
+//   2. ~/Library/Application Support/MYKILOS/Kalkulationslabor/Brain/active_price_anchors.csv
+//      → Legacy-Pfad / App-Bundle-Kopie nach Erstinstallation
 //
 // Datenschutz: die CSV enthält reale Einkaufspreise → NIE ins Repo gebündelt.
-// Sie liegt nur lokal in Application Support. Fehlt sie, fällt der Provider
-// transparent auf die hartcodierten BaselineAnchors zurück (App bleibt funktional).
+// Fehlt sie an beiden Orten, fällt der Provider transparent auf die
+// hartcodierten BaselineAnchors zurück (App bleibt funktional).
 public struct BrainSeedProvider: PriceAnchorProviding {
     private let csvURL: URL
     private let fallback: PriceAnchorProviding
@@ -20,7 +22,11 @@ public struct BrainSeedProvider: PriceAnchorProviding {
     }
 
     /// Standardpfad des destillierten Anker-Korpus.
+    /// Prüft zuerst den gelben mykilOS-Mac-Ordner, dann Application Support.
     public static var defaultURL: URL {
+        let yellow = URL(fileURLWithPath: NSHomeDirectory())
+            .appendingPathComponent("Claude/Projects/mykilOS/MYKILOS 6/_Daten/Kalkulation/Brain/active_price_anchors.csv")
+        if FileManager.default.fileExists(atPath: yellow.path) { return yellow }
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
         return appSupport

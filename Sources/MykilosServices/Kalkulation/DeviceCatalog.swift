@@ -77,13 +77,15 @@ public final class DeviceCatalog {
         try self.init(csv: String(contentsOf: url, encoding: .utf8))
     }
 
-    /// Externer Speicherort außerhalb des Repos (Application Support). Niemals im Bundle.
+    /// Externer Speicherort. Prüft zuerst gelben mykilOS-Mac-Ordner, dann Application Support.
     public static func defaultURL() -> URL {
+        let yellow = URL(fileURLWithPath: NSHomeDirectory())
+            .appendingPathComponent("Claude/Projects/mykilOS/MYKILOS 6/_Daten/Kalkulation/Devices/catalog.csv")
+        if FileManager.default.fileExists(atPath: yellow.path) { return yellow }
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory())
         return support
-            .appendingPathComponent("MYKILOS/Kalkulationslabor/Devices", isDirectory: true)
-            .appendingPathComponent("catalog.csv")
+            .appendingPathComponent("MYKILOS/Kalkulationslabor/Devices/catalog.csv")
     }
 
     /// Lädt den Katalog vom Standardort, falls vorhanden (sonst nil — der Lookup ist optional).
