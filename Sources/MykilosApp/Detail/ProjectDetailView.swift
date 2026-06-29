@@ -164,6 +164,13 @@ struct ProjectDetailView: View {
                 projectID: project.projectNumber,
                 driveFolderID: project.links.driveFolderID
             )
+        case .timeline:
+            TimelineTabView(
+                projectID: project.projectNumber,
+                driveFolderID: project.links.driveFolderID,
+                calendarQuery: project.links.calendarQuery,
+                auditStore: appState.audit
+            )
         default:
             ComingTabView(tab: activeTab)
         }
