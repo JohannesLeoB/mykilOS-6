@@ -85,6 +85,14 @@ SIGN_IDENTITY="${MYKILOS_SIGN_IDENTITY:-}"
 if [ -z "$SIGN_IDENTITY" ]; then
   if /usr/bin/security find-identity -v -p codesigning 2>/dev/null | /usr/bin/grep -q "mykilOS Local Signing"; then
     SIGN_IDENTITY="mykilOS Local Signing"
+  else
+    # M6-Fix: vorhandenes Apple-Development-Zertifikat als STABILE Identität nutzen, statt
+    # ad-hoc (das bei jedem Build einen neuen Code-Hash erzeugt → wiederkehrende Schlüsselbund-
+    # Prompts). Nach EINMALIGEM „Immer erlauben" bleibt der Zugriff bestehen.
+    APPLE_DEV_ID="$(/usr/bin/security find-identity -v -p codesigning 2>/dev/null | /usr/bin/grep "Apple Development:" | /usr/bin/head -1 | /usr/bin/sed -E 's/.*"(.*)"$/\1/')"
+    if [ -n "$APPLE_DEV_ID" ]; then
+      SIGN_IDENTITY="$APPLE_DEV_ID"
+    fi
   fi
 fi
 
