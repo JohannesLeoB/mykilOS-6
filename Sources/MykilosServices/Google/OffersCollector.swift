@@ -49,6 +49,39 @@ public enum OffersCollector {
         }
     }
 
+    private static let folderMime = "application/vnd.google-apps.folder"
+
+    /// Findet die beiden Angebots-Ordner ("…eingehende"/"…ausgehende") im Projektbaum —
+    /// NICHT nur in den direkten Kindern, sondern bis `maxDepth` Ebenen tief (BFS).
+    /// Hintergrund (live bestätigt): bei MYKILOS liegen sie KONSTANT in „01 INFOS/",
+    /// also eine Ebene unter dem verknüpften Projektordner — die frühere Direkt-Kind-
+    /// Suche fand sie deshalb nie. Bricht ab, sobald beide gefunden sind.
+    public static func findOfferFolders(
+        rootFolderID: String, client: GoogleDriveFetching, maxDepth: Int = maxDepthDefault
+    ) async throws -> (incoming: GoogleDriveFile?, outgoing: GoogleDriveFile?) {
+        var incoming: GoogleDriveFile?
+        var outgoing: GoogleDriveFile?
+        var frontier: [(id: String, depth: Int)] = [(rootFolderID, 0)]
+
+        while frontier.isEmpty == false {
+            let (id, depth) = frontier.removeFirst()
+            let children = try await client.listFolder(folderID: id)
+            for child in children where child.mimeType == folderMime {
+                let name = child.name.lowercased()
+                if incoming == nil, name.contains("eingehende") { incoming = child }
+                if outgoing == nil, name.contains("ausgehende") { outgoing = child }
+            }
+            if incoming != nil, outgoing != nil { break }
+            if depth < maxDepth {
+                for child in children where child.mimeType == folderMime
+                    && child.id != incoming?.id && child.id != outgoing?.id {
+                    frontier.append((child.id, depth + 1))
+                }
+            }
+        }
+        return (incoming, outgoing)
+    }
+
     /// Rekursiv bis `maxDepth` — sammelt alle Nicht-Ordner-Dateien samt ihrem
     /// unmittelbaren Eltern-Unterordnernamen.
     public static func collect(
@@ -85,9 +118,9 @@ public enum OffersCollector {
         client: GoogleDriveFetching,
         maxDepth: Int = maxDepthDefault
     ) async throws -> Result {
-        let rootChildren = try await client.listFolder(folderID: rootFolderID)
-        let incomingFolder = subfolder(in: rootChildren, matching: "eingehende")
-        let outgoingFolder = subfolder(in: rootChildren, matching: "ausgehende")
+        // Rekursiv suchen statt nur direkte Kinder — die Ordner liegen in „01 INFOS/".
+        let (incomingFolder, outgoingFolder) = try await findOfferFolders(
+            rootFolderID: rootFolderID, client: client, maxDepth: maxDepth)
 
         async let incomingFiles = collect(in: incomingFolder, client: client, depth: 0, maxDepth: maxDepth)
         async let outgoingFiles = collect(in: outgoingFolder, client: client, depth: 0, maxDepth: maxDepth)

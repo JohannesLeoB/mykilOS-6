@@ -148,6 +148,29 @@ struct OffersCollectorLoadTests {
         #expect(result.outgoing.first?.belegNummer == "2026-0170")
     }
 
+    @Test func loadFindetVerschachtelte0405InInfos() async throws {
+        // ECHTE MYKILOS-Struktur (live bestätigt): 04/05 liegen IN "01 INFOS",
+        // nicht an der Projekt-Wurzel. Die rekursive Auflösung muss sie trotzdem finden.
+        let lieferant = makePDF("Kostenschätzung 260512 Weichsel78.pdf", id: "f1")
+        let angebot   = makePDF("260520_AN-A_2026-0189-Hauptküche_Hustadt_2.pdf", id: "f2")
+        let client = TreeFakeDriveClient(tree: [
+            "root":  [makeFolder("01 INFOS", id: "infos"),
+                      makeFolder("02 CAD", id: "cad"),
+                      makeFolder("03 PRÄSENTATION", id: "praes")],
+            "infos": [makeFolder("04 ausgehende Angebote", id: "aus"),
+                      makeFolder("05 eingehende Angebote", id: "ein")],
+            "aus":   [angebot],
+            "ein":   [makeFolder("Vorplanung : Kostenschätzung", id: "vp")],
+            "vp":    [lieferant],
+        ])
+
+        let result = try await OffersCollector.load(rootFolderID: "root", client: client)
+        #expect(result.outgoingFolderFound)
+        #expect(result.incomingFolderFound)
+        #expect(result.outgoing.contains { $0.file.id == "f2" })   // PDF in 01 INFOS/04
+        #expect(result.incoming.contains { $0.file.id == "f1" })   // PDF in 01 INFOS/05/Vorplanung
+    }
+
     @Test func loadOhneAngebotsOrdnerMeldetNichtGefunden() async throws {
         let client = TreeFakeDriveClient(tree: ["root": [makeFolder("01 INFOS", id: "x")]])
         let result = try await OffersCollector.load(rootFolderID: "root", client: client)
