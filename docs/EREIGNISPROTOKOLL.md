@@ -30,6 +30,35 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-29 · Claude Code (Opus) — Polish-Loop L24–L30 abgeschlossen
+
+```
+Branch: polish/dampflok (gepusht → PR #3); 296 → 320 Tests grün (54 Suites)
+Build:  ✅ swift build grün   ·   DMG-Pipeline verifiziert (dist/mykilOS-6.dmg)
+```
+
+Nach Core Repair A–G die offene UI-/Hirn-Politur fertiggestellt. Recon per 5-Agenten-
+Workflow (echter Stand + Plan je Item), dann sequentiell mit build+test grün je Schritt.
+
+- **L24** Kunden-Kontext: `KundenBrain` + `lookup_kunde` (read-only lokaler Sync-Cache,
+  keine Kontaktdetails → search_contacts). Weiche AIRTABLE_KUNDEN_LOOKUP. `b1bed54`
+- **L25** Favoriten: `FavoritesStore` (GRDB v7, Cold-Start) + Stern-Toggle Galerie/Detail;
+  Widget zeigt echte Favoriten statt prefix(6)-Platzhalter. `b1bed54`
+- **L26** Dark Mode + Token-Disziplin: NotesWidget (Tinte/Pergament), Ordner-Blau,
+  Hero-Verläufe → adaptive MykColor-Tokens; alle `.font(.system)`/`Color(hex|red:)` aus
+  Feature-Code; SwiftLint-Token-Regeln scharfgestellt + lokal verifiziert (0 Verstöße). `b17ac81`
+- **L27** Timeline-Tab: `TimelineMerger` (rein/testbar) verschmilzt Drive/Angebote/
+  Kalender/Audit; `TimelineTabView` verdrahtet (vorher Platzhalter). `2646769`
+- **L28** RecentActivityWidget echt: DataFlow-Handshakes + Audit, neueste-zuerst
+  (`RecentActivityFeed`); Leerzustand über kanonischen WidgetContainer. `6b1b77e`
+- **L29** Test-Decke: Unit + Cold-Start für alle neuen Stores/Tools (320 Tests). `6b1b77e`
+- **L30** Abschluss: Ledger/Protokoll/Benutzerhandbuch final; **DMG-Pipeline verifiziert**
+  (Bundle ohne GUI-Start gebaut, `MykGitCommit`=6b1b77e injiziert, `dist/mykilOS-6.dmg` 6,6 MB).
+
+Read-only gewahrt, kein externer Schreibzugriff. Kein Merge ohne Johannes' Freigabe.
+
+---
+
 ## 2026-06-28 · Claude Code (Opus) — Core Repair Session (PR #3, Mandate A–G)
 
 ```

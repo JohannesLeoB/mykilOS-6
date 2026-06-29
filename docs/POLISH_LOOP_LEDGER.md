@@ -63,20 +63,20 @@ Reihenfolge = Priorität. Status: `pending` | `done` | `blocked`.
 |----|-------|--------|--------|-------|-------|
 | L22 | Signal-Monitore: Budget/Deadline/DriveFile echte Emitter | done | f8f27e3 | 238 | CashWidget budgetThresholdCrossed ≥0.9; TasksWidget deadlineNear ≤7 Tage; DriveOfferWatcher driveFileAdded für Nicht-Angebote; +1 GATE-Test |
 | L23 | Mail-Vollcache (GmailCacheStore + GmailSyncService) | done | ef09d76 | 243 | GmailCacheStore actor + TTL; SearchGmailTool Cache-Hit vor API; 5 GATE-Tests |
-| L24 | Kontakt-Kontext im Assistenten (Airtable Kontakte) | pending | — | — | |
+| L24 | Kontakt-Kontext im Assistenten (Airtable Kontakte) | done | b1bed54 | 304 | KundenBrain (Foundation-only Snapshot) + `lookup_kunde`-Tool (read-only Sync-Cache, KEINE Kontaktdetails); Weiche AIRTABLE_KUNDEN_LOOKUP; ConversationEngine.updateRegistry-Seam |
 
 ## Block 8 — UI-Politur
 
 | ID | Titel | Status | Commit | Tests | Notiz |
 |----|-------|--------|--------|-------|-------|
-| L25 | Favoriten: GRDB projectFavorites + Stern-Button | pending | — | — | |
-| L26 | Dunkelmodus-Kontrast + Token-Disziplin | pending | — | — | |
-| L27 | Timeline-Tab (Drive/Angebote/Kalender/Audit) | pending | — | — | |
-| L28 | Leerzustände & Konsistenz (RecentActivityWidget) | pending | — | — | |
+| L25 | Favoriten: GRDB projectFavorites + Stern-Button | done | b1bed54 | 309 | FavoritesStore (GRDB v7, SaveState, throws) + Stern-Toggle Galerie/Detail; Widget zeigt echte Favoriten; Cold-Start-Test |
+| L26 | Dunkelmodus-Kontrast + Token-Disziplin | done | b17ac81 | 309 | NotesWidget/folderIcon/Hero-Verläufe adaptiv (neue MykColor-Tokens); 11× .system + 24× Color(hex/red) raus; SwiftLint-Token-Regeln scharfgestellt (lokal 0 Verstöße) |
+| L27 | Timeline-Tab (Drive/Angebote/Kalender/Audit) | done | 2646769 | 314 | TimelineMerger (rein/testbar) + TimelineTabView + dünner Loader; De-Dup Drive↔Angebot; in ProjectDetailView verdrahtet |
+| L28 | Leerzustände & Konsistenz (RecentActivityWidget) | done | 6b1b77e | 319 | RecentActivityWidget echt (DataFlow+Audit, neueste-zuerst) via RecentActivityFeed; Leerzustand über kanonischen WidgetContainer |
 
 ## Block 9 — Härtung & Abschluss
 
 | ID | Titel | Status | Commit | Tests | Notiz |
 |----|-------|--------|--------|-------|-------|
-| L29 | Test-Decke (Cold-Start + Unit für alle neuen Stores/Tools) | pending | — | — | |
-| L30 | Abschluss: EREIGNISPROTOKOLL + Handoff + DMG | pending | — | — | |
+| L29 | Test-Decke (Cold-Start + Unit für alle neuen Stores/Tools) | done | 6b1b77e | 320 | KundenBrain/LookupKunde/FavoritesStore(Cold-Start)/TimelineMerger/RecentActivityFeed + RecentActivity-Cold-Start-Integration |
+| L30 | Abschluss: EREIGNISPROTOKOLL + Handoff + DMG | done | — | 320 | Ledger/Protokoll/Benutzerhandbuch final; DMG-Pipeline verifiziert (dist/mykilOS-6.dmg, Commit 6b1b77e in Info.plist injiziert) |

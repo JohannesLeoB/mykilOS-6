@@ -36,6 +36,10 @@ offene Aufgaben und Kalender-Ereignisse auf einen Blick.
 - **DriveFolderRefreshBar**: zeigt wann der Drive-Ordner zuletzt geprüft wurde.
   "Jetzt prüfen" erzwingt einen sofortigen Poll aller aktiven Projektordner auf neue Angebots-PDFs.
 - **Signal-Strip**: zeigt Signale aus dem aktuellen Projektkontext (z.B. neue Angebote erkannt).
+- **Favoriten**: angepinnte Projekte als Schnellzugriff (Stern auf einer Projektkarte/im
+  Detail-Header). Leer, bis du das erste Projekt anpinnst.
+- **Letzte Aktivität**: die neuesten Datenstrom-Handshakes (Sync/Tool-Calls) und bestätigten
+  Audit-Aktionen, neueste zuerst — grüner Punkt = ok, rot = Fehler, pflaume = Audit.
 
 ---
 
@@ -48,7 +52,8 @@ offene Aufgaben und Kalender-Ereignisse auf einen Blick.
 
 **Funktionen:**
 - Projekte nach Nummer (`JJJJ-NR`) sortiert
-- Favoriten-Stern (noch in Entwicklung — L25)
+- **Favoriten-Stern** auf jeder Karte (und im Projekt-Detail-Header): pinnt das Projekt
+  ins Heute-Board. Persistent (GRDB), überlebt Neustart. Stern erneut tippen = entfernen.
 - Klick öffnet Projektdetailseite
 
 ---
@@ -96,7 +101,11 @@ lokal-zuerst die macOS-Vorschau, nur ohne lokale Datei den Browser-Fallback.
 Rechtsklick → **„Im Finder zeigen"**. Read-only — nie Schreiben.
 
 ### Timeline
-Platzhalter — in Entwicklung (L27).
+**Verlauf** des Projekts als eine chronologische Spine: Drive-Dateien, Angebote
+(eingehend/ausgehend), kommende Kalendertermine und bestätigte Audit-Aktionen —
+verschmolzen und neueste zuerst, je Quelle farbig (Drive terrakotta, Angebot blau,
+Termin salbei, Audit pflaume). Klick auf eine Datei/ein Angebot öffnet den Link.
+Read-only. Eine kaputte Quelle leert den Tab nicht (die übrigen werden trotzdem gezeigt).
 
 ### Material
 Zeigt Drive-Unterordner `05 Material` (tolerant per Name gematcht).
@@ -241,6 +250,7 @@ Wenn Tools aktiviert sind, kann der Assistent folgende Aktionen ausführen
 | `schaetze_projekt` | Kostenschätzung (lokal) | toolsEnabled oder schaetzModus |
 | `query_studio_knowledge` | Fragt Slack-Brain | toolsEnabled |
 | `search_katalog` | Sucht Gerätekatalog (Hersteller, Artikelnr., VK) | toolsEnabled, kein SchaetzModus |
+| `lookup_kunde` | Sucht Airtable-Kunden (Name/Kundennr./Projektanzahl, lokaler Sync-Cache) | toolsEnabled |
 
 Alle Tool-Calls werden via `DataFlowLogger` lokal protokolliert.
 
