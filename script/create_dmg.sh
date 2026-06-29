@@ -12,13 +12,10 @@ DMG_NAME="mykilOS-6"
 DMG_PATH="$DIST_DIR/$DMG_NAME.dmg"
 VOLUME_NAME="mykilOS 6"
 
-# Build falls nötig
+# Build falls nötig — ohne Start (Packaging-Lauf, kein Schlüsselbund-Prompt).
 if [ ! -d "$APP_BUNDLE" ]; then
-  echo "App-Bundle nicht gefunden, baue erst…" >&2
-  "$ROOT_DIR/script/build_and_run.sh" &
-  BUILD_PID=$!
-  sleep 3
-  kill "$BUILD_PID" 2>/dev/null || true
+  echo "App-Bundle nicht gefunden, baue erst (ohne Start)…" >&2
+  MYKILOS_NO_LAUNCH=1 "$ROOT_DIR/script/build_and_run.sh"
 fi
 
 if [ ! -d "$APP_BUNDLE" ]; then
@@ -26,17 +23,23 @@ if [ ! -d "$APP_BUNDLE" ]; then
   exit 1
 fi
 
-# Alte DMG entfernen
-rm -f "$DMG_PATH"
+# Sauberes Drag-Install-Layout: Staging-Ordner mit App + Applications-Symlink.
+STAGING="$DIST_DIR/dmg-staging"
+rm -rf "$STAGING" "$DMG_PATH"
+mkdir -p "$STAGING"
+cp -R "$APP_BUNDLE" "$STAGING/"
+ln -s /Applications "$STAGING/Applications"
 
-# DMG erstellen
+# DMG aus dem Staging-Ordner erstellen (komprimiert).
 echo "Erstelle DMG…" >&2
 hdiutil create \
   -volname "$VOLUME_NAME" \
-  -srcfolder "$APP_BUNDLE" \
+  -srcfolder "$STAGING" \
   -ov \
   -format UDZO \
   "$DMG_PATH"
+
+rm -rf "$STAGING"
 
 echo "DMG erstellt: $DMG_PATH" >&2
 echo "Größe: $(du -h "$DMG_PATH" | cut -f1)" >&2

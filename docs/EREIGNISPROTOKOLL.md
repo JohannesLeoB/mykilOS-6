@@ -30,6 +30,29 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-29 · Claude Code (Opus) — Release 6.5.0: sauberer Build + DMG + Packaging
+
+```
+Branch: polish/dampflok; Tag v6.5.0; 386 Tests grün (clean .build)
+Build:  ✅ from-scratch swift build · codesign --verify --deep --strict OK · DMG-Checksumme VALID
+```
+
+Sauberer Auslieferungs-Build:
+- `.build` + `dist` gelöscht → komplett frischer Compile (351 Module), 386 Tests grün.
+- App-Bundle 6.5.0 (Build 5), **stabil signiert** mit Apple-Development-Zertifikat (Kette bis
+  Apple Root CA), `MykGitCommit` injiziert. `codesign --verify --deep --strict` OK.
+- **DMG**: `dist/mykilOS-6.dmg` (7,2 MB, UDZO) mit sauberem Drag-Install-Layout
+  (App + `Applications`-Symlink); `hdiutil verify` = Prüfsumme VALID.
+- Skript-Verbesserungen committet: `build_and_run.sh` `MYKILOS_NO_LAUNCH=1` (bauen ohne Start →
+  kein Schlüsselbund-Prompt bei Packaging/CI); `create_dmg.sh` Staging-Ordner + Applications-Symlink;
+  (zuvor schon) automatische Apple-Development-Signatur (M6).
+- `dist/` ist gitignored (DMG nicht im Repo). Working Tree clean.
+
+Live-GUI-Klickdurchlauf bleibt durch den einmaligen macOS-Schlüsselbund-Dialog gated
+(Nutzer-Aktion „Immer erlauben" + M2) — kein App-Defekt.
+
+---
+
 ## 2026-06-29 · Claude Code (Opus) — S3: Volle Dokumentenvorschau
 
 ```

@@ -107,5 +107,11 @@ else
 fi
 /usr/bin/xattr -cr "$APP_BUNDLE" >/dev/null 2>&1 || true
 
-/usr/bin/open -n "$APP_BUNDLE"
-echo "Gestartet: $APP_BUNDLE" >&2
+# MYKILOS_NO_LAUNCH=1 → nur bauen+signieren (für Packaging/DMG/CI), nicht starten
+# (vermeidet den Schlüsselbund-Prompt bei reinen Build-Läufen).
+if [ "${MYKILOS_NO_LAUNCH:-0}" = "1" ]; then
+  echo "Gebaut (ohne Start): $APP_BUNDLE" >&2
+else
+  /usr/bin/open -n "$APP_BUNDLE"
+  echo "Gestartet: $APP_BUNDLE" >&2
+fi
