@@ -48,8 +48,14 @@ extension AssistantConversing {
 public final class ConversationEngine {
     private let chatStore: ChatStore
     private let provider: any AssistantConversing
-    private let registry: AssistantToolRegistry?
+    private var registry: AssistantToolRegistry?
     private let dataFlowLogger: DataFlowLogger?
+
+    /// Ersetzt die Tool-Registry — z. B. nachdem Kunden geladen/synchronisiert wurden,
+    /// damit `lookup_kunde` mit frischen Daten arbeitet (L24). Rein additiv, kein State-Bruch.
+    public func updateRegistry(_ newRegistry: AssistantToolRegistry) {
+        self.registry = newRegistry
+    }
     private static let maxToolRounds = 6
 
     public private(set) var isResponding = false

@@ -18,6 +18,7 @@ public final class AppState {
     public let homeBoard:  WidgetBoardStore
     public let homeNotes:  NoteStore
     public let audit:      AuditStore
+    public let favorites:  FavoritesStore
     public let chat:       ChatStore
     public let conversation: ConversationEngine
     public let profile:    ProfileStore
@@ -82,6 +83,7 @@ public final class AppState {
             db: database
         )
         self.audit = AuditStore(db: database)
+        self.favorites = FavoritesStore(db: database)
         self.profile = ProfileStore(db: database)
         let chatStore = ChatStore(db: database)
         self.chat = chatStore
@@ -202,9 +204,13 @@ public final class AppState {
             // AuditStore macht den Fehler über saveState sichtbar.
         }
         try? dataFlow.load()
+        try? favorites.load()   // leere Favoritenmenge ist kein Fehler (L25)
         // Registry seeden/laden
         await registry.seedIfEmpty()
         await registry.load()
+        // L24: Assistent bekommt das Kunden-Verzeichnis (lokaler Snapshot) — nach dem
+        // Laden, damit lookup_kunde echte Daten sieht statt einer leeren Cold-Start-Liste.
+        refreshAssistantKundenWissen()
 
         // B2-Fix: wenn Google verbunden aber kein UserInfo gecacht (z. B. Login vor S17),
         // einmal im Hintergrund nachladen — non-fatal, Sidebar zeigt Name ohne Flackern.
@@ -227,10 +233,19 @@ public final class AppState {
                 dataFlow.log(integrationID: "AIRTABLE_KUNDEN_PROJEKTE", actorUserID: actorUserID,
                              action: .success, recordsRead: registry.projects.count,
                              summary: "Projekte/Kunden aus Mastermind synchronisiert")
+                refreshAssistantKundenWissen()   // frische Kunden → Assistent
             }
         } catch {
             airtableAuth.setError(String(describing: error))
         }
+    }
+
+    // L24: baut die Assistenten-Tool-Registry mit dem aktuellen Kunden-Snapshot neu auf.
+    // Rein lokal (kein Airtable-Call) — nutzt die bereits geladene Registry. Erhält die
+    // KalkulationsEngine, sonst verschwände schaetze_projekt.
+    private func refreshAssistantKundenWissen() {
+        let brain = KundenBrain(customers: registry.customers, projects: registry.projects)
+        conversation.updateRegistry(.standard(kalkulationsEngine: kalkulationsEngine, kundenDirectory: brain))
     }
 
     // MARK: - Backup (Mandate G)

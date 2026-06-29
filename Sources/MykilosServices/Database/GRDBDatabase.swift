@@ -149,6 +149,15 @@ public final class GRDBDatabase: Sendable {
             }
         }
 
+        // v7_project_favorites (L25) — angepinnte Projekte. Schlüssel = projectNumber
+        // (Business-Schlüssel, kein UUID), damit Favoriten Airtable-Re-Syncs überleben.
+        migrator.registerMigration("v7_project_favorites") { db in
+            try db.create(table: "projectFavorites") { t in
+                t.primaryKey("projectNumber", .text)
+                t.column("addedAt", .double).notNull()
+            }
+        }
+
         try migrator.migrate(queue)
     }
 

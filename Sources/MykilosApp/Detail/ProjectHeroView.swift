@@ -9,6 +9,8 @@ struct ProjectHeroView: View {
     let project:  Project
     let customer: Customer?
     let onBack:   () -> Void
+    var isFavorite: Bool = false
+    var onToggleFavorite: () -> Void = {}
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
@@ -61,12 +63,26 @@ struct ProjectHeroView: View {
             }
             .buttonStyle(.plain)
             Spacer()
+            favoriteButton
             // Budget-Anzeige nur, wenn ein echtes Budget hinterlegt ist (Airtable
             // "Budget"-Feld) — kein Fake-Prozentwert ohne Datengrundlage.
             if budget != nil {
                 budgetPill
             }
         }
+    }
+
+    // Stern-Toggle im Detail-Header (L25).
+    private var favoriteButton: some View {
+        Button(action: onToggleFavorite) {
+            Image(systemName: isFavorite ? "star.fill" : "star")
+                .font(.mykSmall)
+                .foregroundStyle(isFavorite ? MykColor.tasks.color : .white.opacity(0.85))
+                .padding(.horizontal, MykSpace.s4).padding(.vertical, 7)
+                .background(Capsule().fill(.black.opacity(0.22)))
+        }
+        .buttonStyle(.plain)
+        .help(isFavorite ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen")
     }
 
     // MARK: Held-Inhalt

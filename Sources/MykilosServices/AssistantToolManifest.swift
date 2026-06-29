@@ -27,6 +27,7 @@ public enum AssistantToolManifest {
         "list_clickup_tasks":     "CLICKUP_TASKS",
         "search_katalog":         "LOCAL_DEVICECATALOG_ARTIKEL",
         "query_studio_knowledge": "STUDIO_KNOWLEDGE_QUERY",
+        "lookup_kunde":           "AIRTABLE_KUNDEN_LOOKUP",
         "schaetze_projekt":       "KALKULATION_LOCAL",
     ]
 

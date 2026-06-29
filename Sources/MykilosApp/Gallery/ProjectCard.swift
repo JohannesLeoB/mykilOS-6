@@ -11,7 +11,10 @@ struct ProjectCard: View {
     let action: () -> Void
 
     @Environment(StudioContext.self) private var context
+    @Environment(AppState.self) private var appState
     @State private var isHovered = false
+
+    private var isFavorite: Bool { appState.favorites.isFavorite(project.projectNumber) }
 
     private var signalCount: Int { context.signals(for: project.projectNumber).count }
     private var hasCriticalSignal: Bool {
@@ -64,6 +67,7 @@ struct ProjectCard: View {
             // Projekt-Kürzel oben rechts + Signal-Badge oben links
             VStack {
                 HStack {
+                    starButton
                     // Signal-Badge: nur wenn aktive Sitzungs-Signale vorhanden
                     if signalCount > 0 {
                         Text("\(signalCount)")
@@ -132,6 +136,24 @@ struct ProjectCard: View {
             }
         }
         .padding(MykSpace.s5)
+    }
+
+    // Stern-Toggle (L25). Eigener Plain-Button im Hero — macOS leitet den inneren
+    // Button-Tap, der Kartentap bleibt fürs Öffnen. try? ist hier vertretbar: der
+    // Store macht Fehler über saveState sichtbar, die View bleibt fehlerfrei.
+    private var starButton: some View {
+        Button {
+            try? appState.favorites.toggle(projectNumber: project.projectNumber)
+        } label: {
+            Image(systemName: isFavorite ? "star.fill" : "star")
+                .font(.mykSmall)
+                .foregroundStyle(isFavorite ? MykColor.tasks.color : .white.opacity(0.85))
+                .padding(6)
+                .background(Circle().fill(.black.opacity(0.22)))
+                .padding(MykSpace.s4)
+        }
+        .buttonStyle(.plain)
+        .help(isFavorite ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen")
     }
 
     // MARK: Helfer

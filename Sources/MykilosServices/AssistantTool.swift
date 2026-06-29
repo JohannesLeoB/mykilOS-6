@@ -491,6 +491,37 @@ struct QueryStudioKnowledgeTool: AssistantTool {
     }
 }
 
+// MARK: - LookupKundeTool (read-only, lokal) — Airtable-Kunden-Verzeichnis (L24)
+// Durchsucht die lokal synchronisierten Airtable-Kunden (Name/Kundennummer/
+// Projektanzahl). KEINE Kontaktdetails (dafür search_contacts), KEIN Live-Airtable-
+// Zugriff — arbeitet nur auf dem KundenBrain-Snapshot.
+struct LookupKundeTool: AssistantTool {
+    private let brain: KundenBrain
+    init(brain: KundenBrain) { self.brain = brain }
+
+    var name: String { "lookup_kunde" }
+    var description: String {
+        "Durchsucht die lokal synchronisierten Airtable-Kunden (nur lesen): Kundenname, "
+        + "Kundennummer und Anzahl Projekte. Liefert KEINE E-Mail/Telefon — dafür "
+        + "search_contacts (Google-Kontakte). Leere Anfrage = Kundenübersicht."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "query", description: "Kundenname oder Kundennummer (leer = Übersicht)", required: false)]
+    }
+
+    func run(input: [String: String]) async -> ToolRunResult {
+        let query = (input["query"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if query.isEmpty || ["übersicht", "overview", "alle", "liste"].contains(query.lowercased()) {
+            return ToolRunResult(text: brain.overview)
+        }
+        let hits = brain.lookup(query)
+        guard hits.isEmpty == false else {
+            return ToolRunResult(text: "Keine Kunden für „\(query)“ gefunden. Tipp: Teil des Namens oder Kundennummer.")
+        }
+        return ToolRunResult(text: hits.map(brain.describe).joined(separator: "\n"))
+    }
+}
+
 // MARK: - AssistantToolRegistry (Whitelist, default-deny)
 public struct AssistantToolRegistry: Sendable {
     private let tools: [any AssistantTool]
@@ -509,7 +540,8 @@ public struct AssistantToolRegistry: Sendable {
         clickUp: ClickUpFetching = ClickUpClient(),
         studioBrain: StudioBrain? = StudioBrain.shared,
         kalkulationsEngine: (any KalkulationsEngineProviding)? = nil,
-        deviceCatalog: DeviceCatalog? = DeviceCatalog.loadDefault()
+        deviceCatalog: DeviceCatalog? = DeviceCatalog.loadDefault(),
+        kundenDirectory: KundenBrain? = nil
     ) -> AssistantToolRegistry {
         var tools: [any AssistantTool] = [
             SearchGmailTool(client: gmail, cache: gmailCache),
@@ -522,6 +554,9 @@ public struct AssistantToolRegistry: Sendable {
         ]
         if let studioBrain {
             tools.append(QueryStudioKnowledgeTool(brain: studioBrain))
+        }
+        if let kundenDirectory {
+            tools.append(LookupKundeTool(brain: kundenDirectory))
         }
         if let engine = kalkulationsEngine {
             tools.append(KostenSchaetzungTool(engine: engine))

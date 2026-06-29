@@ -9,20 +9,25 @@ import MykilosWidgets
 struct ProjectFavoritesWidget: View {
     @Environment(AppState.self) private var appState
 
+    // Favorisierte aktive Projekte (L25). Reihenfolge folgt der Registry.
+    private var favoriteProjects: [Project] {
+        appState.registry.activeProjects().filter { appState.favorites.isFavorite($0.projectNumber) }
+    }
+
     var body: some View {
         WidgetContainer(
             kind: .projectFaves,
-            sourceLabel: "PINNED  ·  \(appState.registry.activeProjects().count) AKTIVE PROJEKTE",
+            sourceLabel: "PINNED  ·  \(favoriteProjects.count) FAVORITEN",
             renderState: appState.registry.isLoading ? .loading : .content,
             projectID: "home"
         ) {
             VStack(alignment: .leading, spacing: MykSpace.s5) {
                 HStack {
                     SourceChip(kind: .projectFaves)
-                    Text("Projekte").mykWidgetTitle()
+                    Text("Favoriten").mykWidgetTitle()
                     Spacer()
                 }
-                if appState.registry.activeProjects().isEmpty {
+                if favoriteProjects.isEmpty {
                     emptyState
                 } else {
                     projectGrid
@@ -31,25 +36,25 @@ struct ProjectFavoritesWidget: View {
         }
     }
 
+    private var emptyState: some View {
+        Text("Noch keine Favoriten — Stern auf einer Projektkarte tippen.")
+            .font(.mykCaption)
+            .foregroundStyle(MykColor.muted.color)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, MykSpace.s8)
+    }
+
     private var projectGrid: some View {
         LazyVGrid(
             columns: Array(repeating: GridItem(.flexible(), spacing: MykSpace.s4), count: 3),
             spacing: MykSpace.s4
         ) {
-            ForEach(appState.registry.activeProjects().prefix(6)) { project in
+            ForEach(favoriteProjects.prefix(6)) { project in
                 MiniProjectCard(project: project, customer: appState.registry.customer(for: project)) {
                     appState.pendingProjectSelection = project
                 }
             }
         }
-    }
-
-    private var emptyState: some View {
-        Text("Noch keine Projekte")
-            .font(.mykCaption)
-            .foregroundStyle(MykColor.muted.color)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, MykSpace.s8)
     }
 }
 

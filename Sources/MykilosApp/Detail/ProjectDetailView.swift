@@ -28,7 +28,9 @@ struct ProjectDetailView: View {
                 ProjectHeroView(
                     project:  project,
                     customer: appState.registry.customer(for: project),
-                    onBack:   onBack
+                    onBack:   onBack,
+                    isFavorite: appState.favorites.isFavorite(project.projectNumber),
+                    onToggleFavorite: { try? appState.favorites.toggle(projectNumber: project.projectNumber) }
                 )
                 tabBar
                 Divider().overlay(MykColor.line.color)

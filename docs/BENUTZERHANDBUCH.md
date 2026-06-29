@@ -272,13 +272,14 @@ Fehlermeldung, Dauer-ms, Zusammenfassung.
 
 ---
 
-### Alle Weichen (Stand 2026-06-28 · 25 Weichen)
+### Alle Weichen (Stand 2026-06-29 · 26 Weichen)
 
 #### Airtable
 
 | Integrations-ID | Name | Richtung | Trigger | NO-GO | Notiz |
 |---|---|---|---|---|---|
 | `AIRTABLE_KUNDEN_PROJEKTE` | Kunden & Projekte | READ | App-Start + manuell | read-only | System-of-Record für Projekte/Kunden. Paginiert (offset). Schreibt nie zurück. |
+| `AIRTABLE_KUNDEN_LOOKUP` | Kunden-Lookup (Assistent) | READ | onDemand (Tool-Call) | read-only | Assistenten-Tool `lookup_kunde` über den **lokalen** Sync-Cache (kein Live-Call): Name, Kundennummer, Projektanzahl. Keine E-Mail/Telefon (→ search_contacts). Eigene Weiche (L24). |
 | `DATAFLOW_LOG_WRITE` | Datenstrom-Log | WRITE | Ereignisgesteuert | append-only (Mastermind) | Jeder Sync-Handshake landet hier. Harte Whitelist im AirtableClient: nur diese Tabelle + Handbuch. |
 | `DATAFLOW_HANDBOOK_WRITE` | Datenstrom-Handbuch | WRITE | onDemand (Session) | append-only (Mastermind) | Diese Karte selbst. Jede neue Weiche wird hier registriert. |
 | `POLISH_LOG_WRITE` | Dampflok Polish-Log | WRITE | onDemand (Session) | append-only (Mastermind) | Nur Claude-Code-Agent, nicht die App. Tabelle `tblberJMgRArGSypE`. |

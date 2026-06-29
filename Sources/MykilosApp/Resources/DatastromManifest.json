@@ -173,5 +173,12 @@
     "system": "Lokal",
     "direction": "READ",
     "link": "mykilos://datastream/STUDIO_KNOWLEDGE_QUERY"
+  },
+  {
+    "integrationID": "AIRTABLE_KUNDEN_LOOKUP",
+    "name": "Airtable Kunden-Lookup (Assistent, lokaler Sync-Cache)",
+    "system": "Airtable",
+    "direction": "READ",
+    "link": "mykilos://datastream/AIRTABLE_KUNDEN_LOOKUP"
   }
 ]
