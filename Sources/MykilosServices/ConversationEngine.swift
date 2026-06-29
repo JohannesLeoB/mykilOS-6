@@ -112,6 +112,7 @@ public final class ConversationEngine {
         // aktuellen Scope sinnvoll sind (Drive/ClickUp brauchen eine Projekt-Handle).
         let driveEnabled      = !schaetzModusEnabled && has("list_drive_folder") && (focusedDriveFolderID?.isEmpty == false)
         let clickUpEnabled    = !schaetzModusEnabled && has("list_clickup_tasks") && (focusedClickUpListID?.isEmpty == false)
+        let allClickUpEnabled = !schaetzModusEnabled && has("list_all_clickup_tasks")
         let contactsEnabled   = !schaetzModusEnabled && has("search_contacts")
         let contactsWriteEnabled = !schaetzModusEnabled && has("create_contact")
         let kontaktVerzeichnisEnabled = !schaetzModusEnabled && has("lookup_kontakt")
@@ -126,7 +127,8 @@ public final class ConversationEngine {
             signals: signals, projects: projects, now: now, toolsEnabled: effectiveToolsEnabled,
             kalkulationsEnabled: kalkulationsEnabled,
             driveEnabled: driveEnabled, contactsEnabled: contactsEnabled,
-            clickUpEnabled: clickUpEnabled, contactsWriteEnabled: contactsWriteEnabled,
+            clickUpEnabled: clickUpEnabled, allClickUpEnabled: allClickUpEnabled,
+            contactsWriteEnabled: contactsWriteEnabled,
             kontaktVerzeichnisEnabled: kontaktVerzeichnisEnabled,
             studioBrainEnabled: studioBrainEnabled,
             katalogEnabled: katalogEnabled, notesEnabled: notesEnabled,

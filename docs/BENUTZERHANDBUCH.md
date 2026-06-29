@@ -255,7 +255,8 @@ Wenn Tools aktiviert sind, kann der Assistent folgende Aktionen ausführen
 | `list_drive_folder` | Listet Drive-Ordner-Inhalt | toolsEnabled + driveFolderID |
 | `find_offers` | Findet Angebote/Rechnungen im Drive (rekursiv, auch in „01 INFOS"); global per Projektname | toolsEnabled |
 | `read_drive_file` | Liest den **Inhalt** einer Drive-Datei als Klartext (PDF via PDFKit, Google Docs/Sheets/Slides via Export, Text); findet die Datei per (Teil-)Name rekursiv im Projektordner | toolsEnabled |
-| `list_clickup_tasks` | Liest ClickUp-Aufgaben | toolsEnabled + clickUpListID |
+| `list_clickup_tasks` | Liest offene ClickUp-Aufgaben des aktuellen Projekts | toolsEnabled + clickUpListID |
+| `list_all_clickup_tasks` | **Projektübergreifende** Übersicht aller offenen ClickUp-Aufgaben, gruppiert nach Projekt (optional Projekt-Filter) | toolsEnabled + ≥1 Projekt mit ClickUp-Liste |
 | `search_contacts` | Sucht Google-Kontakte | toolsEnabled |
 | `create_contact` | Schlägt einen **neuen** Google-Kontakt vor → Bestätigungskarte. Schreibt erst nach Klick „Kontakt anlegen" (People API + Audit), nie automatisch | toolsEnabled (+ Google verbunden, `contacts`-Scope/M2) |
 | `schaetze_projekt` | Kostenschätzung (lokal) | toolsEnabled oder schaetzModus |
@@ -354,7 +355,7 @@ Fehlermeldung, Dauer-ms, Zusammenfassung.
 
 | Integrations-ID | Name | Richtung | Trigger | NO-GO | Notiz |
 |---|---|---|---|---|---|
-| `CLICKUP_TASKS` | ClickUp Aufgaben | READ | onDemand (Widget) | read-only | Offene Tasks (`archived=false`). Assistenten-Tool in Entwicklung. |
+| `CLICKUP_TASKS` | ClickUp Aufgaben | READ | onDemand (Widget/Tool) | read-only | Offene Tasks (`archived=false`). Tools: `list_clickup_tasks` (Fokus-Projekt) + `list_all_clickup_tasks` (projektübergreifend, gruppiert, S11). Daten erst vollständig, wenn ClickUp-Listen-IDs in Airtable gepflegt sind (M3). |
 
 #### Clockodo
 

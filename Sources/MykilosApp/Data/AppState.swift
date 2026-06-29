@@ -302,9 +302,14 @@ public final class AppState {
         let brain = KundenBrain(customers: registry.customers, projects: registry.projects)
         let dir = ProjectDirectory(projects: registry.projects, customers: registry.customers)
         let contactDir = ContactDirectory(contacts: studioContacts)
+        // S11: Projekte mit verknüpfter ClickUp-Liste → projektübergreifende Aufgaben-Übersicht.
+        let clickUpListings: [ProjectClickUpRef] = registry.projects.compactMap { project in
+            guard let listID = project.links.clickUpListID, listID.isEmpty == false else { return nil }
+            return ProjectClickUpRef(projectNumber: project.projectNumber, title: project.title, listID: listID)
+        }
         conversation.updateRegistry(.standard(
             kalkulationsEngine: kalkulationsEngine, kundenDirectory: brain,
-            contactDirectory: contactDir,
+            contactDirectory: contactDir, clickUpListings: clickUpListings,
             notesStore: assistantNotes, tasksStore: assistantTasks, projectDirectory: dir))
     }
 

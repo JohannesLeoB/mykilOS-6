@@ -19,6 +19,7 @@ public enum AssistantGrounding {
         driveEnabled: Bool = false,
         contactsEnabled: Bool = false,
         clickUpEnabled: Bool = false,
+        allClickUpEnabled: Bool = false,
         contactsWriteEnabled: Bool = false,
         kontaktVerzeichnisEnabled: Bool = false,
         studioBrainEnabled: Bool = false,
@@ -90,6 +91,9 @@ public enum AssistantGrounding {
             }
             if clickUpEnabled {
                 toolLines.append("- list_clickup_tasks: offene ClickUp-Aufgaben dieses Projekts (Status, Fälligkeit).")
+            }
+            if allClickUpEnabled {
+                toolLines.append("- list_all_clickup_tasks: PROJEKTÜBERGREIFENDE Übersicht aller offenen ClickUp-Aufgaben, gruppiert nach Projekt. Nutze es für „Was steht insgesamt/überall offen?“.")
             }
             if studioBrainEnabled {
                 toolLines.append("- query_studio_knowledge: Studio-Wissensbasis aus der Projekthistorie (Projekte, Lieferanten, Team, Problem-Signale, Preis-Nennungen). Nutze sie für Fragen zu früheren/laufenden Projekten und Lieferanten.")

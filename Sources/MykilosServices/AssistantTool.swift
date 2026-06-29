@@ -465,6 +465,71 @@ struct ListClickUpTasksTool: AssistantTool {
     }
 }
 
+// MARK: - AllClickUpTasksTool (read-only) — projektübergreifende Aufgaben-Übersicht (S11)
+// Aggregiert offene ClickUp-Aufgaben über ALLE Projekte mit verknüpfter Liste.
+// Beantwortet „Was steht insgesamt offen?" — anders als list_clickup_tasks (nur Fokus-Projekt).
+struct AllClickUpTasksTool: AssistantTool {
+    private let client: ClickUpFetching
+    private let listings: [ProjectClickUpRef]
+    // Obergrenze, damit nicht hunderte API-Calls entstehen; Rest wird offen ausgewiesen.
+    private let maxLists = 20
+    init(client: ClickUpFetching = ClickUpClient(), listings: [ProjectClickUpRef]) {
+        self.client = client
+        self.listings = listings
+    }
+
+    var name: String { "list_all_clickup_tasks" }
+    var description: String {
+        "Projektübergreifende Übersicht aller offenen ClickUp-Aufgaben (nur lesen), gruppiert "
+        + "nach Projekt. Nutze es für „Was steht insgesamt offen?“ statt list_clickup_tasks "
+        + "(das nur das aktuelle Projekt zeigt). Optional 'projekt' = Filter auf einen Namen/Nr."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "projekt", description: "optionaler Projekt-Filter (Name oder Nummer)", required: false)]
+    }
+
+    func run(input: [String: String]) async -> ToolRunResult {
+        let filter = (input["projekt"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        var refs = listings
+        if filter.isEmpty == false {
+            refs = refs.filter { $0.projectNumber.lowercased().contains(filter) || $0.title.lowercased().contains(filter) }
+        }
+        guard refs.isEmpty == false else {
+            return ToolRunResult(text: "Kein Projekt hat eine verknüpfte ClickUp-Liste. (Listen-IDs werden in Airtable gepflegt.)")
+        }
+        let limited = Array(refs.prefix(maxLists))
+        var blocks: [String] = []
+        var total = 0
+        var failed = 0
+        for ref in limited {
+            do {
+                let tasks = try await client.tasks(listID: ref.listID)
+                guard tasks.isEmpty == false else { continue }
+                total += tasks.count
+                let lines = tasks.prefix(15).map { t -> String in
+                    var parts = ["  • \(t.name) [\(t.status)]"]
+                    if t.isUrgent { parts.append("· DRINGEND") }
+                    if let due = t.dueDate { parts.append("· fällig \(toolDateFormatter.string(from: due))") }
+                    return parts.joined(separator: " ")
+                }
+                blocks.append("\(ref.projectNumber) \(ref.title) (\(tasks.count)):\n" + lines.joined(separator: "\n"))
+            } catch ClickUpError.notConnected {
+                return ToolRunResult(text: "ClickUp ist nicht verbunden. Bitte in den Einstellungen verbinden.", isError: true)
+            } catch {
+                failed += 1   // einzelne Liste übersprungen, Rest weiter
+            }
+        }
+        guard blocks.isEmpty == false else {
+            return ToolRunResult(text: "Keine offenen Aufgaben über alle verknüpften Projekte.")
+        }
+        var footer: [String] = []
+        if refs.count > limited.count { footer.append("… \(refs.count - limited.count) weitere Listen nicht geladen (Limit \(maxLists)).") }
+        if failed > 0 { footer.append("\(failed) Liste(n) nicht erreichbar.") }
+        let header = "Offene Aufgaben: \(total) über \(blocks.count) Projekt(e)."
+        return ToolRunResult(text: ([header] + blocks + footer).joined(separator: "\n"))
+    }
+}
+
 // MARK: - SearchKatalogTool (read-only, lokal) — Artikel-/Gerätekatalog-Suche
 // Durchsucht den lokalen DeviceCatalog (CSV-Export aus Airtable appdxTeT6bhSBmwx5).
 // Gibt Hersteller, Beschreibung und MYKILOS-VK zurück. NIE schreiben.
@@ -1063,6 +1128,7 @@ public struct AssistantToolRegistry: Sendable {
         deviceCatalog: DeviceCatalog? = DeviceCatalog.loadDefault(),
         kundenDirectory: KundenBrain? = nil,
         contactDirectory: ContactDirectory? = nil,
+        clickUpListings: [ProjectClickUpRef] = [],
         notesStore: AssistantNotesStore? = nil,
         tasksStore: AssistantTasksStore? = nil,
         projectDirectory: ProjectDirectory? = nil
@@ -1087,6 +1153,9 @@ public struct AssistantToolRegistry: Sendable {
         }
         if let contactDirectory {
             tools.append(LookupKontaktTool(directory: contactDirectory))
+        }
+        if clickUpListings.isEmpty == false {
+            tools.append(AllClickUpTasksTool(client: clickUp, listings: clickUpListings))
         }
         if let notesStore {
             tools.append(CreateNoteTool(store: notesStore))

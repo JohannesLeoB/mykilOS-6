@@ -30,6 +30,25 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-29 · Claude Code (Opus) — S11: ClickUp projektübergreifend
+
+```
+Branch: polish/dampflok; 358 → 361 Tests grün
+```
+
+Memo P2 „ClickUp projektübergreifend — Aufgaben nur im Fokus-Projekt sichtbar".
+Neues Tool `list_all_clickup_tasks` (`AllClickUpTasksTool`) aggregiert offene Tasks über
+ALLE Projekte mit verknüpfter Liste, gruppiert nach Projekt, optional Projekt-Filter.
+Robust: Cap 20 Listen (Rest wird ausgewiesen), einzelne kaputte Liste wird übersprungen.
+`ProjectClickUpRef` (Kit); AppState baut die Listings aus `registry.projects` (Felder mit
+`clickUpListID`); mappt auf bestehende Weiche CLICKUP_TASKS. +3 Tests (Aggregation,
+Filter+Skip-Fehler, fehlt-ohne-Listings).
+
+**Hinweis:** liefert erst Daten, wenn ClickUp-Listen-IDs in Airtable gepflegt sind (M3) —
+die Mechanik steht, das Feld `Projekte.ClickUp-Liste` ist aktuell überwiegend leer.
+
+---
+
 ## 2026-06-29 · Claude Code (Opus) — S12: Gmail-Suche parametrisierbar (mehr als 10)
 
 ```
