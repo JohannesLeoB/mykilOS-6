@@ -20,7 +20,8 @@ public enum AssistantGrounding {
         contactsEnabled: Bool = false,
         clickUpEnabled: Bool = false,
         studioBrainEnabled: Bool = false,
-        katalogEnabled: Bool = false
+        katalogEnabled: Bool = false,
+        notesEnabled: Bool = false
     ) -> String {
         var lines: [String] = []
         var intro = "Du bist der mykilOS-Projektassistent für ein Design-/Küchenstudio. "
@@ -81,6 +82,9 @@ public enum AssistantGrounding {
             }
             if kalkulationsEnabled {
                 toolLines.append("- schaetze_projekt: Kostenschätzung (Min/Mitte/Max-Netto) aus der lokalen Kalkulationsdatenbank.")
+            }
+            if notesEnabled {
+                toolLines.append("- create_note / list_notes / update_note / delete_note: persistente Notizen & Erinnerungen lokal verwalten. Wenn der Nutzer etwas notieren oder sich erinnern lassen will, lege es mit create_note an (überlebt den Neustart) — KEIN Kalender-Link nötig.")
             }
             var toolMsg = toolLines.joined(separator: "\n")
             toolMsg += "\nWenn für eine Frage kein Werkzeug oben passt (z. B. Rechnungen), sag offen, dass dir der Live-Zugriff fehlt. "

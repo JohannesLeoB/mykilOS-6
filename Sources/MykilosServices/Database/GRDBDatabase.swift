@@ -158,6 +158,16 @@ public final class GRDBDatabase: Sendable {
             }
         }
 
+        // v8_assistant_notes (S4) — vom Assistenten verwaltete Notizen/Erinnerungen.
+        migrator.registerMigration("v8_assistant_notes") { db in
+            try db.create(table: "assistantNotes") { t in
+                t.primaryKey("id", .text)
+                t.column("body",      .text).notNull()
+                t.column("createdAt", .double).notNull()
+                t.column("updatedAt", .double).notNull().indexed()
+            }
+        }
+
         try migrator.migrate(queue)
     }
 

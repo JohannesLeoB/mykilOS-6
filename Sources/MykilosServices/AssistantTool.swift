@@ -222,24 +222,53 @@ public struct SuggestCalendarEventTool: AssistantTool {
         guard title.isEmpty == false else {
             return ToolRunResult(text: "Kein Titel angegeben.", isError: true)
         }
-        var items: [URLQueryItem] = [URLQueryItem(name: "text", value: title)]
-        if let raw = input["date"], raw.isEmpty == false {
-            let normalized = raw
-                .replacingOccurrences(of: "-", with: "")
-                .replacingOccurrences(of: ":", with: "")
-                .replacingOccurrences(of: " ", with: "T")
-            items.append(URLQueryItem(name: "dates", value: "\(normalized)/\(normalized)"))
+        // Kanonisches Google-„Add to Calendar"-Template (render?action=TEMPLATE) —
+        // robuster als das frühere /calendar/r/eventedit. URLComponents kodiert alle
+        // Werte (Umlaute, Emojis, Telefonnummern) sauber.
+        var items: [URLQueryItem] = [
+            URLQueryItem(name: "action", value: "TEMPLATE"),
+            URLQueryItem(name: "text", value: title),
+        ]
+        if let raw = input["date"], let dates = Self.googleDates(from: raw) {
+            items.append(URLQueryItem(name: "dates", value: dates))
         }
         if let notes = input["notes"], notes.isEmpty == false {
             items.append(URLQueryItem(name: "details", value: notes))
         }
-        var comps = URLComponents(string: "https://calendar.google.com/calendar/r/eventedit")!
+        var comps = URLComponents(string: "https://calendar.google.com/calendar/render")!
         comps.queryItems = items
-        let url = comps.url?.absoluteString ?? "https://calendar.google.com/calendar/r/eventedit"
+        let url = comps.url?.absoluteString ?? "https://calendar.google.com/calendar/render?action=TEMPLATE"
+        // WICHTIG fürs Modell: die URL geht NUR an die Aktionskarte unten. Das Modell
+        // bekommt sie hier NICHT — es darf deshalb KEINEN eigenen Link in den Text
+        // schreiben (fabrizierte Links → ungültige URL → Öffnen-Fehler -50), sondern
+        // auf die Karte „Im Kalender öffnen" verweisen.
         return ToolRunResult(
-            text: "Kalender-Link erstellt: \(title)",
+            text: "Kalender-Termin vorbereitet: \(title). Die Aktionskarte zum Öffnen erscheint "
+                + "automatisch unter deiner Antwort — verweise darauf und schreibe KEINEN eigenen Link.",
             actionURL: url
         )
+    }
+
+    /// Normalisiert ein Datum auf Googles `dates`-Format (YYYYMMDD oder YYYYMMDDTHHMMSS,
+    /// Start/Ende). Liefert nil, wenn kein verwertbares Datum erkennbar ist (dann wird
+    /// `dates` weggelassen — der Link öffnet trotzdem, Zeit wählt der Nutzer).
+    static func googleDates(from raw: String) -> String? {
+        let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: ":", with: "")
+            .replacingOccurrences(of: " ", with: "T")
+        // Erlaubt: 8 Ziffern (Datum) oder Datum+T+HHmm(ss).
+        let digitsOnly = cleaned.replacingOccurrences(of: "T", with: "")
+        guard digitsOnly.allSatisfy(\.isNumber), digitsOnly.count >= 8 else { return nil }
+        let datePart = String(digitsOnly.prefix(8))
+        if digitsOnly.count >= 12 {
+            // HHMM(SS) → auf HHMMSS auffüllen.
+            var time = String(digitsOnly.dropFirst(8).prefix(6))
+            while time.count < 6 { time += "0" }
+            let start = "\(datePart)T\(time)"
+            return "\(start)/\(start)"
+        }
+        return "\(datePart)/\(datePart)"   // ganztägig
     }
 }
 
@@ -522,6 +551,102 @@ struct LookupKundeTool: AssistantTool {
     }
 }
 
+// MARK: - Notiz-Tools (S4) — die EINZIGEN Schreib-Tools des Assistenten.
+// Bewusst nur lokale, nutzer-eigene Notizen (kein externer Schreibzugriff). Jeder
+// Lauf wird von der ConversationEngine als DataFlow-Handshake protokolliert.
+
+struct CreateNoteTool: AssistantTool {
+    private let store: AssistantNotesStore
+    init(store: AssistantNotesStore) { self.store = store }
+    var name: String { "create_note" }
+    var description: String {
+        "Legt eine persistente Notiz/Erinnerung an (lokal gespeichert, überlebt den "
+        + "Chat-/App-Neustart). Nutze es, wenn der Nutzer etwas notieren oder sich erinnern lassen will."
+    }
+    var parameters: [ToolParameter] { [ToolParameter(name: "text", description: "Der Notiztext")] }
+    func run(input: [String: String]) async -> ToolRunResult {
+        let text = (input["text"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard text.isEmpty == false else { return ToolRunResult(text: "Kein Notiztext angegeben.", isError: true) }
+        do {
+            let note = try await store.create(text)
+            return ToolRunResult(text: "Notiz angelegt [\(note.ref)]: \(note.body)")
+        } catch {
+            return ToolRunResult(text: "Notiz konnte nicht gespeichert werden: \(error.localizedDescription)", isError: true)
+        }
+    }
+}
+
+struct ListNotesTool: AssistantTool {
+    private let store: AssistantNotesStore
+    init(store: AssistantNotesStore) { self.store = store }
+    var name: String { "list_notes" }
+    var description: String { "Listet alle gespeicherten Notizen/Erinnerungen (neueste zuerst) mit Kurzbezug." }
+    var parameters: [ToolParameter] { [] }
+    func run(input: [String: String]) async -> ToolRunResult {
+        do {
+            let notes = try await store.all()
+            guard notes.isEmpty == false else { return ToolRunResult(text: "Keine Notizen gespeichert.") }
+            let fmt = DateFormatter(); fmt.dateFormat = "dd.MM.yy HH:mm"; fmt.locale = Locale(identifier: "de_DE")
+            let lines = notes.map { "• [\($0.ref)] \($0.body) (\(fmt.string(from: $0.updatedAt)))" }
+            return ToolRunResult(text: lines.joined(separator: "\n"))
+        } catch {
+            return ToolRunResult(text: "Notizen konnten nicht geladen werden: \(error.localizedDescription)", isError: true)
+        }
+    }
+}
+
+struct UpdateNoteTool: AssistantTool {
+    private let store: AssistantNotesStore
+    init(store: AssistantNotesStore) { self.store = store }
+    var name: String { "update_note" }
+    var description: String {
+        "Ändert den Text einer bestehenden Notiz. 'note' = Kurzbezug/ID oder Teil des alten Textes."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "note", description: "Kurzbezug, ID oder Textausschnitt der Notiz"),
+         ToolParameter(name: "text", description: "Der neue Notiztext")]
+    }
+    func run(input: [String: String]) async -> ToolRunResult {
+        let q = (input["note"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = (input["text"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard q.isEmpty == false, text.isEmpty == false else {
+            return ToolRunResult(text: "Notiz-Bezug und neuer Text nötig.", isError: true)
+        }
+        do {
+            guard let note = try await store.update(matching: q, newBody: text) else {
+                return ToolRunResult(text: "Keine Notiz zu \(q) gefunden.", isError: true)
+            }
+            return ToolRunResult(text: "Notiz [\(note.ref)] aktualisiert: \(note.body)")
+        } catch {
+            return ToolRunResult(text: "Aktualisierung fehlgeschlagen: \(error.localizedDescription)", isError: true)
+        }
+    }
+}
+
+struct DeleteNoteTool: AssistantTool {
+    private let store: AssistantNotesStore
+    init(store: AssistantNotesStore) { self.store = store }
+    var name: String { "delete_note" }
+    var description: String { "Löscht eine Notiz. 'note' = Kurzbezug/ID oder Teil des Textes." }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "note", description: "Kurzbezug, ID oder Textausschnitt der zu löschenden Notiz")]
+    }
+    func run(input: [String: String]) async -> ToolRunResult {
+        let q = (input["note"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard q.isEmpty == false else {
+            return ToolRunResult(text: "Welche Notiz? Nenne Kurzbezug oder Textausschnitt.", isError: true)
+        }
+        do {
+            guard let note = try await store.delete(matching: q) else {
+                return ToolRunResult(text: "Keine Notiz zu \(q) gefunden.", isError: true)
+            }
+            return ToolRunResult(text: "Notiz gelöscht [\(note.ref)]: \(note.body)")
+        } catch {
+            return ToolRunResult(text: "Löschen fehlgeschlagen: \(error.localizedDescription)", isError: true)
+        }
+    }
+}
+
 // MARK: - AssistantToolRegistry (Whitelist, default-deny)
 public struct AssistantToolRegistry: Sendable {
     private let tools: [any AssistantTool]
@@ -541,7 +666,8 @@ public struct AssistantToolRegistry: Sendable {
         studioBrain: StudioBrain? = StudioBrain.shared,
         kalkulationsEngine: (any KalkulationsEngineProviding)? = nil,
         deviceCatalog: DeviceCatalog? = DeviceCatalog.loadDefault(),
-        kundenDirectory: KundenBrain? = nil
+        kundenDirectory: KundenBrain? = nil,
+        notesStore: AssistantNotesStore? = nil
     ) -> AssistantToolRegistry {
         var tools: [any AssistantTool] = [
             SearchGmailTool(client: gmail, cache: gmailCache),
@@ -557,6 +683,12 @@ public struct AssistantToolRegistry: Sendable {
         }
         if let kundenDirectory {
             tools.append(LookupKundeTool(brain: kundenDirectory))
+        }
+        if let notesStore {
+            tools.append(CreateNoteTool(store: notesStore))
+            tools.append(ListNotesTool(store: notesStore))
+            tools.append(UpdateNoteTool(store: notesStore))
+            tools.append(DeleteNoteTool(store: notesStore))
         }
         if let engine = kalkulationsEngine {
             tools.append(KostenSchaetzungTool(engine: engine))

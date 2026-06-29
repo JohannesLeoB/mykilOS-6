@@ -40,6 +40,9 @@ public final class AppState {
     // (sonst nil-Lookup). Echter Seed-/Korpus-Provider folgt separat.
     public let kalkulationsEngine: any KalkulationsEngineProviding
 
+    // S4: vom Assistenten verwaltete Notizen (lokal, persistent).
+    public let assistantNotes: AssistantNotesStore
+
     // Projekt-Boards on-demand (pro geöffnetem Projekt)
     private var projectBoards: [String: WidgetBoardStore] = [:]
     private var projectNotes:  [String: NoteStore]        = [:]
@@ -108,13 +111,14 @@ public final class AppState {
             auditStore: audit   // bestätigte Anpassungen landen im Audit-Log
         )
         self.kalkulationsEngine = kalkulationsEngine
-        // Read-only Tool-Whitelist (Sevdesk NIE enthalten). Tools laufen nur,
-        // wenn der Nutzer das Opt-in aktiviert (siehe AssistantChatView).
-        // schaetze_projekt ist über die KalkulationsEngine lokal verfügbar.
+        let notes = AssistantNotesStore(db: database)
+        self.assistantNotes = notes
+        // Read-only Tool-Whitelist (Sevdesk NIE enthalten) + die lokalen Notiz-Schreib-
+        // Tools (S4). Tools laufen nur bei Opt-in (siehe AssistantChatView).
         self.conversation = ConversationEngine(
             chatStore: chatStore,
             provider: ClaudeChatClient(),
-            registry: .standard(kalkulationsEngine: kalkulationsEngine),
+            registry: .standard(kalkulationsEngine: kalkulationsEngine, notesStore: notes),
             dataFlowLogger: dataFlow
         )
     }
@@ -245,7 +249,8 @@ public final class AppState {
     // KalkulationsEngine, sonst verschwände schaetze_projekt.
     private func refreshAssistantKundenWissen() {
         let brain = KundenBrain(customers: registry.customers, projects: registry.projects)
-        conversation.updateRegistry(.standard(kalkulationsEngine: kalkulationsEngine, kundenDirectory: brain))
+        conversation.updateRegistry(.standard(
+            kalkulationsEngine: kalkulationsEngine, kundenDirectory: brain, notesStore: assistantNotes))
     }
 
     // MARK: - Backup (Mandate G)

@@ -131,7 +131,7 @@ Alle Drive-Dateien des Accounts, nach Änderungszeit sortiert.
 Projektliste links, Angebots-PDFs des gewählten Projekts rechts.
 
 ### Integrationen (⌘7)
-Datenstrom-Schaltzentrale: zeigt alle 25 Weichen aus `DatastromManifest.json`
+Datenstrom-Schaltzentrale: zeigt alle 27 Weichen aus `DatastromManifest.json`
 mit letztem Handshake-Zeitstempel und Verbindungsstatus (grün/rot/grau).
 Jede Weiche hat eine eindeutige `Integrations-ID` die exakt dem `DataFlowLogger`-Eintrag
 im Code entspricht.
@@ -243,7 +243,7 @@ Wenn Tools aktiviert sind, kann der Assistent folgende Aktionen ausführen
 |------|-----------|--------|
 | `search_gmail` | Sucht Mails nach Query | toolsEnabled |
 | `list_calendar_events` | Liest Kalender-Termine | toolsEnabled |
-| `suggest_calendar_event` | Erzeugt Kalender-URL (kein API-Write) | toolsEnabled |
+| `suggest_calendar_event` | Bereitet einen Termin vor → Aktionskarte „Im Kalender öffnen" (kanonischer Google-Link, kein API-Write, KEIN fabrizierter Inline-Link) | toolsEnabled |
 | `list_drive_folder` | Listet Drive-Ordner-Inhalt | toolsEnabled + driveFolderID |
 | `list_clickup_tasks` | Liest ClickUp-Aufgaben | toolsEnabled + clickUpListID |
 | `search_contacts` | Sucht Google-Kontakte | toolsEnabled |
@@ -251,6 +251,7 @@ Wenn Tools aktiviert sind, kann der Assistent folgende Aktionen ausführen
 | `query_studio_knowledge` | Fragt Slack-Brain | toolsEnabled |
 | `search_katalog` | Sucht Gerätekatalog (Hersteller, Artikelnr., VK) | toolsEnabled, kein SchaetzModus |
 | `lookup_kunde` | Sucht Airtable-Kunden (Name/Kundennr./Projektanzahl, lokaler Sync-Cache) | toolsEnabled |
+| `create_note` / `list_notes` / `update_note` / `delete_note` | **Notizen/Erinnerungen** anlegen, auflisten, ändern, löschen (lokal, persistent) — die einzigen **Schreib**-Tools, nur eigene lokale Daten | toolsEnabled |
 
 Alle Tool-Calls werden via `DataFlowLogger` lokal protokolliert.
 
@@ -282,7 +283,7 @@ Fehlermeldung, Dauer-ms, Zusammenfassung.
 
 ---
 
-### Alle Weichen (Stand 2026-06-29 · 26 Weichen)
+### Alle Weichen (Stand 2026-06-29 · 27 Weichen)
 
 #### Airtable
 
@@ -359,6 +360,7 @@ Fehlermeldung, Dauer-ms, Zusammenfassung.
 | `LOCAL_DEVICECATALOG_ARTIKEL` | Geräte-Preisbuch | READ | App-Start | `_Daten/Kalkulation/Devices/catalog.csv` | 5.565 Artikel (Gaggenau, Miele, Blum…). Quelle Airtable-DB `appdxTeT6bhSBmwx5` (read-only Export). NIE ins Repo. |
 | `DEVICE_CATALOG_LOAD` | Gerätekatalog laden | READ | App-Start | `DeviceCatalog.loadDefault()` | Optional — fehlt die CSV, bleibt Katalog nil, kein Crash. |
 | `STUDIO_KNOWLEDGE_QUERY` | Studio-Wissensbasis-Abfrage | READ | onDemand (Tool-Call) | read-only | Assistenten-Tool `query_studio_knowledge` über die lokale `StudioBrain`-Projekthistorie. Eigene Weiche (Mandate E). |
+| `ASSISTANT_NOTES` | Assistenten-Notizen (lokal) | WRITE | onDemand (Tool-Call) | nur lokale eigene Daten | Tools `create_note`/`list_notes`/`update_note`/`delete_note`. EINZIGE Schreib-Tools des Assistenten — nur lokale Notizen in GRDB, **kein** externer Schreibzugriff. Persistent über Neustart (S4). |
 
 ---
 

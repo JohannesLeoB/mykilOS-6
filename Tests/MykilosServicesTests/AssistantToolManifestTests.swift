@@ -37,17 +37,20 @@ struct AssistantToolManifestTests {
         let erwartet: Set<String> = [
             "search_gmail", "list_calendar_events", "suggest_calendar_event",
             "list_drive_folder", "search_contacts", "list_clickup_tasks",
-            "search_katalog", "query_studio_knowledge", "lookup_kunde", "schaetze_projekt",
+            "search_katalog", "query_studio_knowledge", "lookup_kunde",
+            "create_note", "list_notes", "update_note", "delete_note",
+            "schaetze_projekt",
         ]
         #expect(Set(AssistantToolManifest.toolToManifestID.keys) == erwartet,
                 "Map-Schlüssel weichen von den kanonischen Tool-Namen ab")
     }
 
-    @Test func jedesRegistrierteToolIstGemappt() {
-        // Registry mit allen optionalen Tools (Kalkulation + Kunden), damit alle Namen auftauchen.
+    @Test func jedesRegistrierteToolIstGemappt() throws {
+        // Registry mit allen optionalen Tools (Kalkulation + Kunden + Notizen), damit alle Namen auftauchen.
         let registry = AssistantToolRegistry.standard(
             kalkulationsEngine: StubKalkEngine(),
-            kundenDirectory: KundenBrain(customers: []))
+            kundenDirectory: KundenBrain(customers: []),
+            notesStore: AssistantNotesStore(db: try GRDBDatabase.inMemory()))
         for name in registry.toolNames {
             #expect(AssistantToolManifest.toolToManifestID[name] != nil,
                     "Registriertes Tool '\(name)' hat keine Manifest-Zuordnung — Map ergänzen")

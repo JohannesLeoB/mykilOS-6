@@ -180,5 +180,12 @@
     "system": "Airtable",
     "direction": "READ",
     "link": "mykilos://datastream/AIRTABLE_KUNDEN_LOOKUP"
+  },
+  {
+    "integrationID": "ASSISTANT_NOTES",
+    "name": "Assistenten-Notizen (lokal, anlegen/ändern/löschen)",
+    "system": "Lokal",
+    "direction": "WRITE",
+    "link": "mykilos://datastream/ASSISTANT_NOTES"
   }
 ]
