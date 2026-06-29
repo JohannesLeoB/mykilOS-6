@@ -168,6 +168,18 @@ public final class GRDBDatabase: Sendable {
             }
         }
 
+        // v9_assistant_tasks (S6) — vom Assistenten verwaltete Aufgaben (Memos/Erinnerungen).
+        migrator.registerMigration("v9_assistant_tasks") { db in
+            try db.create(table: "assistantTasks") { t in
+                t.primaryKey("id", .text)
+                t.column("title",     .text).notNull()
+                t.column("done",      .boolean).notNull().defaults(to: false)
+                t.column("dueDate",   .double)            // optional
+                t.column("createdAt", .double).notNull()
+                t.column("updatedAt", .double).notNull().indexed()
+            }
+        }
+
         try migrator.migrate(queue)
     }
 

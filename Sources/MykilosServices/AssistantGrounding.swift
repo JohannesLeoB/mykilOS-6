@@ -22,6 +22,7 @@ public enum AssistantGrounding {
         studioBrainEnabled: Bool = false,
         katalogEnabled: Bool = false,
         notesEnabled: Bool = false,
+        tasksEnabled: Bool = false,
         offersEnabled: Bool = false,
         fileReadEnabled: Bool = false
     ) -> String {
@@ -93,6 +94,9 @@ public enum AssistantGrounding {
             }
             if notesEnabled {
                 toolLines.append("- create_note / list_notes / update_note / delete_note: persistente Notizen & Erinnerungen lokal verwalten. Wenn der Nutzer etwas notieren oder sich erinnern lassen will, lege es mit create_note an (überlebt den Neustart) — KEIN Kalender-Link nötig.")
+            }
+            if tasksEnabled {
+                toolLines.append("- create_task / list_tasks / complete_task / delete_task: interne Aufgabenliste (To-dos/Erinnerungen) lokal verwalten. Für kleine Memos und Erinnerungen, die der Nutzer sich selbst setzt; optionales Fälligkeitsdatum (yyyy-MM-dd). Abhaken mit complete_task, entfernen mit delete_task.")
             }
             var toolMsg = toolLines.joined(separator: "\n")
             toolMsg += "\nWenn für eine Frage kein Werkzeug oben passt (z. B. Rechnungen), sag offen, dass dir der Live-Zugriff fehlt. "

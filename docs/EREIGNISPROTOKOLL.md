@@ -30,6 +30,31 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-29 · Claude Code (Opus) — S6: Aufgaben-Funktion im Assistenten
+
+```
+Branch: polish/dampflok; 334 → 342 Tests grün (59 Suites)
+Build:  ✅ swift build grün
+```
+
+Auf Wunsch von Johannes: eine interne Aufgabenliste, die er sich selbst per Assistent
+setzt und entfernt — kleine Memos und Erinnerungen. Spiegelt die Notiz-Funktion (S4).
+
+- `AssistantTask` (MykilosKit): id/title/done/dueDate?/createdAt/updatedAt, `ref` (6-Zeichen).
+- `AssistantTasksStore` (actor, GRDB v9 `assistantTasks`): create/all/open/setDone/delete/find;
+  Sortierung offene-zuerst, dann nach Fälligkeit. Rein lokal, jeder Schreibvorgang wirft.
+- Tools `create_task`/`list_tasks`/`complete_task`/`delete_task` (Schreib-Tools, nur lokal) in
+  `AssistantToolRegistry.standard` (neuer `tasksStore`-Slot); optionales Fälligkeitsdatum
+  (tolerant: ISO/yyyy-MM-dd/dd.MM.yyyy). Grounding-Zeile + ConversationEngine `tasksEnabled`.
+- Weiche `ASSISTANT_TASKS`: Manifest + Map + Airtable Datenstrom-Handbuch (jetzt 30 Weichen).
+- AppState: `assistantTasks` verdrahtet (Init + refreshAssistantKundenWissen).
+- +8 Tests (`AssistantTasksStoreTests`): Anlegen/Sortierung/Fälligkeit/Finden/Löschen/Tools +
+  Cold-Start `aufgabeUeberlebtNeustart` (Merge-Gate). Manifest-GATE-Test erweitert.
+
+Read-only gewahrt; Aufgaben sind rein lokal (kein externer Schreibzugriff). Kein Merge ohne Freigabe.
+
+---
+
 ## 2026-06-29 · Claude Code (Opus) — Proof-of-Function-Sprint S1–S5 (Live-Tour-Befunde)
 
 ```

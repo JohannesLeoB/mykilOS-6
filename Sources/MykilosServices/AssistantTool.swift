@@ -769,6 +769,143 @@ struct DeleteNoteTool: AssistantTool {
     }
 }
 
+// MARK: - Aufgaben-Tools (S6, schreibend, rein lokal)
+
+/// Tolerant: ISO-8601, "yyyy-MM-dd" und "dd.MM.yyyy" → Date. Sonst nil.
+enum DueDateParser {
+    static func parse(_ raw: String?) -> Date? {
+        let s = (raw ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard s.isEmpty == false else { return nil }
+        if let d = ISO8601DateFormatter().date(from: s) { return d }
+        let cal = Calendar(identifier: .gregorian)
+        for pattern in ["yyyy-MM-dd", "dd.MM.yyyy", "dd.MM.yy"] {
+            let fmt = DateFormatter()
+            fmt.calendar = cal
+            fmt.locale = Locale(identifier: "de_DE")
+            fmt.timeZone = TimeZone(identifier: "Europe/Berlin") ?? .current
+            fmt.dateFormat = pattern
+            if let d = fmt.date(from: s) { return d }
+        }
+        return nil
+    }
+}
+
+private let assistantTaskDateFormatter: DateFormatter = {
+    let fmt = DateFormatter()
+    fmt.dateFormat = "dd.MM.yy"
+    fmt.locale = Locale(identifier: "de_DE")
+    return fmt
+}()
+
+struct CreateTaskTool: AssistantTool {
+    private let store: AssistantTasksStore
+    init(store: AssistantTasksStore) { self.store = store }
+    var name: String { "create_task" }
+    var description: String {
+        "Legt eine persistente Aufgabe/Erinnerung an (lokal, überlebt den Neustart). "
+        + "Nutze es für interne Memos und To-dos, die der Nutzer sich selbst setzt. "
+        + "Optionales Fälligkeitsdatum als ISO (yyyy-MM-dd)."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "titel", description: "Worum geht die Aufgabe"),
+         ToolParameter(name: "faellig", description: "Optionales Fälligkeitsdatum (yyyy-MM-dd), sonst leer")]
+    }
+    func run(input: [String: String]) async -> ToolRunResult {
+        let titel = (input["titel"] ?? input["text"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard titel.isEmpty == false else { return ToolRunResult(text: "Kein Aufgabentitel angegeben.", isError: true) }
+        let due = DueDateParser.parse(input["faellig"])
+        do {
+            let task = try await store.create(titel, dueDate: due)
+            var msg = "Aufgabe angelegt [\(task.ref)]: \(task.title)"
+            if let d = task.dueDate { msg += " (fällig \(assistantTaskDateFormatter.string(from: d)))" }
+            return ToolRunResult(text: msg)
+        } catch {
+            return ToolRunResult(text: "Aufgabe konnte nicht gespeichert werden: \(error.localizedDescription)", isError: true)
+        }
+    }
+}
+
+struct ListTasksTool: AssistantTool {
+    private let store: AssistantTasksStore
+    init(store: AssistantTasksStore) { self.store = store }
+    var name: String { "list_tasks" }
+    var description: String { "Listet die Aufgaben/Erinnerungen (offene zuerst, nach Fälligkeit) mit Kurzbezug und Status." }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "nur_offen", description: "true = nur offene Aufgaben, sonst alle")]
+    }
+    func run(input: [String: String]) async -> ToolRunResult {
+        let nurOffen = (input["nur_offen"] ?? "").lowercased() == "true"
+        do {
+            let tasks = nurOffen ? try await store.open() : try await store.all()
+            guard tasks.isEmpty == false else {
+                return ToolRunResult(text: nurOffen ? "Keine offenen Aufgaben." : "Keine Aufgaben gespeichert.")
+            }
+            let lines = tasks.map { task -> String in
+                let box = task.done ? "✓" : "○"
+                var line = "\(box) [\(task.ref)] \(task.title)"
+                if let d = task.dueDate { line += " (fällig \(assistantTaskDateFormatter.string(from: d)))" }
+                return line
+            }
+            return ToolRunResult(text: lines.joined(separator: "\n"))
+        } catch {
+            return ToolRunResult(text: "Aufgaben konnten nicht geladen werden: \(error.localizedDescription)", isError: true)
+        }
+    }
+}
+
+struct CompleteTaskTool: AssistantTool {
+    private let store: AssistantTasksStore
+    init(store: AssistantTasksStore) { self.store = store }
+    var name: String { "complete_task" }
+    var description: String {
+        "Hakt eine Aufgabe als erledigt ab (oder öffnet sie mit erledigt=false wieder). "
+        + "'aufgabe' = Kurzbezug/ID oder Teil des Titels."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "aufgabe", description: "Kurzbezug, ID oder Titelausschnitt der Aufgabe"),
+         ToolParameter(name: "erledigt", description: "true (Standard) = abhaken, false = wieder öffnen")]
+    }
+    func run(input: [String: String]) async -> ToolRunResult {
+        let q = (input["aufgabe"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard q.isEmpty == false else {
+            return ToolRunResult(text: "Welche Aufgabe? Nenne Kurzbezug oder Titelausschnitt.", isError: true)
+        }
+        let done = (input["erledigt"] ?? "true").lowercased() != "false"
+        do {
+            guard let task = try await store.setDone(matching: q, done: done) else {
+                return ToolRunResult(text: "Keine Aufgabe zu \(q) gefunden.", isError: true)
+            }
+            return ToolRunResult(text: "Aufgabe [\(task.ref)] \(done ? "erledigt" : "wieder offen"): \(task.title)")
+        } catch {
+            return ToolRunResult(text: "Aktualisierung fehlgeschlagen: \(error.localizedDescription)", isError: true)
+        }
+    }
+}
+
+struct DeleteTaskTool: AssistantTool {
+    private let store: AssistantTasksStore
+    init(store: AssistantTasksStore) { self.store = store }
+    var name: String { "delete_task" }
+    var description: String { "Löscht eine Aufgabe. 'aufgabe' = Kurzbezug/ID oder Teil des Titels." }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "aufgabe", description: "Kurzbezug, ID oder Titelausschnitt der zu löschenden Aufgabe")]
+    }
+    func run(input: [String: String]) async -> ToolRunResult {
+        let q = (input["aufgabe"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard q.isEmpty == false else {
+            return ToolRunResult(text: "Welche Aufgabe? Nenne Kurzbezug oder Titelausschnitt.", isError: true)
+        }
+        do {
+            guard let task = try await store.delete(matching: q) else {
+                return ToolRunResult(text: "Keine Aufgabe zu \(q) gefunden.", isError: true)
+            }
+            return ToolRunResult(text: "Aufgabe gelöscht [\(task.ref)]: \(task.title)")
+        } catch {
+            return ToolRunResult(text: "Löschen fehlgeschlagen: \(error.localizedDescription)", isError: true)
+        }
+    }
+}
+
 // MARK: - AssistantToolRegistry (Whitelist, default-deny)
 public struct AssistantToolRegistry: Sendable {
     private let tools: [any AssistantTool]
@@ -790,6 +927,7 @@ public struct AssistantToolRegistry: Sendable {
         deviceCatalog: DeviceCatalog? = DeviceCatalog.loadDefault(),
         kundenDirectory: KundenBrain? = nil,
         notesStore: AssistantNotesStore? = nil,
+        tasksStore: AssistantTasksStore? = nil,
         projectDirectory: ProjectDirectory? = nil
     ) -> AssistantToolRegistry {
         var tools: [any AssistantTool] = [
@@ -814,6 +952,12 @@ public struct AssistantToolRegistry: Sendable {
             tools.append(ListNotesTool(store: notesStore))
             tools.append(UpdateNoteTool(store: notesStore))
             tools.append(DeleteNoteTool(store: notesStore))
+        }
+        if let tasksStore {
+            tools.append(CreateTaskTool(store: tasksStore))
+            tools.append(ListTasksTool(store: tasksStore))
+            tools.append(CompleteTaskTool(store: tasksStore))
+            tools.append(DeleteTaskTool(store: tasksStore))
         }
         if let engine = kalkulationsEngine {
             tools.append(KostenSchaetzungTool(engine: engine))

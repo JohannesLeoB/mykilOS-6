@@ -43,6 +43,9 @@ public final class AppState {
     // S4: vom Assistenten verwaltete Notizen (lokal, persistent).
     public let assistantNotes: AssistantNotesStore
 
+    // S6: vom Assistenten verwaltete Aufgaben/Erinnerungen (lokal, persistent).
+    public let assistantTasks: AssistantTasksStore
+
     // Projekt-Boards on-demand (pro geöffnetem Projekt)
     private var projectBoards: [String: WidgetBoardStore] = [:]
     private var projectNotes:  [String: NoteStore]        = [:]
@@ -113,12 +116,14 @@ public final class AppState {
         self.kalkulationsEngine = kalkulationsEngine
         let notes = AssistantNotesStore(db: database)
         self.assistantNotes = notes
-        // Read-only Tool-Whitelist (Sevdesk NIE enthalten) + die lokalen Notiz-Schreib-
-        // Tools (S4). Tools laufen nur bei Opt-in (siehe AssistantChatView).
+        let tasks = AssistantTasksStore(db: database)
+        self.assistantTasks = tasks
+        // Read-only Tool-Whitelist (Sevdesk NIE enthalten) + die lokalen Schreib-Tools
+        // für Notizen (S4) und Aufgaben (S6). Tools laufen nur bei Opt-in (siehe AssistantChatView).
         self.conversation = ConversationEngine(
             chatStore: chatStore,
             provider: ClaudeChatClient(),
-            registry: .standard(kalkulationsEngine: kalkulationsEngine, notesStore: notes),
+            registry: .standard(kalkulationsEngine: kalkulationsEngine, notesStore: notes, tasksStore: tasks),
             dataFlowLogger: dataFlow
         )
     }
@@ -252,7 +257,7 @@ public final class AppState {
         let dir = ProjectDirectory(projects: registry.projects, customers: registry.customers)
         conversation.updateRegistry(.standard(
             kalkulationsEngine: kalkulationsEngine, kundenDirectory: brain,
-            notesStore: assistantNotes, projectDirectory: dir))
+            notesStore: assistantNotes, tasksStore: assistantTasks, projectDirectory: dir))
     }
 
     // MARK: - Backup (Mandate G)

@@ -39,6 +39,7 @@ struct AssistantToolManifestTests {
             "list_drive_folder", "find_offers", "read_drive_file", "search_contacts", "list_clickup_tasks",
             "search_katalog", "query_studio_knowledge", "lookup_kunde",
             "create_note", "list_notes", "update_note", "delete_note",
+            "create_task", "list_tasks", "complete_task", "delete_task",
             "schaetze_projekt",
         ]
         #expect(Set(AssistantToolManifest.toolToManifestID.keys) == erwartet,
@@ -47,10 +48,12 @@ struct AssistantToolManifestTests {
 
     @Test func jedesRegistrierteToolIstGemappt() throws {
         // Registry mit allen optionalen Tools (Kalkulation + Kunden + Notizen), damit alle Namen auftauchen.
+        let db = try GRDBDatabase.inMemory()
         let registry = AssistantToolRegistry.standard(
             kalkulationsEngine: StubKalkEngine(),
             kundenDirectory: KundenBrain(customers: []),
-            notesStore: AssistantNotesStore(db: try GRDBDatabase.inMemory()))
+            notesStore: AssistantNotesStore(db: db),
+            tasksStore: AssistantTasksStore(db: db))
         for name in registry.toolNames {
             #expect(AssistantToolManifest.toolToManifestID[name] != nil,
                     "Registriertes Tool '\(name)' hat keine Manifest-Zuordnung — Map ergänzen")

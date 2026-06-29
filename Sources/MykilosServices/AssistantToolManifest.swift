@@ -34,6 +34,10 @@ public enum AssistantToolManifest {
         "list_notes":             "ASSISTANT_NOTES",
         "update_note":            "ASSISTANT_NOTES",
         "delete_note":            "ASSISTANT_NOTES",
+        "create_task":            "ASSISTANT_TASKS",
+        "list_tasks":             "ASSISTANT_TASKS",
+        "complete_task":          "ASSISTANT_TASKS",
+        "delete_task":            "ASSISTANT_TASKS",
         "schaetze_projekt":       "KALKULATION_LOCAL",
     ]
 

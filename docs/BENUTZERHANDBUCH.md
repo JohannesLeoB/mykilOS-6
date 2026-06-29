@@ -253,7 +253,8 @@ Wenn Tools aktiviert sind, kann der Assistent folgende Aktionen ausführen
 | `query_studio_knowledge` | Fragt Slack-Brain | toolsEnabled |
 | `search_katalog` | Sucht Gerätekatalog (Hersteller, Artikelnr., VK) | toolsEnabled, kein SchaetzModus |
 | `lookup_kunde` | Sucht Airtable-Kunden (Name/Kundennr./Projektanzahl, lokaler Sync-Cache) | toolsEnabled |
-| `create_note` / `list_notes` / `update_note` / `delete_note` | **Notizen/Erinnerungen** anlegen, auflisten, ändern, löschen (lokal, persistent) — die einzigen **Schreib**-Tools, nur eigene lokale Daten | toolsEnabled |
+| `create_note` / `list_notes` / `update_note` / `delete_note` | **Notizen/Erinnerungen** anlegen, auflisten, ändern, löschen (lokal, persistent) — Schreib-Tools, nur eigene lokale Daten | toolsEnabled |
+| `create_task` / `list_tasks` / `complete_task` / `delete_task` | **Aufgaben/To-dos** anlegen, auflisten, abhaken, löschen (lokal, persistent, optionales Fälligkeitsdatum) — Schreib-Tools, nur eigene lokale Daten | toolsEnabled |
 
 Alle Tool-Calls werden via `DataFlowLogger` lokal protokolliert.
 
@@ -285,7 +286,7 @@ Fehlermeldung, Dauer-ms, Zusammenfassung.
 
 ---
 
-### Alle Weichen (Stand 2026-06-29 · 29 Weichen)
+### Alle Weichen (Stand 2026-06-29 · 30 Weichen)
 
 #### Airtable
 
@@ -364,7 +365,8 @@ Fehlermeldung, Dauer-ms, Zusammenfassung.
 | `LOCAL_DEVICECATALOG_ARTIKEL` | Geräte-Preisbuch | READ | App-Start | `_Daten/Kalkulation/Devices/catalog.csv` | 5.565 Artikel (Gaggenau, Miele, Blum…). Quelle Airtable-DB `appdxTeT6bhSBmwx5` (read-only Export). NIE ins Repo. |
 | `DEVICE_CATALOG_LOAD` | Gerätekatalog laden | READ | App-Start | `DeviceCatalog.loadDefault()` | Optional — fehlt die CSV, bleibt Katalog nil, kein Crash. |
 | `STUDIO_KNOWLEDGE_QUERY` | Studio-Wissensbasis-Abfrage | READ | onDemand (Tool-Call) | read-only | Assistenten-Tool `query_studio_knowledge` über die lokale `StudioBrain`-Projekthistorie. Eigene Weiche (Mandate E). |
-| `ASSISTANT_NOTES` | Assistenten-Notizen (lokal) | WRITE | onDemand (Tool-Call) | nur lokale eigene Daten | Tools `create_note`/`list_notes`/`update_note`/`delete_note`. EINZIGE Schreib-Tools des Assistenten — nur lokale Notizen in GRDB, **kein** externer Schreibzugriff. Persistent über Neustart (S4). |
+| `ASSISTANT_NOTES` | Assistenten-Notizen (lokal) | WRITE | onDemand (Tool-Call) | nur lokale eigene Daten | Tools `create_note`/`list_notes`/`update_note`/`delete_note`. Lokale Notizen in GRDB, **kein** externer Schreibzugriff. Persistent über Neustart (S4). |
+| `ASSISTANT_TASKS` | Assistenten-Aufgaben (lokal) | WRITE | onDemand (Tool-Call) | nur lokale eigene Daten | Tools `create_task`/`list_tasks`/`complete_task`/`delete_task`. Interne To-dos/Erinnerungen (optionales Fälligkeitsdatum) in GRDB v9, **kein** externer Schreibzugriff. Auch sichtbar im Kataloge-Tab „Aufgaben". Persistent über Neustart (S6). |
 
 ---
 

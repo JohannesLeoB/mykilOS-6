@@ -201,5 +201,12 @@
     "system": "Lokal",
     "direction": "WRITE",
     "link": "mykilos://datastream/ASSISTANT_NOTES"
+  },
+  {
+    "integrationID": "ASSISTANT_TASKS",
+    "name": "Assistenten-Aufgaben (lokal, Memos/Erinnerungen)",
+    "system": "Lokal",
+    "direction": "WRITE",
+    "link": "mykilos://datastream/ASSISTANT_TASKS"
   }
 ]
