@@ -6,9 +6,9 @@
 
 ```
 Pfad:    /Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/
-Branch:  polish/dampflok   ·   HEAD 6341e16   ·   GitHub JohannesLeoB/mykilOS-6 (privat)
-Build:   ✅ swift build grün        Tests: ✅ 373 grün (61 Suites)
-Modell:  claude-sonnet-4-6 (App)    Stand: 2026-06-29 (Sprint S1–S16 + Assistenten-Schreibtools)
+Branch:  polish/dampflok   ·   HEAD b5d062a   ·   GitHub JohannesLeoB/mykilOS-6 (privat)
+Build:   ✅ swift build grün        Tests: ✅ 386 grün (62 Suites)
+Modell:  claude-sonnet-4-6 (App, v6.5.0)   Stand: 2026-06-29 (Roadmap code-komplett, am Hustadt-Gate)
 Fallback: git checkout ui/sidebar-ci-stable
 ```
 
@@ -69,26 +69,36 @@ Drive/Offers/Assistent-Commits brauchen einen Hustadt-Haken im Handoff vor dem M
 
 ## 5 · Wo wir stehen (die Wahrheit)
 
-| | live & verifiziert | behauptet, aber nicht funktional → Core Repair fixt |
-|---|---|---|
-| **Daten** | Airtable-Sync (31 Projekte), Drive-API, Kalender, Mail, Claude-Assistent, Kalkulation-Widget | lokales Drive-Öffnen · rekursive Angebote · Schaltzentrum-Handshakes · App-Diagnose · GmailCache (L23 committed, unverdrahtet) |
+**Roadmap code-komplett.** Polish L1–L30 ✅ · Core Repair A–G ✅ (im Code verifiziert:
+`LocalDriveRootResolver` löst echt über xattr lokal auf · `ConversationEngine` loggt
+`manifestID(forTool:)` · `DiagnosticsReport` mit echtem Commit · `DocumentViewerView`
+QuickLook/PDFKit · kein `try!` mehr) · Assistenten-Schreibtools S1–S17 ✅
+([Ledger Block 10/11](docs/POLISH_LOOP_LEDGER.md)). S17 = 16-Agenten-Audit, 0 Defekte.
 
-Polish-Loop L1–L23 ✅ committed · L24–L30 ⏳ ([Ledger](docs/POLISH_LOOP_LEDGER.md)). Core Repair = PR #3 OPEN.
+**Der einzige verbleibende Schritt ist LIVE — kein Code:** das Hustadt-Gate (§4) am
+echten Gerät bestätigen. Drei code-fertige Features sind bis dahin inaktiv, weil sie
+neue OAuth-Scopes brauchen → **M2 Google Re-Consent** (siehe §6).
 
 ---
 
 ## 6 · Die einzige To-do-Liste
 
-**🔴 Core Repair (PR #3 · Mandate A–G) — kritischer Pfad:**
-A App-Diagnose · B Lokales Drive-Routing (`LocalDriveRootResolver`, xattr) · C Angebote rekursiv + Pagination ·
-D Document-Workspace (PDFKit/QuickLook/OCR) · E Typed I/O (`toolName→manifestID`, eine Manifest-Datei) ·
-F Crash-Diagnostics (`try!` raus, recoverable DB) · G Backup/Restore (WAL-Checkpoint + SHA-256)
+**🔴 LIVE-ABNAHME (nur Johannes — der kritische Pfad zu „mykilOS 7"):**
+1. **M2 Google Re-Consent** — Settings → Google **Trennen → Verbinden** (echtes Re-Consent,
+   nicht nur Token-Refresh). Holt `drive.readonly` (Datei-Inhalt/Vorschau S3/S5),
+   `contacts` (`create_contact` S9), `gmail.compose` (`create_draft` S14).
+2. **M1 Airtable Base-ID fixen** (Settings → Airtable: `appuVMh3KDfKw4OoQ` statt PAT) 🔴 Sync-Blocker.
+3. **Hustadt-Gate (§4) durchklicken** — die 5 Häkchen am echten Gerät.
 
-**🟡 Polish L24–L30:** Kontakt-Kontext · Favoriten (GRDB) · Dunkelmodus-Kontrast · Timeline-Tab · Leerzustände · Test-Decke · Abschluss+DMG
+**Core Repair A–G ✅ code-komplett** (im Code verifiziert, siehe §5). **Polish L1–L30 ✅.**
 
-**🟢 Nur Johannes (kein Code):**
-M1 Airtable Base-ID fixen (PAT statt `appuVMh3KDfKw4OoQ`) 🔴 Sync-Blocker · M2 Google Re-Consent (userinfo-Scopes) ·
-M3 ClickUp-Listen-IDs · M4 sevdeskRef+Budget · M5 Clockodo-Stundensätze · M6 Alt-PAT revoken · M7 `2026_20`→`2026_020`
+**🟢 Weitere manuelle Daten (Johannes, schalten Features scharf):**
+M3 ClickUp-Listen-IDs (`list_all_clickup_tasks`) · M4 sevdeskRef+Budget · M5 Clockodo-Stundensätze ·
+M6 Alt-PAT revoken · M7 `2026_20`→`2026_020`
+
+**⚪ Optionaler nächster Code-Schritt (nicht M2-blockiert, auf Ansage):**
+Voller Postfach-Sync `GmailSyncService` (über den TTL-Cache hinaus) — einziger größerer
+Folgeschritt im Ledger (S12). Erst auf ausdrückliche Freigabe bauen.
 
 ---
 

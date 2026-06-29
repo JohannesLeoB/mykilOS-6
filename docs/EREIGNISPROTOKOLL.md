@@ -30,6 +30,34 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-29 · Claude Code (Opus, GOMODE) — Verifikation am Hustadt-Gate + Würfel-Wahrheit
+
+```
+Branch: polish/dampflok; HEAD b5d062a; 386 Tests grün (62 Suites)
+Build:  ✅ swift build grün · git status clean
+```
+
+GOMODE-Start: Pflichtcheck grün. Statt eine Aufgabe zu erfinden (die Roadmap ist
+code-komplett: Polish L1–L30, Core Repair A–G, Assistenten-Tools S1–S17) → die eine
+Lektion angewandt und die früher gefälschten Pfade gegen den **echten Code** verifiziert:
+- **B** `LocalDriveRootResolver` löst Drive-IDs echt über xattr `com.google.drivefs.item-id#S`
+  auf lokale CloudStorage-Pfade auf (kein API-Baum mit Fake-Button).
+- **E** `ConversationEngine:213` loggt `AssistantToolManifest.manifestID(forTool:)` statt
+  Roh-Tool-Name → Schaltzentrum bekommt echte Handshakes (F12-Fix real).
+- **A** `DiagnosticsReport` mit echtem `commit`-Feld (Build-injiziert).
+Befund: code-complete ist diesmal KEINE Proxy-Behauptung. Der Build steht ehrlich am Gate.
+
+Ausgabe (Doku, kein Code):
+- `HYPERBUILD.md` §5/§6 + Header auf Wahrheit gebracht (listete Erledigtes als offen —
+  der Proxy-Sündenfall rückwärts). Header 386/62, HEAD b5d062a.
+- `docs/handoffs/HANDOFF_HUSTADT_ABNAHME.md` neu: turnkey Live-Abnahme für Johannes
+  (M2 Re-Consent → M1 Base-ID → 5 Hustadt-Häkchen). Einziger Pfad zu mykilOS 7.
+
+Offen: nur Johannes-Aktionen (M2/M1/M3–M7) + Live-Abnahme. Optionaler Code-Folgeschritt:
+voller `GmailSyncService`-Postfach-Sync (auf Ansage). Kein Push/Merge ohne Freigabe.
+
+---
+
 ## 2026-06-29 · Claude Code (Opus) — Release 6.5.0: sauberer Build + DMG + Packaging
 
 ```
