@@ -30,6 +30,32 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-29 · Claude Code (Opus) — S8: Kontakte-Widget im Projektdetail repariert
+
+```
+Branch: polish/dampflok; 342 → 344 Tests grün
+Build:  ✅ swift build grün
+```
+
+Befund „Kontakte in den Projektdetailseiten geht noch nicht": Das ContactsWidget war
+korrekt verdrahtet, aber die Google **People-API `searchContacts`** liefert beim
+**kalten Index deterministisch eine leere Liste** — der erste Aufruf nach Cache-Start
+gibt nie Treffer zurück (dokumentierte Warmup-Pflicht). Jede frisch geöffnete
+Projektseite bekam daher „keine Kontakte", egal ob es Treffer gäbe.
+
+- Fix in `GoogleContactsClient.searchContacts`: stiller **Warmup** (Aufruf mit leerer
+  Query, Ergebnis verworfen) → echte Suche → bei leerem Ergebnis **einmal kurz
+  nachfassen** (500 ms; Index evtl. noch nicht warm).
+- Zusätzlich **Query-Normalisierung**: Unterstriche der Projekt-Tokens (z. B.
+  „Fuckner_Huetter") werden zu Leerzeichen, Whitespace kollabiert — kommen in echten
+  Kontaktnamen nie vor und verhinderten sonst jeden Treffer.
+- Neue testbare Bausteine `buildWarmupURL` + `normalizedQuery` (+2 Tests). Bestehende
+  Tests (URL/Parser/notConnected) unverändert grün.
+
+Read-only (Kontakte lesen), kein Schreibzugriff — der kommt separat in S9.
+
+---
+
 ## 2026-06-29 · Claude Code (Opus) — S7: Kataloge mit umsortierbaren Unter-Tabs
 
 ```

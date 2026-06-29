@@ -15,6 +15,25 @@ struct GoogleContactsClientTests {
         #expect(items["readMask"] == "names,emailAddresses,phoneNumbers,organizations")
     }
 
+    // S8: Warmup-URL hat leere Query + denselben readMask (People-API Index-Warmup).
+    @Test func warmupURLHatLeereQuery() {
+        let url = GoogleContactsClient.buildWarmupURL(baseURL: baseURL)
+        let components = url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }
+        let items = Dictionary(uniqueKeysWithValues: (components?.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+
+        #expect(items["query"] == "")
+        #expect(items["readMask"] == "names,emailAddresses,phoneNumbers,organizations")
+    }
+
+    // S8: Projekt-Tokens mit Unterstrich werden zu Leerzeichen, Whitespace kollabiert.
+    @Test func normalizedQuerySaeubertUnterstriche() {
+        #expect(GoogleContactsClient.normalizedQuery("Fuckner_Huetter") == "Fuckner Huetter")
+        #expect(GoogleContactsClient.normalizedQuery("  Meyer  ") == "Meyer")
+        #expect(GoogleContactsClient.normalizedQuery("a__b") == "a b")
+        #expect(GoogleContactsClient.normalizedQuery(nil) == "")
+        #expect(GoogleContactsClient.normalizedQuery("   ") == "")
+    }
+
     @Test func parseContactsDekodiertResultsPersonStruktur() throws {
         let json = """
         {
