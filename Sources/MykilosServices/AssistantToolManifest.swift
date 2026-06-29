@@ -20,6 +20,8 @@ public enum AssistantToolManifest {
     /// Jeder registrierte Tool-Name MUSS hier stehen (Test erzwingt es).
     public static let toolToManifestID: [String: String] = [
         "search_gmail":           "GMAIL_SEARCH",
+        "read_email":             "GMAIL_SEARCH",
+        "create_draft":           "GMAIL_DRAFT_CREATE",
         "list_calendar_events":   "CALENDAR_LIST",
         "suggest_calendar_event": "CALENDAR_SUGGEST",
         "list_drive_folder":      "DRIVE_ASSISTANT_LIST",

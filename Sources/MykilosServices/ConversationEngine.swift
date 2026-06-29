@@ -115,6 +115,7 @@ public final class ConversationEngine {
         let allClickUpEnabled = !schaetzModusEnabled && has("list_all_clickup_tasks")
         let contactsEnabled   = !schaetzModusEnabled && has("search_contacts")
         let contactsWriteEnabled = !schaetzModusEnabled && has("create_contact")
+        let draftEnabled      = !schaetzModusEnabled && has("create_draft")
         let kontaktVerzeichnisEnabled = !schaetzModusEnabled && has("lookup_kontakt")
         let studioBrainEnabled = !schaetzModusEnabled && has("query_studio_knowledge")
         let katalogEnabled    = !schaetzModusEnabled && has("search_katalog")
@@ -128,6 +129,7 @@ public final class ConversationEngine {
             kalkulationsEnabled: kalkulationsEnabled,
             driveEnabled: driveEnabled, contactsEnabled: contactsEnabled,
             clickUpEnabled: clickUpEnabled, allClickUpEnabled: allClickUpEnabled,
+            draftEnabled: draftEnabled,
             contactsWriteEnabled: contactsWriteEnabled,
             kontaktVerzeichnisEnabled: kontaktVerzeichnisEnabled,
             studioBrainEnabled: studioBrainEnabled,
@@ -227,6 +229,10 @@ public final class ConversationEngine {
                     // Kontakt-Bestätigungskarte — schreibt erst auf ausdrückliche Bestätigung.
                     activities.append(.contactAction(draft: draft))
                 }
+                if let mailDraft = result.emailDraft {
+                    // Mail-Entwurf-Bestätigungskarte — legt erst auf Bestätigung in Gmail ab.
+                    activities.append(.draftAction(draft: mailDraft))
+                }
                 if let s = result.schaetzung {
                     // Schätzungskarte — nur Anzeige, nie an die API gesendet.
                     activities.append(.kalkulationsSchaetzung(
@@ -267,6 +273,8 @@ public final class ConversationEngine {
         let base: String
         switch name {
         case "search_gmail":              base = "Gmail durchsucht"
+        case "read_email":                base = "Mail gelesen"
+        case "create_draft":              base = "Mail-Entwurf vorbereitet"
         case "list_calendar_events":      base = "Kalender gelesen"
         case "suggest_calendar_event":    base = "Kalender-Link generiert"
         case "schaetze_projekt":          base = "Kostenschätzung erstellt"

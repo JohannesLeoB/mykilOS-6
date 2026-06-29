@@ -22,6 +22,8 @@ public struct AssistantChatView: View {
     // injiziert (People-API + Audit dort), damit der Widgets-Layer keinen
     // Schreib-Client kennt. Erfolg → Anzeigename, Fehler → Meldung.
     let onCreateContact: ((ContactDraft) async -> ContactCreateOutcome)?
+    // S14: Bestätigung legt einen Gmail-ENTWURF an (App-Layer: Gmail-API + Audit).
+    let onCreateDraft: ((EmailDraft) async -> DraftCreateOutcome)?
 
     @Environment(StudioContext.self) private var context
     @State private var draft = ""
@@ -43,7 +45,8 @@ public struct AssistantChatView: View {
         focusedDriveFolderID: String? = nil,
         focusedClickUpListID: String? = nil,
         profile: UserProfile? = nil,
-        onCreateContact: ((ContactDraft) async -> ContactCreateOutcome)? = nil
+        onCreateContact: ((ContactDraft) async -> ContactCreateOutcome)? = nil,
+        onCreateDraft: ((EmailDraft) async -> DraftCreateOutcome)? = nil
     ) {
         self.scope = scope
         self.chatStore = chatStore
@@ -56,6 +59,7 @@ public struct AssistantChatView: View {
         self.focusedClickUpListID = focusedClickUpListID
         self.profile = profile
         self.onCreateContact = onCreateContact
+        self.onCreateDraft = onCreateDraft
     }
 
     private var messages: [ChatMessage] { chatStore.messages(for: scope) }
@@ -86,7 +90,7 @@ public struct AssistantChatView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: MykSpace.s5) {
                     if messages.isEmpty { emptyState }
-                    ForEach(messages) { ChatMessageBubble(message: $0, onCreateContact: onCreateContact).id($0.id) }
+                    ForEach(messages) { ChatMessageBubble(message: $0, onCreateContact: onCreateContact, onCreateDraft: onCreateDraft).id($0.id) }
                 }
                 .padding(.horizontal, MykSpace.s9)
                 .padding(.vertical, MykSpace.s7)
@@ -307,6 +311,7 @@ public struct AssistantChatView: View {
 struct ChatMessageBubble: View {
     let message: ChatMessage
     var onCreateContact: ((ContactDraft) async -> ContactCreateOutcome)? = nil
+    var onCreateDraft: ((EmailDraft) async -> DraftCreateOutcome)? = nil
     @State private var cursorVisible = true
 
     var body: some View {
@@ -333,6 +338,10 @@ struct ChatMessageBubble: View {
                 ForEach(Array(contactDrafts.enumerated()), id: \.offset) { _, draft in
                     ContactActionCard(draft: draft, onConfirm: onCreateContact)
                 }
+                // Mail-Entwurf-Bestätigungskarten nach der Antwort (S14).
+                ForEach(Array(emailDrafts.enumerated()), id: \.offset) { _, draft in
+                    DraftActionCard(draft: draft, onConfirm: onCreateDraft)
+                }
                 if case .failed = message.status {
                     Label("Erneut versuchen über erneutes Senden", systemImage: "exclamationmark.triangle")
                         .font(.mykMono(9.5)).foregroundStyle(MykColor.critical.color)
@@ -357,6 +366,12 @@ struct ChatMessageBubble: View {
     private var contactDrafts: [ContactDraft] {
         message.blocks.compactMap {
             if case let .contactAction(draft) = $0 { draft } else { nil }
+        }
+    }
+
+    private var emailDrafts: [EmailDraft] {
+        message.blocks.compactMap {
+            if case let .draftAction(draft) = $0 { draft } else { nil }
         }
     }
 
@@ -518,6 +533,81 @@ struct ContactActionCard: View {
             }
         case .done(let name):
             Label("Angelegt: \(name)", systemImage: "checkmark.circle.fill")
+                .font(.mykMono(9.5)).foregroundStyle(MykColor.positive.color)
+        case .failed(let msg):
+            Label(msg, systemImage: "exclamationmark.triangle")
+                .font(.mykMono(9.5)).foregroundStyle(MykColor.critical.color)
+        }
+    }
+}
+
+// MARK: - DraftActionCard (S14)
+// Bestätigungskarte für einen vom Assistenten vorgeschlagenen Mail-ENTWURF. Schreibt
+// nichts, bis der Nutzer „Entwurf anlegen" drückt — dann legt der App-Layer einen
+// Gmail-Entwurf an (erscheint auch in Apple Mail). Versendet NIE.
+struct DraftActionCard: View {
+    let draft: EmailDraft
+    var onConfirm: ((EmailDraft) async -> DraftCreateOutcome)?
+
+    private enum CardPhase: Equatable { case idle, saving, done(String), failed(String) }
+    @State private var phase: CardPhase = .idle
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MykSpace.s3) {
+            HStack(spacing: MykSpace.s3) {
+                Image(systemName: "envelope.badge")
+                    .font(.mykCaption).foregroundStyle(MykColor.drive.color)
+                Text("Mail-Entwurf").font(.mykMono(10)).foregroundStyle(MykColor.muted.color)
+            }
+            if let to = draft.to, to.isEmpty == false {
+                Text("An: \(to)").font(.mykMono(10)).foregroundStyle(MykColor.muted.color)
+            }
+            Text(draft.subject.isEmpty ? "(kein Betreff)" : draft.subject)
+                .font(.mykBody).foregroundStyle(MykColor.ink.color)
+            Text(draft.body)
+                .font(.mykSmall).foregroundStyle(MykColor.muted.color)
+                .lineLimit(6)
+            actionRow
+        }
+        .padding(.horizontal, MykSpace.s5)
+        .padding(.vertical, MykSpace.s4)
+        .background(
+            RoundedRectangle(cornerRadius: MykRadius.md)
+                .fill(MykColor.card.color)
+                .overlay(RoundedRectangle(cornerRadius: MykRadius.md)
+                    .stroke(MykColor.drive.color.opacity(0.3), lineWidth: 1))
+        )
+        .frame(maxWidth: 420)
+    }
+
+    @ViewBuilder
+    private var actionRow: some View {
+        switch phase {
+        case .idle:
+            Button {
+                guard let onConfirm else { phase = .failed("Ablegen hier nicht verfügbar."); return }
+                phase = .saving
+                Task {
+                    switch await onConfirm(draft) {
+                    case .created(let info): phase = .done(info)
+                    case .failed(let msg):   phase = .failed(msg)
+                    }
+                }
+            } label: {
+                Text("Entwurf anlegen")
+                    .font(.mykMono(10)).foregroundStyle(MykColor.paper.color)
+                    .padding(.horizontal, MykSpace.s4).padding(.vertical, MykSpace.s2)
+                    .background(RoundedRectangle(cornerRadius: MykRadius.sm).fill(MykColor.drive.color))
+            }
+            .buttonStyle(.plain)
+            .disabled(onConfirm == nil)
+        case .saving:
+            HStack(spacing: MykSpace.s2) {
+                ProgressView().controlSize(.small)
+                Text("Lege Entwurf an …").font(.mykMono(9.5)).foregroundStyle(MykColor.muted.color)
+            }
+        case .done(let info):
+            Label(info, systemImage: "checkmark.circle.fill")
                 .font(.mykMono(9.5)).foregroundStyle(MykColor.positive.color)
         case .failed(let msg):
             Label(msg, systemImage: "exclamationmark.triangle")

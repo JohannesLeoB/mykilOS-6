@@ -28,10 +28,15 @@ public struct ToolRunResult: Sendable, Equatable {
     /// Optionaler Kontakt-Entwurf (S9) — die Engine speichert ihn als `.contactAction`-
     /// Block. Schreibt NICHTS; erst die Bestätigung an der Karte legt den Kontakt an.
     public let contactDraft: ContactDraft?
+    /// Optionaler Mail-Entwurf (S14) — die Engine speichert ihn als `.draftAction`-Block.
+    /// Schreibt NICHTS; erst die Bestätigung legt einen Gmail-Entwurf an (versendet nie).
+    public let emailDraft: EmailDraft?
     public init(text: String, isError: Bool = false, actionURL: String? = nil,
-                schaetzung: KostenSchaetzung? = nil, contactDraft: ContactDraft? = nil) {
+                schaetzung: KostenSchaetzung? = nil, contactDraft: ContactDraft? = nil,
+                emailDraft: EmailDraft? = nil) {
         self.text = text; self.isError = isError; self.actionURL = actionURL
         self.schaetzung = schaetzung; self.contactDraft = contactDraft
+        self.emailDraft = emailDraft
     }
 }
 
@@ -1064,6 +1069,78 @@ struct DeleteTaskTool: AssistantTool {
     }
 }
 
+// MARK: - ReadEmailTool (read-only, S15) — Volltext einer Mail lesen
+// Findet per Suche die passende Mail und liest ihren KOMPLETTEN Klartext-Body
+// (nicht nur den Snippet). Macht „alle Mails lesbar".
+struct ReadEmailTool: AssistantTool {
+    private let client: GoogleGmailFetching
+    init(client: GoogleGmailFetching = GoogleGmailClient()) { self.client = client }
+
+    var name: String { "read_email" }
+    var description: String {
+        "Liest den VOLLEN Inhalt einer E-Mail (nicht nur die Vorschau). 'query' = Gmail-Suche, "
+        + "die die Mail eindeutig trifft (z. B. 'from:gehrke subject:Leuchten'). Optional 'nummer' "
+        + "= n-ter Treffer (Standard 1). Nutze es, wenn der Nutzer den Mailinhalt wissen will."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "query", description: "Gmail-Suche, die die Mail trifft"),
+         ToolParameter(name: "nummer", description: "n-ter Treffer (Standard 1)", required: false)]
+    }
+
+    func run(input: [String: String]) async -> ToolRunResult {
+        let query = (input["query"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard query.isEmpty == false else { return ToolRunResult(text: "Leere Suchabfrage.", isError: true) }
+        let index = max(1, Int(input["nummer"] ?? "1") ?? 1)
+        do {
+            let hits = try await client.searchMessages(query: query, maxResults: max(index, 5))
+            guard hits.isEmpty == false else { return ToolRunResult(text: "Keine Mail für „\(query)“ gefunden.") }
+            guard index <= hits.count else {
+                return ToolRunResult(text: "Nur \(hits.count) Treffer — Nummer \(index) gibt es nicht.", isError: true)
+            }
+            let msg = hits[index - 1]
+            let body = (try await client.fetchBody(messageID: msg.id)).trimmingCharacters(in: .whitespacesAndNewlines)
+            let date = msg.receivedAt.map { toolDateFormatter.string(from: $0) } ?? "ohne Datum"
+            let shown = body.count > 6000 ? String(body.prefix(6000)) + "\n… [gekürzt]" : (body.isEmpty ? "(kein lesbarer Text-Body)" : body)
+            return ToolRunResult(text: "Betreff: \(msg.subject)\nVon: \(msg.from) (\(date))\n\n\(shown)")
+        } catch GoogleGmailError.notConnected {
+            return ToolRunResult(text: "Gmail ist nicht verbunden. Bitte in den Einstellungen verbinden.", isError: true)
+        } catch {
+            return ToolRunResult(text: "Mail konnte nicht gelesen werden: \(error)", isError: true)
+        }
+    }
+}
+
+// MARK: - CreateDraftTool (S14, bestätigungspflichtig) — Gmail-Entwurf vorschlagen
+// Schreibt NICHTS — liefert nur einen EmailDraft, den die Engine als Action-Card rendert.
+// Erst die Bestätigung legt einen Gmail-ENTWURF an (versendet NIE). Eiserne Regel.
+struct CreateDraftTool: AssistantTool {
+    var name: String { "create_draft" }
+    var description: String {
+        "Bereitet einen E-Mail-ENTWURF vor (Empfänger optional, Betreff, Text). Du schreibst "
+        + "NICHT selbst und versendest NIE — es entsteht eine Bestätigungskarte, der Nutzer legt "
+        + "den Entwurf in Gmail ab (erscheint dann auch in Apple Mail). Behaupte nie, die Mail "
+        + "sei gesendet oder schon gespeichert."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "betreff", description: "Betreff der Mail"),
+         ToolParameter(name: "text", description: "Mailtext (Body)"),
+         ToolParameter(name: "an", description: "Empfänger-E-Mail (optional)", required: false)]
+    }
+    func run(input: [String: String]) async -> ToolRunResult {
+        let subject = (input["betreff"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let body = (input["text"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard subject.isEmpty == false || body.isEmpty == false else {
+            return ToolRunResult(text: "Für einen Entwurf brauche ich mindestens Betreff oder Text.", isError: true)
+        }
+        let to = (input["an"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let draft = EmailDraft(to: to.isEmpty ? nil : to, subject: subject, body: body)
+        return ToolRunResult(
+            text: "Entwurf vorbereitet: \(draft.headline). Zeige dem Nutzer die Bestätigungskarte — "
+                + "der Entwurf wird erst nach Bestätigung in Gmail abgelegt, nicht von dir.",
+            emailDraft: draft)
+    }
+}
+
 // MARK: - Kontakt-Schreiben (S9, bestätigungspflichtig)
 
 /// Schlägt einen neuen Google-Kontakt vor. Schreibt NICHTS — gibt nur einen
@@ -1135,6 +1212,8 @@ public struct AssistantToolRegistry: Sendable {
     ) -> AssistantToolRegistry {
         var tools: [any AssistantTool] = [
             SearchGmailTool(client: gmail, cache: gmailCache),
+            ReadEmailTool(client: gmail),
+            CreateDraftTool(),
             ListCalendarTool(client: calendar),
             SuggestCalendarEventTool(),
             ListDriveFolderTool(client: drive),

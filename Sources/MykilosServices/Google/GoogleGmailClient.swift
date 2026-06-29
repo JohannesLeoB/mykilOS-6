@@ -1,4 +1,5 @@
 import Foundation
+import MykilosKit
 
 // MARK: - GmailAttachment
 /// Metadaten eines Mail-Anhangs (kein Inhalt — nur Name, Typ, ID für späteren Download).
@@ -48,15 +49,32 @@ public enum GoogleGmailError: Error, Sendable, Equatable {
 // MARK: - GoogleGmailFetching
 public protocol GoogleGmailFetching: Sendable {
     func searchMessages(query: String, maxResults: Int) async throws -> [GoogleGmailMessage]
+    /// Volltext-Body einer Mail (S15). Default-Impl wirft, damit bestehende Fakes
+    /// unberührt bleiben — der echte Client überschreibt sie.
+    func fetchBody(messageID: String) async throws -> String
+}
+
+public extension GoogleGmailFetching {
+    func fetchBody(messageID: String) async throws -> String {
+        throw GoogleGmailError.invalidResponse
+    }
+}
+
+// MARK: - GoogleGmailWriting (S14) — getrennt, damit Lese-Fakes unberührt bleiben.
+// NUR Entwürfe anlegen (drafts.create). Versenden ist NICHT enthalten (hartes NO-GO).
+// Braucht den gmail.compose-Scope → Google Re-Consent (M2).
+public protocol GoogleGmailWriting: Sendable {
+    func createDraft(_ draft: EmailDraft) async throws -> String   // gibt Draft-ID zurück
 }
 
 // MARK: - GoogleGmailClient
 // Liest E-Mails readonly über Gmail API v1. Scope gmail.readonly ist bereits
 // in GoogleOAuthScope.readOnlyDefaults enthalten.
-public struct GoogleGmailClient: GoogleGmailFetching {
+public struct GoogleGmailClient: GoogleGmailFetching, GoogleGmailWriting {
     private let tokenProvider: GoogleAccessTokenProviding
     private let session: URLSession
     private let baseURL = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
+    private let draftsURL = "https://gmail.googleapis.com/gmail/v1/users/me/drafts"
 
     public init(
         tokenProvider: GoogleAccessTokenProviding = GoogleAccessTokenProvider(),
@@ -100,7 +118,127 @@ public struct GoogleGmailClient: GoogleGmailFetching {
         return messages
     }
 
+    // MARK: - Volltext-Body lesen (S15)
+
+    public func fetchBody(messageID: String) async throws -> String {
+        guard let accessToken = try? await tokenProvider.validAccessToken() else {
+            throw GoogleGmailError.notConnected
+        }
+        guard let url = Self.buildDetailURL(messageID: messageID, baseURL: baseURL) else {
+            throw GoogleGmailError.invalidResponse
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw GoogleGmailError.invalidResponse }
+        guard (200...299).contains(http.statusCode) else { throw GoogleGmailError.httpError(http.statusCode) }
+        return Self.parseBody(from: data)
+    }
+
+    // MARK: - Entwurf anlegen (S14)
+
+    public func createDraft(_ draft: EmailDraft) async throws -> String {
+        guard let accessToken = try? await tokenProvider.validAccessToken() else {
+            throw GoogleGmailError.notConnected
+        }
+        guard let url = URL(string: draftsURL) else { throw GoogleGmailError.invalidResponse }
+        let raw = Self.base64URL(Data(Self.buildMIME(draft).utf8))
+        let payload = try JSONSerialization.data(withJSONObject: ["message": ["raw": raw]])
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = payload
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw GoogleGmailError.invalidResponse }
+        guard (200...299).contains(http.statusCode) else { throw GoogleGmailError.httpError(http.statusCode) }
+        let decoded = try? JSONDecoder().decode(GmailDraftResponse.self, from: data)
+        return decoded?.id ?? ""
+    }
+
     // MARK: - Reine, testbare Bausteine
+
+    /// RFC822-MIME für einen Entwurf. Subject als RFC2047-Encoded-Word bei Nicht-ASCII,
+    /// Body base64-transfer-encoded (UTF-8). Deterministisch + testbar.
+    static func buildMIME(_ draft: EmailDraft) -> String {
+        var lines: [String] = []
+        if let to = draft.to?.trimmingCharacters(in: .whitespacesAndNewlines), to.isEmpty == false {
+            lines.append("To: \(to)")
+        }
+        lines.append("Subject: \(encodeHeader(draft.subject))")
+        lines.append("MIME-Version: 1.0")
+        lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
+        lines.append("Content-Transfer-Encoding: base64")
+        lines.append("")
+        // Body base64 in 76er-Zeilen (RFC2045).
+        let b64 = Data(draft.body.utf8).base64EncodedString()
+        lines.append(stride(from: 0, to: b64.count, by: 76).map { i -> String in
+            let start = b64.index(b64.startIndex, offsetBy: i)
+            let end = b64.index(start, offsetBy: 76, limitedBy: b64.endIndex) ?? b64.endIndex
+            return String(b64[start..<end])
+        }.joined(separator: "\r\n"))
+        return lines.joined(separator: "\r\n")
+    }
+
+    /// ASCII-Header bleiben roh; Nicht-ASCII → =?UTF-8?B?…?= (RFC2047).
+    static func encodeHeader(_ value: String) -> String {
+        if value.allSatisfy({ $0.isASCII }) { return value }
+        return "=?UTF-8?B?\(Data(value.utf8).base64EncodedString())?="
+    }
+
+    /// base64url ohne Padding — Gmail erwartet `raw` so.
+    static func base64URL(_ data: Data) -> String {
+        data.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
+    /// Extrahiert den lesbaren Klartext-Body aus einer format=full-Message: bevorzugt
+    /// text/plain, sonst grob entschlackter text/html; rekursiv durch Multipart-Teile.
+    static func parseBody(from data: Data) -> String {
+        guard let resource = try? JSONDecoder().decode(GmailMessageResource.self, from: data) else { return "" }
+        if let plain = firstPart(resource.payload, mime: "text/plain") { return plain }
+        if let html = firstPart(resource.payload, mime: "text/html") { return stripHTML(html) }
+        return resource.snippet ?? ""
+    }
+
+    private static func firstPart(_ payload: GmailPayload?, mime: String) -> String? {
+        guard let payload else { return nil }
+        if payload.mimeType == mime, let decoded = decodeBodyData(payload.body?.data) { return decoded }
+        for part in payload.parts ?? [] {
+            if let found = firstPartInPart(part, mime: mime) { return found }
+        }
+        return nil
+    }
+
+    private static func firstPartInPart(_ part: GmailPart, mime: String) -> String? {
+        if part.mimeType == mime, let decoded = decodeBodyData(part.body?.data) { return decoded }
+        for sub in part.parts ?? [] {
+            if let found = firstPartInPart(sub, mime: mime) { return found }
+        }
+        return nil
+    }
+
+    private static func decodeBodyData(_ data: String?) -> String? {
+        guard let data, data.isEmpty == false else { return nil }
+        var s = data.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        while s.count % 4 != 0 { s += "=" }
+        guard let bytes = Data(base64Encoded: s) else { return nil }
+        return String(data: bytes, encoding: .utf8)
+    }
+
+    static func stripHTML(_ html: String) -> String {
+        var out = html.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+        out = out.replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+        return out.replacingOccurrences(of: "[ \\t]+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     static func buildListURL(query: String, maxResults: Int, baseURL: String) -> URL? {
         var components = URLComponents(string: baseURL)
@@ -220,7 +358,9 @@ private struct GmailMessageResource: Decodable {
 }
 
 private struct GmailPayload: Decodable {
+    var mimeType: String?
     var headers: [GmailHeader]?
+    var body: GmailPartBody?
     var parts: [GmailPart]?
 }
 
@@ -234,6 +374,11 @@ private struct GmailPart: Decodable {
 private struct GmailPartBody: Decodable {
     var attachmentId: String?
     var size: Int?
+    var data: String?          // base64url-kodierter Inhalt (S15)
+}
+
+private struct GmailDraftResponse: Decodable {
+    var id: String?
 }
 
 private struct GmailHeader: Decodable {

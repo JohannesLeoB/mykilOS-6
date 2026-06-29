@@ -146,7 +146,8 @@ struct ProjectDetailView: View {
                 focusedDriveFolderID: project.links.driveFolderID,
                 focusedClickUpListID: project.links.clickUpListID,
                 profile: appState.profile.profile,
-                onCreateContact: { await appState.createContact($0) }
+                onCreateContact: { await appState.createContact($0) },
+                onCreateDraft: { await appState.createDraft($0) }
             )
         case .files:
             FilesTabView(

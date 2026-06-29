@@ -63,6 +63,13 @@
     "link": "mykilos://datastream/GMAIL_SEARCH"
   },
   {
+    "integrationID": "GMAIL_DRAFT_CREATE",
+    "name": "Gmail Entwurf anlegen (Assistent, bestätigungspflichtig)",
+    "system": "Google Gmail",
+    "direction": "WRITE",
+    "link": "mykilos://datastream/GMAIL_DRAFT_CREATE"
+  },
+  {
     "integrationID": "GMAIL_FULL_CACHE",
     "name": "Postfach-Vollcache",
     "system": "Google Gmail",

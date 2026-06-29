@@ -30,6 +30,32 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-29 · Claude Code (Opus) — S14/S15: Gmail-Entwürfe + voller Mailzugriff
+
+```
+Branch: polish/dampflok; 361 → 371 Tests grün
+Build:  ✅ swift build grün
+```
+
+Johannes (Live-Screenshot): Assistent sagte „keinen Schreibzugriff auf Gmail" beim
+Versuch, einen Entwurf abzulegen. Außerdem: „ALLE Mails durchsuchbar und lesbar".
+
+**S14 — Gmail-Entwurf anlegen:** `GoogleGmailWriting.createDraft` (Gmail `drafts.create`,
+RFC822-MIME mit RFC2047-Subject + base64url-`raw`). `EmailDraft`/`DraftCreateOutcome` (Kit),
+`create_draft`-Tool (liefert nur Entwurf, schreibt nichts), `.draftAction`-Block +
+`DraftActionCard` (Bestätigung → `AppState.createDraft` → Gmail-API + Audit `.draftCreated`).
+Entwurf landet in Gmail und damit auch in Apple Mail. **VERSENDEN bleibt hartes NO-GO** (Send-API
+nie aufgerufen). Neuer `gmail.compose`-Scope → Live braucht M2. Weiche GMAIL_DRAFT_CREATE.
+
+**S15 — alle Mails lesbar:** `search_gmail` durchsucht serverseitig das ganze Postfach
+(Limit nur Trefferzahl, S12); neues `read_email`-Tool liest den VOLLEN Body
+(`GoogleGmailFetching.fetchBody`: text/plain bevorzugt, sonst HTML entschlackt, base64url-dekodiert).
+
++10 Tests (MIME/Header/base64url/parseBody/stripHTML/read_email/create_draft). Bestehende
+Lese-Fakes via Protokoll-Default-Extension unberührt.
+
+---
+
 ## 2026-06-29 · Claude Code (Opus) — S11: ClickUp projektübergreifend
 
 ```

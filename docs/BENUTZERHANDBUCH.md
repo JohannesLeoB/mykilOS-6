@@ -249,7 +249,9 @@ Wenn Tools aktiviert sind, kann der Assistent folgende Aktionen ausführen
 
 | Tool | Was es tut | Opt-in |
 |------|-----------|--------|
-| `search_gmail` | Sucht Mails nach Query (Gmail-Operatoren, z. B. `after:2025/01/01`). Trefferzahl via `anzahl` (Standard 25, max 100) für Rückblicke | toolsEnabled |
+| `search_gmail` | Sucht Mails nach Query (Gmail-Operatoren, z. B. `after:2025/01/01`) — die Suche umfasst das **ganze Postfach**. Trefferzahl via `anzahl` (Standard 25, max 100) | toolsEnabled |
+| `read_email` | Liest den **vollen Inhalt** einer Mail (PDF/Text-Body, nicht nur die Vorschau); findet sie per Gmail-Suche | toolsEnabled |
+| `create_draft` | Bereitet einen **Mail-Entwurf** vor → Bestätigungskarte → legt nach Klick einen **Gmail-Entwurf** an (erscheint in Apple Mail). **Versendet NIE** | toolsEnabled (+ `gmail.compose`/M2) |
 | `list_calendar_events` | Liest Kalender-Termine | toolsEnabled |
 | `suggest_calendar_event` | Bereitet einen Termin vor → Aktionskarte „Im Kalender öffnen" (kanonischer Google-Link, kein API-Write, KEIN fabrizierter Inline-Link) | toolsEnabled |
 | `list_drive_folder` | Listet Drive-Ordner-Inhalt | toolsEnabled + driveFolderID |
@@ -297,7 +299,7 @@ Fehlermeldung, Dauer-ms, Zusammenfassung.
 
 ---
 
-### Alle Weichen (Stand 2026-06-29 · 32 Weichen)
+### Alle Weichen (Stand 2026-06-29 · 33 Weichen)
 
 #### Airtable
 
@@ -326,7 +328,8 @@ Fehlermeldung, Dauer-ms, Zusammenfassung.
 
 | Integrations-ID | Name | Richtung | Trigger | NO-GO | Notiz |
 |---|---|---|---|---|---|
-| `GMAIL_SEARCH` | Gmail-Suche (Assistent) | READ | onDemand (Tool-Call) | read-only | Nur Metadaten + Snippet. Tool-Daten fließen nur bei `toolsEnabled`-Opt-in an Claude. |
+| `GMAIL_SEARCH` | Gmail-Suche/-Lesen (Assistent) | READ | onDemand (Tool-Call) | read-only | Tools `search_gmail` (ganzes Postfach, `anzahl` bis 100) + `read_email` (voller Body, S15). Tool-Daten fließen nur bei `toolsEnabled`-Opt-in an Claude. |
+| `GMAIL_DRAFT_CREATE` | Gmail-Entwurf anlegen (Assistent) | WRITE | onDemand (Tool-Call) | nur Karte→Bestätigung→Audit; **VERSENDEN NIE** | Tool `create_draft` → `DraftActionCard` → `AppState.createDraft` (`drafts.create`) + Audit `.draftCreated`. Entwurf erscheint in Gmail **und Apple Mail**. Braucht `gmail.compose`-Scope (M2). S14. |
 | `GMAIL_FULL_CACHE` | Postfach-Vollcache | READ | Intervall (geplant) | read-only | **Geplant (L23).** Nur Metadaten+Snippet lokal cachen. Assistent durchsucht Cache. |
 
 #### Google Kalender

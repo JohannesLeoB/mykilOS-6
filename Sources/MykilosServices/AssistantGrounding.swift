@@ -20,6 +20,7 @@ public enum AssistantGrounding {
         contactsEnabled: Bool = false,
         clickUpEnabled: Bool = false,
         allClickUpEnabled: Bool = false,
+        draftEnabled: Bool = false,
         contactsWriteEnabled: Bool = false,
         kontaktVerzeichnisEnabled: Bool = false,
         studioBrainEnabled: Bool = false,
@@ -67,10 +68,14 @@ public enum AssistantGrounding {
         if toolsEnabled {
             var toolLines: [String] = [
                 "Wichtig: Erfinde keine Fakten. Du hast LIVE-Lesezugriff auf folgende Werkzeuge — nutze sie statt zu raten:",
-                "- search_gmail: Gmail durchsuchen (Betreff/Snippet).",
+                "- search_gmail: Gmail durchsuchen (Betreff/Snippet). Mit 'anzahl' mehr Treffer für Rückblicke; Gmail-Operatoren wie 'after:2025/01/01' nutzbar. Die Suche umfasst das GANZE Postfach.",
+                "- read_email: den VOLLEN Inhalt einer gefundenen Mail lesen (nicht nur die Vorschau).",
                 "- list_calendar_events: Termine aus Google Kalender.",
                 "- suggest_calendar_event: erzeugt einen Kalender-Link (kein API-Write).",
             ]
+            if draftEnabled {
+                toolLines.append("- create_draft: bereitet einen E-Mail-ENTWURF vor (Betreff/Text/optional Empfänger). Es entsteht eine Bestätigungskarte; der Nutzer legt den Entwurf in Gmail ab. Du VERSENDEST NIE und behauptest nie, die Mail sei gesendet/gespeichert.")
+            }
             if driveEnabled {
                 toolLines.append("- list_drive_folder: Dateien und Unterordner im verlinkten Drive-Projektordner (nur Metadaten lesen). Mit 'unterordner' gezielt z. B. in '01 INFOS' schauen.")
             }
@@ -112,7 +117,7 @@ public enum AssistantGrounding {
             }
             var toolMsg = toolLines.joined(separator: "\n")
             toolMsg += "\nWenn für eine Frage kein Werkzeug oben passt (z. B. Rechnungen), sag offen, dass dir der Live-Zugriff fehlt. "
-            toolMsg += "Mails versenden darfst du nur als Vorschlag formulieren, nie als erledigt darstellen."
+            toolMsg += "Mails kannst du als ENTWURF vorbereiten (create_draft, mit Bestätigung) — VERSENDEN tust du nie und stellst es nie als erledigt dar."
             lines.append(toolMsg)
         } else {
             lines.append(

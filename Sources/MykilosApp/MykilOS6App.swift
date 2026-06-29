@@ -355,7 +355,8 @@ struct AssistantPageView: View {
                 projects: appState.registry.projects,
                 focusedProjectID: context.focusedProjectID,
                 profile: appState.profile.profile,
-                onCreateContact: { await appState.createContact($0) }
+                onCreateContact: { await appState.createContact($0) },
+                onCreateDraft: { await appState.createDraft($0) }
             )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)

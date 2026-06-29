@@ -1,10 +1,90 @@
 import Testing
 import Foundation
+import MykilosKit
 @testable import MykilosServices
 
 struct GoogleGmailClientTests {
 
     private let baseURL = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
+
+    // MARK: - S14: Entwurf-MIME / Header / base64url
+
+    @Test func buildMIMEEnthaeltHeaderUndBase64Body() {
+        let mime = GoogleGmailClient.buildMIME(EmailDraft(to: "a@b.de", subject: "Test", body: "Hallo Welt"))
+        #expect(mime.contains("To: a@b.de"))
+        #expect(mime.contains("Subject: Test"))
+        #expect(mime.contains("Content-Transfer-Encoding: base64"))
+        #expect(mime.contains(Data("Hallo Welt".utf8).base64EncodedString()))
+    }
+
+    @Test func buildMIMEOhneEmpfaengerLaesstToWeg() {
+        let mime = GoogleGmailClient.buildMIME(EmailDraft(subject: "S", body: "B"))
+        #expect(mime.contains("To:") == false)
+    }
+
+    @Test func encodeHeaderRFC2047BeiUmlaut() {
+        #expect(GoogleGmailClient.encodeHeader("Angebot") == "Angebot")
+        let enc = GoogleGmailClient.encodeHeader("Grüße")
+        #expect(enc.hasPrefix("=?UTF-8?B?"))
+        #expect(enc.hasSuffix("?="))
+    }
+
+    @Test func base64URLOhnePadding() {
+        let s = GoogleGmailClient.base64URL(Data("xx".utf8))
+        #expect(s.contains("=") == false)
+        #expect(s.contains("+") == false)
+        #expect(s.contains("/") == false)
+    }
+
+    // MARK: - S15: Body-Parsing
+
+    @Test func parseBodyDekodiertTextPlain() {
+        let plain = Data("Hallo Welt".utf8).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
+        let json = """
+        {"id":"m1","snippet":"snip","payload":{"mimeType":"multipart/alternative","parts":[
+          {"mimeType":"text/plain","body":{"data":"\(plain)"}}]}}
+        """
+        #expect(GoogleGmailClient.parseBody(from: Data(json.utf8)) == "Hallo Welt")
+    }
+
+    @Test func parseBodyFaelltAufSnippetZurueck() {
+        let json = #"{"id":"m1","snippet":"nur snippet","payload":{"mimeType":"text/x","parts":[]}}"#
+        #expect(GoogleGmailClient.parseBody(from: Data(json.utf8)) == "nur snippet")
+    }
+
+    @Test func stripHTMLEntferntTags() {
+        #expect(GoogleGmailClient.stripHTML("<p>Hallo&nbsp;<b>Welt</b></p>") == "Hallo Welt")
+    }
+
+    // MARK: - S14/S15: Tools über die Registry
+
+    @Test func readEmailToolLiestVollenBody() async {
+        let fake = FakeGmailWithBody(
+            messages: [GoogleGmailMessage(id: "m1", subject: "Leuchten", from: "Gehrke", snippet: "kurz", receivedAt: nil)],
+            bodies: ["m1": "Voller Mailtext mit Details"])
+        let reg = AssistantToolRegistry.standard(gmail: fake)
+        let r = await reg.run(name: "read_email", inputJSON: Data(#"{"query":"Leuchten"}"#.utf8))
+        #expect(r.isError == false)
+        #expect(r.text.contains("Voller Mailtext mit Details"))
+        #expect(r.text.contains("Leuchten"))
+    }
+
+    @Test func createDraftToolErzeugtEntwurfKarte() async {
+        let reg = AssistantToolRegistry.standard()
+        let r = await reg.run(name: "create_draft", inputJSON: Data(#"{"betreff":"Neurologie","text":"Leuchte kommt am 4. Juli","an":"gehrke@x.de"}"#.utf8))
+        #expect(r.isError == false)
+        #expect(r.emailDraft?.subject == "Neurologie")
+        #expect(r.emailDraft?.to == "gehrke@x.de")
+        #expect(r.emailDraft?.body.contains("4. Juli") == true)
+    }
+
+    @Test func createDraftOhneInhaltIstFehler() async {
+        let reg = AssistantToolRegistry.standard()
+        let r = await reg.run(name: "create_draft", inputJSON: Data(#"{"betreff":"","text":""}"#.utf8))
+        #expect(r.isError == true)
+        #expect(r.emailDraft == nil)
+    }
 
     // S12: Trefferzahl ist parametrisierbar (Default 25, gekappt auf 100).
     @Test func gmailResultLimitDefaultUndCap() {
@@ -192,4 +272,11 @@ struct GoogleGmailClientTests {
         #expect(msg.attachments.count == 1)
         #expect(msg.attachments.first?.filename == "logo.png")
     }
+}
+
+private struct FakeGmailWithBody: GoogleGmailFetching, @unchecked Sendable {
+    let messages: [GoogleGmailMessage]
+    let bodies: [String: String]
+    func searchMessages(query: String, maxResults: Int) async throws -> [GoogleGmailMessage] { messages }
+    func fetchBody(messageID: String) async throws -> String { bodies[messageID] ?? "" }
 }

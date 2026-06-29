@@ -295,6 +295,26 @@ public final class AppState {
         }
     }
 
+    // S14: legt einen vom Nutzer BESTÄTIGTEN Mail-Entwurf via Gmail API an + Audit.
+    // Wird der AssistantChatView als `onCreateDraft` injiziert. Versendet NIE — nur Entwurf.
+    public func createDraft(_ draft: EmailDraft) async -> DraftCreateOutcome {
+        do {
+            _ = try await GoogleGmailClient().createDraft(draft)
+        } catch GoogleGmailError.notConnected {
+            return .failed("Gmail nicht verbunden / kein Schreibrecht — Google in den Einstellungen neu verbinden (M2).")
+        } catch {
+            return .failed("Entwurf konnte nicht angelegt werden: \(error.localizedDescription)")
+        }
+        do {
+            try audit.append(AuditEntry(actorUserID: actorUserID, projectID: "-",
+                                        action: .draftCreated,
+                                        summary: "Gmail-Entwurf angelegt: \(draft.subject)"))
+        } catch {
+            MykLog.contacts.error("Audit für Entwurf fehlgeschlagen: \(String(describing: error), privacy: .public)")
+        }
+        return .created("Entwurf in Gmail abgelegt (erscheint auch in Apple Mail).")
+    }
+
     // L24: baut die Assistenten-Tool-Registry mit dem aktuellen Kunden-Snapshot neu auf.
     // Rein lokal (kein Airtable-Call) — nutzt die bereits geladene Registry. Erhält die
     // KalkulationsEngine, sonst verschwände schaetze_projekt.
