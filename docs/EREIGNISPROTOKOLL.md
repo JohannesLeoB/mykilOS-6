@@ -30,6 +30,35 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-29 · Claude Code (Opus) — S17: Kompletter Review-Lauf + Aufräumen
+
+```
+Branch: polish/dampflok; 373 → 385 Tests grün
+Build:  ✅ swift build grün · Working Tree clean
+```
+
+Auf Wunsch („Kompletter Review lauf, no screenuse, räume alles sauber auf"): Voll-Audit
+der gesamten Session (S1–S16) per Multi-Agent-Workflow (16 Agenten, 5 Dimensionen,
+adversarisch gegengeprüft) + deterministische Hard-Fact-Checks.
+
+**Ergebnis: KEINE funktionalen, Verdrahtungs-, Vollständigkeits- oder Safety-Defekte.**
+- Hard Facts: Build grün, 385 Tests, Tree clean; Manifest-JSON ↔ Airtable-Handbuch ↔
+  Benutzerhandbuch = **33 Weichen, identische Mengen**; kein `try!`/TODO/Stub; SwiftLint
+  Token-Regeln 0 Verstöße; Tool→Manifest-Map (26) vollständig.
+- Safety-Sweep (selbst, da Review-Agent abbrach): **kein** Gmail-Send-API-Aufruf, **kein**
+  Sevdesk-Write; externe Writes nur OAuth/TokenRefresh/Claude/createContact/createDraft/
+  Airtable-Log (alle bestätigungs-gated bzw. whitelisted).
+- Behoben (nur Doku/Tests, keine Logikfehler): stale Test-Zahl + Datum in HYPERBUILD.md
+  (270→373, 2026-06-29), Datum BENUTZERHANDBUCH; **+12 Tests** für die neuen Schreib-/Lese-
+  Tools (create_contact-Tool, create_draft-Ränder, read_email-Index/Fehlerpfade,
+  lookup_kontakt Null-Treffer + Feld-Formatierung).
+
+Alle vom Nutzer bestellten Funktionen sind implementiert, registriert, getestet UND
+dokumentiert. Offen bleiben nur die Johannes-Aktionen M2/M3 und der bewusst zurückgestellte
+S3 (QuickLook-Vollvorschau). Kein Push.
+
+---
+
 ## 2026-06-29 · Claude Code (Opus) — S16: Review-Fix (Projekt-Scope + PII-Log)
 
 ```

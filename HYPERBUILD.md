@@ -6,9 +6,9 @@
 
 ```
 Pfad:    /Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/
-Branch:  polish/dampflok   ·   HEAD a461fee   ·   GitHub JohannesLeoB/mykilOS-6 (privat)
-Build:   ✅ swift build grün        Tests: ✅ 270 grün (43 Suites)
-Modell:  claude-sonnet-4-6 (App)    Stand: 2026-06-28
+Branch:  polish/dampflok   ·   HEAD 6341e16   ·   GitHub JohannesLeoB/mykilOS-6 (privat)
+Build:   ✅ swift build grün        Tests: ✅ 373 grün (61 Suites)
+Modell:  claude-sonnet-4-6 (App)    Stand: 2026-06-29 (Sprint S1–S16 + Assistenten-Schreibtools)
 Fallback: git checkout ui/sidebar-ci-stable
 ```
 
@@ -110,5 +110,5 @@ M3 ClickUp-Listen-IDs · M4 sevdeskRef+Budget · M5 Clockodo-Stundensätze · M6
 - **Team/Collective** → [docs/MYKILOS_6_TEAM_MODELL.md](docs/MYKILOS_6_TEAM_MODELL.md) · [docs/TEAM_CHARTER.md](docs/TEAM_CHARTER.md) · [docs/COLLECTIVE_REGELWERK.md](docs/COLLECTIVE_REGELWERK.md)
 - **Historie komprimiert** → [docs/handoffs/_archiv/INDEX.md](docs/handoffs/_archiv/INDEX.md) · [docs/_archiv/](docs/_archiv/)
 
-_Destilliert 2026-06-28 — der Brühwürfel. Wird mit jedem Meilenstein nachgeschärft, nie aufgebläht._
+_Destilliert 2026-06-29 — der Brühwürfel. Wird mit jedem Meilenstein nachgeschärft, nie aufgebläht._
 </content>

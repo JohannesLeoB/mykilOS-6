@@ -74,6 +74,23 @@ struct ContactDirectoryTests {
         #expect(r.isError == true)
     }
 
+    // S13 (Review-Nachzug): kein Treffer → freundliche Meldung, kein Fehler.
+    @Test func lookupKontaktOhneTrefferMeldetSauber() async {
+        let reg = AssistantToolRegistry.standard(contactDirectory: ContactDirectory(contacts: sample()))
+        let r = await reg.run(name: "lookup_kontakt", inputJSON: Data(#"{"query":"Mondmann"}"#.utf8))
+        #expect(r.isError == false)
+        #expect(r.text.contains("Keine Kontakte"))
+    }
+
+    // S13 (Review-Nachzug): Ausgabe enthält nur gesetzte Felder (Adickes: nur Telefon).
+    @Test func lookupKontaktFormatiertNurGesetzteFelder() async {
+        let reg = AssistantToolRegistry.standard(contactDirectory: ContactDirectory(contacts: sample()))
+        let r = await reg.run(name: "lookup_kontakt", inputJSON: Data(#"{"query":"Adickes"}"#.utf8))
+        #expect(r.text.contains("Holger Adickes"))
+        #expect(r.text.contains("☎"))
+        #expect(r.text.contains("✉") == false)   // kein E-Mail-Feld gesetzt
+    }
+
     @Test func toolFehltOhneDirectory() {
         let reg = AssistantToolRegistry.standard()
         #expect(reg.toolNames.contains("lookup_kontakt") == false)

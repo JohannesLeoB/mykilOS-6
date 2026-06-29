@@ -77,6 +77,39 @@ struct GoogleContactsClientTests {
         #expect(ContactDraft(givenName: "Heinz").displayName == "Heinz")
     }
 
+    // S9 (Review-Nachzug): create_contact-Tool über die Registry — Entwurf, kein Auto-Write.
+    @Test func createContactToolErzeugtEntwurf() async {
+        let reg = AssistantToolRegistry.standard()
+        let r = await reg.run(name: "create_contact", inputJSON: Data(#"{"vorname":"Sinem","nachname":"Cirnavuk","email":"s@x.de","telefon":"0175","firma":"MYKILOS"}"#.utf8))
+        #expect(r.isError == false)
+        #expect(r.contactDraft?.givenName == "Sinem")
+        #expect(r.contactDraft?.familyName == "Cirnavuk")
+        #expect(r.contactDraft?.email == "s@x.de")
+        #expect(r.contactDraft?.organization == "MYKILOS")
+    }
+
+    @Test func createContactNurVornameReicht() async {
+        let reg = AssistantToolRegistry.standard()
+        let r = await reg.run(name: "create_contact", inputJSON: Data(#"{"vorname":"Heinz"}"#.utf8))
+        #expect(r.isError == false)
+        #expect(r.contactDraft?.givenName == "Heinz")
+        #expect(r.contactDraft?.email == nil)
+    }
+
+    @Test func createContactOhneNamenIstFehler() async {
+        let reg = AssistantToolRegistry.standard()
+        let r = await reg.run(name: "create_contact", inputJSON: Data(#"{"vorname":"   ","email":"x@y.de"}"#.utf8))
+        #expect(r.isError == true)
+        #expect(r.contactDraft == nil)
+    }
+
+    @Test func createContactTrimmtLeereOptionaleFelderAufNil() async {
+        let reg = AssistantToolRegistry.standard()
+        let r = await reg.run(name: "create_contact", inputJSON: Data(#"{"vorname":"A","telefon":"  ","firma":""}"#.utf8))
+        #expect(r.contactDraft?.phone == nil)
+        #expect(r.contactDraft?.organization == nil)
+    }
+
     @Test func parseContactsDekodiertResultsPersonStruktur() throws {
         let json = """
         {

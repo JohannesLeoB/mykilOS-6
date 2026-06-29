@@ -86,6 +86,49 @@ struct GoogleGmailClientTests {
         #expect(r.emailDraft == nil)
     }
 
+    // S14 (Review-Nachzug): Rand-Fälle des Guards/Trimmings.
+    @Test func createDraftNurBetreffOderNurTextReicht() async {
+        let reg = AssistantToolRegistry.standard()
+        let nurBetreff = await reg.run(name: "create_draft", inputJSON: Data(#"{"betreff":"Titel","text":""}"#.utf8))
+        #expect(nurBetreff.isError == false)
+        let nurText = await reg.run(name: "create_draft", inputJSON: Data(#"{"betreff":"","text":"Inhalt"}"#.utf8))
+        #expect(nurText.isError == false)
+    }
+
+    @Test func createDraftNurLeerzeichenIstFehler() async {
+        let reg = AssistantToolRegistry.standard()
+        let r = await reg.run(name: "create_draft", inputJSON: Data(#"{"betreff":"   ","text":"  "}"#.utf8))
+        #expect(r.isError == true)
+    }
+
+    @Test func createDraftLeererEmpfaengerWirdNil() async {
+        let reg = AssistantToolRegistry.standard()
+        let r = await reg.run(name: "create_draft", inputJSON: Data(#"{"an":"   ","betreff":"S","text":"T"}"#.utf8))
+        #expect(r.emailDraft?.to == nil)
+    }
+
+    // S15 (Review-Nachzug): read_email Index/Fehlerpfade.
+    @Test func readEmailNichtGefunden() async {
+        let reg = AssistantToolRegistry.standard(gmail: FakeGmailWithBody(messages: [], bodies: [:]))
+        let r = await reg.run(name: "read_email", inputJSON: Data(#"{"query":"nichts"}"#.utf8))
+        #expect(r.text.contains("Keine Mail"))
+    }
+
+    @Test func readEmailNummerAusserhalbIstFehler() async {
+        let fake = FakeGmailWithBody(
+            messages: [GoogleGmailMessage(id: "m1", subject: "A", from: "X", snippet: "s", receivedAt: nil)],
+            bodies: ["m1": "Body"])
+        let reg = AssistantToolRegistry.standard(gmail: fake)
+        let r = await reg.run(name: "read_email", inputJSON: Data(#"{"query":"A","nummer":"5"}"#.utf8))
+        #expect(r.isError == true)
+    }
+
+    @Test func readEmailLeereQueryIstFehler() async {
+        let reg = AssistantToolRegistry.standard(gmail: FakeGmailWithBody(messages: [], bodies: [:]))
+        let r = await reg.run(name: "read_email", inputJSON: Data(#"{"query":""}"#.utf8))
+        #expect(r.isError == true)
+    }
+
     // S12: Trefferzahl ist parametrisierbar (Default 25, gekappt auf 100).
     @Test func gmailResultLimitDefaultUndCap() {
         #expect(SearchGmailTool.resultLimit(from: [:]) == 25)
