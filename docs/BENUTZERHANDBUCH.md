@@ -139,11 +139,19 @@ im Code entspricht.
 Ebenfalls hier: verbundene Dienste (Google, Airtable, ClickUp, Clockodo, Sevdesk, Claude).
 
 ### Kataloge (⌘8)
-Gerätekatalog read-only. Suche nach Hersteller, Beschreibung oder Artikelnummer.
-Zeigt MYKILOS-VK. Quelle: `_Daten/Kalkulation/Devices/catalog.csv`
-(5.565 Artikel aus Airtable-DB `appdxTeT6bhSBmwx5` — nur Export, nie schreiben).
+Vier **umsortierbare Unter-Tabs** (Tab mit der Maus ziehen → Reihenfolge wird gemerkt,
+`@AppStorage`):
 
-**Voraussetzung:** CSV-Datei muss im `_Daten/`-Ordner liegen (nicht im Repo).
+- **Geräte** — Gerätekatalog read-only. Suche nach Hersteller, Beschreibung oder Artikelnummer.
+  Zeigt MYKILOS-VK. Quelle: `_Daten/Kalkulation/Devices/catalog.csv`
+  (5.565 Artikel aus Airtable-DB `appdxTeT6bhSBmwx5` — nur Export, nie schreiben).
+  **Voraussetzung:** CSV-Datei muss im `_Daten/`-Ordner liegen (nicht im Repo).
+- **Kontakte** — Freitextsuche über die Google-Kontakte des verbundenen Accounts
+  (read-only, People API). Voraussetzung: Google verbunden.
+- **Notizen** — die lokalen Assistenten-Notizen (S4). Direkt hier anlegen (Sichern) und
+  löschen, oder über den Assistenten-Chat. Rein lokal.
+- **Aufgaben** — die lokale Aufgabenliste (S6): To-dos/Erinnerungen abhaken, anlegen,
+  löschen — hier oder im Assistenten-Chat. Offene zuerst, Fälligkeit sichtbar. Rein lokal.
 
 ### Kalkulation
 Kostenschätzungs-Engine (mykilO$$-Integration). Freitext-Eingabe einer

@@ -30,6 +30,32 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-29 · Claude Code (Opus) — S7: Kataloge mit umsortierbaren Unter-Tabs
+
+```
+Branch: polish/dampflok; 342 Tests grün (unverändert; reine UI-Erweiterung)
+Build:  ✅ swift build grün · SwiftLint Token-Regeln + file_length sauber
+```
+
+Auf Wunsch von Johannes: die Kataloge-Seite bekommt neben „Geräte" weitere, frei
+umsortierbare Unter-Tabs.
+
+- `KatalogeView` ist jetzt eine Hülle mit 4 Tabs (`KatalogTab`): Geräte, Kontakte,
+  Notizen, Aufgaben. Tabs per Drag umsortierbar (`.draggable`/`.dropDestination`),
+  Reihenfolge persistent in `@AppStorage("kataloge.taborder")`.
+- **Geräte**: der bisherige read-only DeviceCatalog (unverändert).
+- **Kontakte**: Freitextsuche über die Google-Kontakte (People API, read-only),
+  alle Phasen (idle/loading/notConnected/error/loaded).
+- **Notizen** (S4) / **Aufgaben** (S6): lesen die lokalen Assistenten-Stores und
+  erlauben Inline-Anlegen/Abhaken/Löschen mit **sichtbarer Fehlerzeile** (kein `try?`,
+  iron rule). Rein lokal.
+- Inhalte in `KatalogeContentTabs.swift` ausgelagert (file_length < 400).
+- Handbuch: Kataloge-Abschnitt aktualisiert (4 Tabs).
+
+Reine UI über bestehende Stores/Clients — keine neuen Weichen, kein externer Schreibzugriff.
+
+---
+
 ## 2026-06-29 · Claude Code (Opus) — S6: Aufgaben-Funktion im Assistenten
 
 ```
