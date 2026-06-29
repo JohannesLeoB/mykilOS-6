@@ -155,18 +155,76 @@ private struct TimeBar: View {
     }
 }
 
-// MARK: - RecentActivityWidget
-// Platzhalter bis Drive-Change-Tracking und ClickUp-Listen-IDs implementiert sind.
-// Zeigt kein Demo-Material — sauberer Empty-State statt erfundener Einträge.
+// MARK: - RecentActivityWidget (L28)
+// Echte „Letzte Aktivität": die neuesten Datenstrom-Handshakes (DataFlowLogger) und
+// bestätigten Audit-Aktionen, verschmolzen + neueste-zuerst. Liest die bereits beim
+// Bootstrap geladenen @Observable-Stores direkt (kein Loader, kein Netzwerk). Die
+// Merge-/Format-Logik liegt testbar in RecentActivityFeed (MykilosServices).
 struct RecentActivityWidget: View {
+    @Environment(AppState.self) private var appState
+
+    private var items: [RecentActivityItem] {
+        RecentActivityFeed.recent(
+            handshakes: appState.dataFlow.entries,
+            audits: appState.audit.entries,
+            limit: 8)
+    }
+
     var body: some View {
         WidgetContainer(
             kind: .recentActivity,
-            sourceLabel: "DRIVE + CLICKUP  ·  LETZTE AKTIVITÄT",
-            renderState: .empty,
+            sourceLabel: "DATENSTROM + AUDIT  ·  LETZTE AKTIVITÄT",
+            renderState: items.isEmpty ? .empty : .content,
             projectID: "home"
         ) {
-            EmptyView()
+            VStack(alignment: .leading, spacing: MykSpace.s4) {
+                HStack {
+                    SourceChip(kind: .recentActivity)
+                    Text("Letzte Aktivität").mykWidgetTitle()
+                    Spacer()
+                }
+                VStack(spacing: 0) {
+                    ForEach(items) { item in
+                        ActivityRow(item: item)
+                        if item.id != items.last?.id {
+                            Divider().overlay(MykColor.line.color.opacity(0.5))
+                        }
+                    }
+                }
+            }
         }
+    }
+}
+
+private struct ActivityRow: View {
+    let item: RecentActivityItem
+
+    private var dot: Color {
+        if item.isError { return MykColor.critical.color }
+        switch item.source {
+        case .handshake: return MykColor.positive.color
+        case .audit:     return MykColor.personal.color
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: MykSpace.s4) {
+            Circle().fill(dot).frame(width: 6, height: 6).padding(.top, 5)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(.mykCaption)
+                    .foregroundStyle(MykColor.ink.color)
+                    .lineLimit(1)
+                Text(item.detail)
+                    .font(.mykMono(9.5))
+                    .foregroundStyle(MykColor.muted.color)
+                    .lineLimit(1)
+            }
+            Spacer()
+            Text(item.timestamp.formatted(.relative(presentation: .named)))
+                .font(.mykMono(9))
+                .foregroundStyle(MykColor.faint.color)
+        }
+        .padding(.vertical, MykSpace.s2)
     }
 }
