@@ -884,8 +884,9 @@ struct UpdateNoteTool: AssistantTool {
         guard q.isEmpty == false, text.isEmpty == false else {
             return ToolRunResult(text: "Notiz-Bezug und neuer Text nötig.", isError: true)
         }
+        let pid = AssistantScope.projectID(from: input)
         do {
-            guard let note = try await store.update(matching: q, newBody: text) else {
+            guard let note = try await store.update(matching: q, newBody: text, scopedTo: pid) else {
                 return ToolRunResult(text: "Keine Notiz zu \(q) gefunden.", isError: true)
             }
             return ToolRunResult(text: "Notiz [\(note.ref)] aktualisiert: \(note.body)")
@@ -908,8 +909,9 @@ struct DeleteNoteTool: AssistantTool {
         guard q.isEmpty == false else {
             return ToolRunResult(text: "Welche Notiz? Nenne Kurzbezug oder Textausschnitt.", isError: true)
         }
+        let pid = AssistantScope.projectID(from: input)
         do {
-            guard let note = try await store.delete(matching: q) else {
+            guard let note = try await store.delete(matching: q, scopedTo: pid) else {
                 return ToolRunResult(text: "Keine Notiz zu \(q) gefunden.", isError: true)
             }
             return ToolRunResult(text: "Notiz gelöscht [\(note.ref)]: \(note.body)")
@@ -1034,8 +1036,9 @@ struct CompleteTaskTool: AssistantTool {
             return ToolRunResult(text: "Welche Aufgabe? Nenne Kurzbezug oder Titelausschnitt.", isError: true)
         }
         let done = (input["erledigt"] ?? "true").lowercased() != "false"
+        let pid = AssistantScope.projectID(from: input)
         do {
-            guard let task = try await store.setDone(matching: q, done: done) else {
+            guard let task = try await store.setDone(matching: q, done: done, scopedTo: pid) else {
                 return ToolRunResult(text: "Keine Aufgabe zu \(q) gefunden.", isError: true)
             }
             return ToolRunResult(text: "Aufgabe [\(task.ref)] \(done ? "erledigt" : "wieder offen"): \(task.title)")
@@ -1058,8 +1061,9 @@ struct DeleteTaskTool: AssistantTool {
         guard q.isEmpty == false else {
             return ToolRunResult(text: "Welche Aufgabe? Nenne Kurzbezug oder Titelausschnitt.", isError: true)
         }
+        let pid = AssistantScope.projectID(from: input)
         do {
-            guard let task = try await store.delete(matching: q) else {
+            guard let task = try await store.delete(matching: q, scopedTo: pid) else {
                 return ToolRunResult(text: "Keine Aufgabe zu \(q) gefunden.", isError: true)
             }
             return ToolRunResult(text: "Aufgabe gelöscht [\(task.ref)]: \(task.title)")

@@ -133,4 +133,26 @@ struct NoteToolsTests {
         let reg = AssistantToolRegistry.standard()
         #expect(reg.toolNames.contains("create_note") == false)
     }
+
+    // S16 (Review-Fix): update/delete dürfen NICHT projektübergreifend zugreifen.
+    @Test func updateUndDeleteRespektierenProjektGrenze() async throws {
+        let db = try GRDBDatabase.inMemory()
+        let store = AssistantNotesStore(db: db)
+        let foreign = try await store.create("Fremdprojekt-Notiz", projectID: "2026-024")
+        let reg = AssistantToolRegistry.standard(notesStore: store)
+
+        // Aus Projekt 2026-001 darf die 2026-024-Notiz weder geändert noch gelöscht werden.
+        let upd = await reg.run(name: "update_note", inputJSON: Data(#"{"note":"Fremd","text":"gehackt"}"#.utf8), projektID: "2026-001")
+        #expect(upd.isError == true)
+        let del = await reg.run(name: "delete_note", inputJSON: Data(#"{"note":"Fremd"}"#.utf8), projektID: "2026-001")
+        #expect(del.isError == true)
+        let still = try await store.all()
+        #expect(still.count == 1)
+        #expect(still.first?.body == "Fremdprojekt-Notiz")
+        #expect(still.first?.id == foreign.id)
+
+        // Im eigenen Projekt geht es.
+        let okDel = await reg.run(name: "delete_note", inputJSON: Data(#"{"note":"Fremd"}"#.utf8), projektID: "2026-024")
+        #expect(okDel.isError == false)
+    }
 }

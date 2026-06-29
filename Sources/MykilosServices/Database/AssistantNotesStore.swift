@@ -65,9 +65,10 @@ public actor AssistantNotesStore {
     }
 
     /// Ersetzt den Text einer Notiz (per ID oder ID-Präfix). nil, wenn nicht gefunden.
+    /// `scopedTo` grenzt die Suche auf Projekt+global ein (verhindert Cross-Projekt-Mutation).
     @discardableResult
-    public func update(matching query: String, newBody: String, now: Date = Date()) throws -> AssistantNote? {
-        guard var note = try find(matching: query) else { return nil }
+    public func update(matching query: String, newBody: String, scopedTo projectID: String? = nil, now: Date = Date()) throws -> AssistantNote? {
+        guard var note = try find(matching: query, scopedTo: projectID) else { return nil }
         note.body = newBody.trimmingCharacters(in: .whitespacesAndNewlines)
         note.updatedAt = now
         try db.write { conn in try AssistantNoteRecord(from: note).update(conn) }
@@ -75,18 +76,20 @@ public actor AssistantNotesStore {
     }
 
     /// Löscht eine Notiz (per ID/ID-Präfix oder Text-Teilstring). Gibt die gelöschte zurück.
+    /// `scopedTo` grenzt die Suche auf Projekt+global ein (verhindert Cross-Projekt-Löschung).
     @discardableResult
-    public func delete(matching query: String) throws -> AssistantNote? {
-        guard let note = try find(matching: query) else { return nil }
+    public func delete(matching query: String, scopedTo projectID: String? = nil) throws -> AssistantNote? {
+        guard let note = try find(matching: query, scopedTo: projectID) else { return nil }
         _ = try db.write { conn in try AssistantNoteRecord.deleteOne(conn, key: note.id) }
         return note
     }
 
-    /// Findet die beste Notiz für eine Anfrage: exakte ID, dann ID-Präfix, dann Text-Teilstring.
-    public func find(matching query: String) throws -> AssistantNote? {
+    /// Findet die beste Notiz: exakte ID, dann ID-Präfix, dann Text-Teilstring.
+    /// `scopedTo` non-nil → nur innerhalb Projekt+global suchen (sonst alle).
+    public func find(matching query: String, scopedTo projectID: String? = nil) throws -> AssistantNote? {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard q.isEmpty == false else { return nil }
-        let notes = try all()
+        let notes = projectID == nil ? try all() : try scoped(to: projectID)
         if let exact = notes.first(where: { $0.id.lowercased() == q }) { return exact }
         if let prefix = notes.first(where: { $0.id.lowercased().hasPrefix(q) }) { return prefix }
         return notes.first(where: { $0.body.lowercased().contains(q) })

@@ -115,4 +115,25 @@ struct AssistantTasksStoreTests {
         let r = await reg.run(name: "complete_task", inputJSON: Data(#"{"aufgabe":"gibtsnicht"}"#.utf8))
         #expect(r.isError == true)
     }
+
+    // S16 (Review-Fix): complete/delete dürfen NICHT projektübergreifend zugreifen.
+    @Test func completeUndDeleteRespektierenProjektGrenze() async throws {
+        let db = try GRDBDatabase.inMemory()
+        let store = AssistantTasksStore(db: db)
+        try await store.create("Fremdaufgabe", projectID: "2026-024")
+        let reg = AssistantToolRegistry.standard(tasksStore: store)
+
+        let done = await reg.run(name: "complete_task", inputJSON: Data(#"{"aufgabe":"Fremd"}"#.utf8), projektID: "2026-001")
+        #expect(done.isError == true)
+        let del = await reg.run(name: "delete_task", inputJSON: Data(#"{"aufgabe":"Fremd"}"#.utf8), projektID: "2026-001")
+        #expect(del.isError == true)
+        // Unverändert offen + vorhanden.
+        let still = try await store.all()
+        #expect(still.count == 1)
+        #expect(still.first?.done == false)
+
+        // Im eigenen Projekt klappt das Abhaken.
+        let ok = await reg.run(name: "complete_task", inputJSON: Data(#"{"aufgabe":"Fremd"}"#.utf8), projektID: "2026-024")
+        #expect(ok.isError == false)
+    }
 }

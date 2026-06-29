@@ -30,6 +30,29 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-29 · Claude Code (Opus) — S16: Review-Fix (Projekt-Scope + PII-Log)
+
+```
+Branch: polish/dampflok; 371 → 373 Tests grün
+```
+
+Adversariale Multi-Agent-Review der S10–S13-Implementierung (13 Agenten) fand einen
+ECHTEN Defekt (mehrfach bestätigt, high/critical): Die **mutierenden** Tools
+`update_note`/`delete_note`/`complete_task`/`delete_task` zogen die injizierte `_projektID`
+NICHT heran — `find(matching:)` suchte über ALLE Projekte. Folge: im Projekt-Chat hätte
+„lösche Notiz X" eine gleichnamige Notiz/Aufgabe eines ANDEREN Projekts treffen können.
+
+- Fix: `scopedTo`-Parameter in `AssistantNotesStore`/`AssistantTasksStore`
+  (`find`/`update`/`delete`/`setDone`) — bei gesetztem Projekt nur Projekt+global durchsuchen.
+  Die vier Tools reichen `AssistantScope.projectID(from:)` durch (wie create/list bereits).
+- Zusätzlich (medium-Fund): `AppState.syncKontakte` schreibt keinen Roh-Fehlertext mehr in
+  den DataFlow-Log (ggf. Airtable-gespiegelt) — Detail nur lokal via os.Logger (PII-Schutz).
+- +2 Regressionstests: Cross-Projekt-Update/Delete/Complete wird blockiert, eigenes Projekt geht.
+
+Single-User-lokale App → kein echtes Multi-User-Leck, aber Korrektheits-/Isolationsfix.
+
+---
+
 ## 2026-06-29 · Claude Code (Opus) — S14/S15: Gmail-Entwürfe + voller Mailzugriff
 
 ```

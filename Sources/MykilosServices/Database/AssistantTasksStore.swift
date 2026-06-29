@@ -85,9 +85,10 @@ public actor AssistantTasksStore {
     }
 
     /// Markiert eine Aufgabe als erledigt (oder wieder offen). nil, wenn nicht gefunden.
+    /// `scopedTo` grenzt die Suche auf Projekt+global ein (verhindert Cross-Projekt-Mutation).
     @discardableResult
-    public func setDone(matching query: String, done: Bool = true, now: Date = Date()) throws -> AssistantTask? {
-        guard var task = try find(matching: query) else { return nil }
+    public func setDone(matching query: String, done: Bool = true, scopedTo projectID: String? = nil, now: Date = Date()) throws -> AssistantTask? {
+        guard var task = try find(matching: query, scopedTo: projectID) else { return nil }
         task.done = done
         task.updatedAt = now
         try db.write { conn in try AssistantTaskRecord(from: task).update(conn) }
@@ -95,18 +96,20 @@ public actor AssistantTasksStore {
     }
 
     /// Löscht eine Aufgabe (per ID/ID-Präfix oder Titel-Teilstring). Gibt die gelöschte zurück.
+    /// `scopedTo` grenzt die Suche auf Projekt+global ein (verhindert Cross-Projekt-Löschung).
     @discardableResult
-    public func delete(matching query: String) throws -> AssistantTask? {
-        guard let task = try find(matching: query) else { return nil }
+    public func delete(matching query: String, scopedTo projectID: String? = nil) throws -> AssistantTask? {
+        guard let task = try find(matching: query, scopedTo: projectID) else { return nil }
         _ = try db.write { conn in try AssistantTaskRecord.deleteOne(conn, key: task.id) }
         return task
     }
 
     /// Findet die beste Aufgabe: exakte ID, dann ID-Präfix, dann Titel-Teilstring (offene bevorzugt).
-    public func find(matching query: String) throws -> AssistantTask? {
+    /// `scopedTo` non-nil → nur innerhalb Projekt+global suchen (sonst alle).
+    public func find(matching query: String, scopedTo projectID: String? = nil) throws -> AssistantTask? {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard q.isEmpty == false else { return nil }
-        let tasks = try all()
+        let tasks = projectID == nil ? try all() : try scoped(to: projectID)
         if let exact = tasks.first(where: { $0.id.lowercased() == q }) { return exact }
         if let prefix = tasks.first(where: { $0.id.lowercased().hasPrefix(q) }) { return prefix }
         return tasks.first(where: { $0.title.lowercased().contains(q) })

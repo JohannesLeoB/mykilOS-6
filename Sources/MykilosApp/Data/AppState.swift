@@ -288,9 +288,11 @@ public final class AppState {
                          action: .success, recordsRead: studioContacts.count,
                          summary: "Kontaktverzeichnis synchronisiert")
         } catch {
+            // Detail nur lokal via os.Logger; der DataFlow-Log (ggf. Airtable-gespiegelt)
+            // bekommt KEINE Roh-Fehlertexte — Kontaktdaten/PII gehören nie ins Log.
             MykLog.lifecycle.error("Kontakte-Sync fehlgeschlagen: \(String(describing: error), privacy: .public)")
             dataFlow.log(integrationID: "AIRTABLE_KONTAKTE_LOOKUP", actorUserID: actorUserID,
-                         action: .error, errorMessage: String(describing: error),
+                         action: .error, errorMessage: "Kontakte-Sync fehlgeschlagen",
                          summary: "Kontakte-Sync fehlgeschlagen")
         }
     }
