@@ -80,6 +80,9 @@ public enum ChatContentBlock: Codable, Sendable, Equatable {
     // Aktionskarte für einen generierten Kalender-Link (Phase 3).
     // Nur Anzeige — öffnet URL im Browser, schreibt NIE in Google Calendar.
     case calendarAction(url: String, label: String)
+    // Aktionskarte für einen vorgeschlagenen neuen Kontakt (S9). Schreibt NICHTS
+    // automatisch — erst die Bestätigung an der Karte legt den Kontakt an (+ Audit).
+    case contactAction(draft: ContactDraft)
     // Kostenschätzungs-Karte (S18). Nur Anzeige — die Werte kommen aus der
     // lokalen KalkulationsEngine, werden nie an die API zurückgespielt.
     case kalkulationsSchaetzung(schaetzungsID: String, projektID: String, minNetto: Double, maxNetto: Double, mitteNetto: Double, confidence: Double, evidenceCount: Int)

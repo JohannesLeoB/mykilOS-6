@@ -13,6 +13,9 @@ public enum GoogleOAuthScope: String, CaseIterable, Codable, Sendable {
     // unter gmail.metadata lehnt Google die Inhaltssuche ab.
     case gmailReadonly          = "https://www.googleapis.com/auth/gmail.readonly"
     case contactsReadonly       = "https://www.googleapis.com/auth/contacts.readonly"
+    // Schreibender Kontakt-Scope (S9): nötig für people:createContact. Schließt
+    // contacts.readonly ein, ist aber ein eigener Scope → erfordert Re-Consent (M2).
+    case contacts               = "https://www.googleapis.com/auth/contacts"
     // Userinfo-Scopes: Name + E-Mail nach OAuth-Login anzeigen (S17).
     // Erfordert einmaliges Re-Consent (prompt=consent ist bereits gesetzt).
     case userinfoEmail          = "https://www.googleapis.com/auth/userinfo.email"
@@ -22,7 +25,10 @@ public enum GoogleOAuthScope: String, CaseIterable, Codable, Sendable {
         // drive.readonly: nötig für downloadContent (PDF-Vorschau) + thumbnailLink.
         // Erfordert einmaliges Re-Consent von Johannes nach diesem Update.
         .driveReadonly, .driveMetadataReadonly,
-        .calendarEventsReadonly, .gmailReadonly, .contactsReadonly,
+        .calendarEventsReadonly, .gmailReadonly,
+        // contacts (Schreiben, S9) ersetzt contacts.readonly — schließt Lesen ein.
+        // Erfordert einmaliges Re-Consent (M2). Lesen funktioniert weiter darüber.
+        .contacts,
         .userinfoEmail, .userinfoProfile,
     ]
 }

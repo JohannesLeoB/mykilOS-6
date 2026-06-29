@@ -33,6 +33,7 @@ public extension AuditEntry.Action {
         case .noteUpdated:        "Notiz geändert"
         case .estimateAdjusted:   "Schätzung angepasst"
         case .calibrationPromoted:"Kalibrierung übernommen"
+        case .contactCreated:     "Kontakt angelegt"
         }
     }
 }

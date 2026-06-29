@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import MykilosKit
 @testable import MykilosServices
 
 struct GoogleContactsClientTests {
@@ -32,6 +33,48 @@ struct GoogleContactsClientTests {
         #expect(GoogleContactsClient.normalizedQuery("a__b") == "a b")
         #expect(GoogleContactsClient.normalizedQuery(nil) == "")
         #expect(GoogleContactsClient.normalizedQuery("   ") == "")
+    }
+
+    // S9: createContact-Body enthält nur gesetzte Felder im People-Person-Format.
+    @Test func createBodyEnthaeltNurGesetzteFelder() throws {
+        let draft = ContactDraft(givenName: "Sinem", familyName: "Cirnavuk",
+                                 email: "s@example.com", phone: nil, organization: "MYKILOS")
+        let data = try GoogleContactsClient.buildCreateBody(draft)
+        let obj = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let names = obj["names"] as! [[String: String]]
+        #expect(names.first?["givenName"] == "Sinem")
+        #expect(names.first?["familyName"] == "Cirnavuk")
+        #expect((obj["emailAddresses"] as? [[String: String]])?.first?["value"] == "s@example.com")
+        #expect((obj["organizations"] as? [[String: String]])?.first?["name"] == "MYKILOS")
+        #expect(obj["phoneNumbers"] == nil)   // nicht gesetzt → kein leeres Array
+    }
+
+    @Test func createBodyNurVorname() throws {
+        let data = try GoogleContactsClient.buildCreateBody(ContactDraft(givenName: "Heinz"))
+        let obj = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        #expect((obj["names"] as! [[String: String]]).first?["givenName"] == "Heinz")
+        #expect(obj["emailAddresses"] == nil)
+        #expect(obj["phoneNumbers"] == nil)
+        #expect(obj["organizations"] == nil)
+    }
+
+    // S9: parsePerson dekodiert die createContact-Antwort.
+    @Test func parsePersonDekodiertAntwort() throws {
+        let json = """
+        {"resourceName":"people/c123","names":[{"displayName":"Sinem Cirnavuk","givenName":"Sinem"}],
+         "emailAddresses":[{"value":"s@example.com"}],"organizations":[{"name":"MYKILOS"}]}
+        """
+        let c = try GoogleContactsClient.parsePerson(from: Data(json.utf8))
+        #expect(c.id == "people/c123")
+        #expect(c.displayName == "Sinem Cirnavuk")
+        #expect(c.email == "s@example.com")
+        #expect(c.organization == "MYKILOS")
+    }
+
+    // S9: ContactDraft.displayName setzt Vor-/Nachname sauber zusammen.
+    @Test func draftDisplayName() {
+        #expect(ContactDraft(givenName: "Sinem", familyName: "Cirnavuk").displayName == "Sinem Cirnavuk")
+        #expect(ContactDraft(givenName: "Heinz").displayName == "Heinz")
     }
 
     @Test func parseContactsDekodiertResultsPersonStruktur() throws {

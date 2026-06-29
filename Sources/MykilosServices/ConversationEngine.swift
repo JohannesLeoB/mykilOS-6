@@ -113,6 +113,7 @@ public final class ConversationEngine {
         let driveEnabled      = !schaetzModusEnabled && has("list_drive_folder") && (focusedDriveFolderID?.isEmpty == false)
         let clickUpEnabled    = !schaetzModusEnabled && has("list_clickup_tasks") && (focusedClickUpListID?.isEmpty == false)
         let contactsEnabled   = !schaetzModusEnabled && has("search_contacts")
+        let contactsWriteEnabled = !schaetzModusEnabled && has("create_contact")
         let studioBrainEnabled = !schaetzModusEnabled && has("query_studio_knowledge")
         let katalogEnabled    = !schaetzModusEnabled && has("search_katalog")
         let notesEnabled      = !schaetzModusEnabled && has("create_note")
@@ -124,7 +125,8 @@ public final class ConversationEngine {
             signals: signals, projects: projects, now: now, toolsEnabled: effectiveToolsEnabled,
             kalkulationsEnabled: kalkulationsEnabled,
             driveEnabled: driveEnabled, contactsEnabled: contactsEnabled,
-            clickUpEnabled: clickUpEnabled, studioBrainEnabled: studioBrainEnabled,
+            clickUpEnabled: clickUpEnabled, contactsWriteEnabled: contactsWriteEnabled,
+            studioBrainEnabled: studioBrainEnabled,
             katalogEnabled: katalogEnabled, notesEnabled: notesEnabled,
             tasksEnabled: tasksEnabled,
             offersEnabled: offersEnabled, fileReadEnabled: fileReadEnabled
@@ -217,6 +219,10 @@ public final class ConversationEngine {
                     // Aktionskarte als sichtbarer Block — nie an die API gesendet.
                     activities.append(.calendarAction(url: url, label: "Im Kalender öffnen"))
                 }
+                if let draft = result.contactDraft {
+                    // Kontakt-Bestätigungskarte — schreibt erst auf ausdrückliche Bestätigung.
+                    activities.append(.contactAction(draft: draft))
+                }
                 if let s = result.schaetzung {
                     // Schätzungskarte — nur Anzeige, nie an die API gesendet.
                     activities.append(.kalkulationsSchaetzung(
@@ -262,6 +268,7 @@ public final class ConversationEngine {
         case "schaetze_projekt":          base = "Kostenschätzung erstellt"
         case "list_drive_folder":         base = "Drive-Ordner gelesen"
         case "search_contacts":           base = "Kontakte durchsucht"
+        case "create_contact":            base = "Kontakt-Entwurf erstellt"
         case "list_clickup_tasks":        base = "ClickUp gelesen"
         case "query_studio_knowledge":    base = "Wissensbasis durchsucht"
         case "search_katalog":            base = "Katalog durchsucht"

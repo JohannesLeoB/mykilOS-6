@@ -84,6 +84,13 @@
     "link": "mykilos://datastream/CONTACTS_QUERY"
   },
   {
+    "integrationID": "CONTACTS_CREATE",
+    "name": "Google Kontakt anlegen (Assistent, bestätigungspflichtig)",
+    "system": "Google Contacts",
+    "direction": "WRITE",
+    "link": "mykilos://datastream/CONTACTS_CREATE"
+  },
+  {
     "integrationID": "GOOGLE_USERINFO",
     "name": "Google Identität",
     "system": "Google Identity",

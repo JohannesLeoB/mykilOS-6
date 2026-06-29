@@ -25,8 +25,13 @@ public struct ToolRunResult: Sendable, Equatable {
     /// Optionale Kostenschätzung — die Engine speichert sie als `.kalkulationsSchaetzung`-
     /// Block (nur Anzeige, nie an die API gesendet).
     public let schaetzung: KostenSchaetzung?
-    public init(text: String, isError: Bool = false, actionURL: String? = nil, schaetzung: KostenSchaetzung? = nil) {
-        self.text = text; self.isError = isError; self.actionURL = actionURL; self.schaetzung = schaetzung
+    /// Optionaler Kontakt-Entwurf (S9) — die Engine speichert ihn als `.contactAction`-
+    /// Block. Schreibt NICHTS; erst die Bestätigung an der Karte legt den Kontakt an.
+    public let contactDraft: ContactDraft?
+    public init(text: String, isError: Bool = false, actionURL: String? = nil,
+                schaetzung: KostenSchaetzung? = nil, contactDraft: ContactDraft? = nil) {
+        self.text = text; self.isError = isError; self.actionURL = actionURL
+        self.schaetzung = schaetzung; self.contactDraft = contactDraft
     }
 }
 
@@ -906,6 +911,49 @@ struct DeleteTaskTool: AssistantTool {
     }
 }
 
+// MARK: - Kontakt-Schreiben (S9, bestätigungspflichtig)
+
+/// Schlägt einen neuen Google-Kontakt vor. Schreibt NICHTS — gibt nur einen
+/// `ContactDraft` zurück, den die Engine als Action-Card rendert. Erst die
+/// ausdrückliche Bestätigung an der Karte legt den Kontakt an (+ Audit). Damit
+/// gilt die eiserne Regel: externer Schreibzugriff nur über Karte → Bestätigung → Audit.
+struct CreateContactTool: AssistantTool {
+    var name: String { "create_contact" }
+    var description: String {
+        "Schlägt einen NEUEN Google-Kontakt vor. Schreibt nichts automatisch — der "
+        + "Nutzer bestätigt den Kontakt an einer Karte. Pflichtfeld: Vorname (oder "
+        + "vollständiger Name in 'vorname')."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "vorname", description: "Vorname (oder vollständiger Name)"),
+         ToolParameter(name: "nachname", description: "Nachname (optional)"),
+         ToolParameter(name: "email", description: "E-Mail (optional)"),
+         ToolParameter(name: "telefon", description: "Telefon (optional)"),
+         ToolParameter(name: "firma", description: "Firma/Organisation (optional)")]
+    }
+    func run(input: [String: String]) async -> ToolRunResult {
+        func clean(_ key: String) -> String? {
+            let v = (input[key] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            return v.isEmpty ? nil : v
+        }
+        guard let given = clean("vorname") ?? clean("name") else {
+            return ToolRunResult(text: "Kein Name für den Kontakt angegeben.", isError: true)
+        }
+        let draft = ContactDraft(givenName: given, familyName: clean("nachname"),
+                                 email: clean("email"), phone: clean("telefon"),
+                                 organization: clean("firma"))
+        var parts = ["Kontakt-Entwurf: \(draft.displayName)"]
+        if let m = draft.email { parts.append(m) }
+        if let p = draft.phone { parts.append(p) }
+        if let o = draft.organization { parts.append(o) }
+        let summary = parts.joined(separator: " · ")
+        return ToolRunResult(
+            text: "\(summary). Zeige dem Nutzer die Bestätigungskarte — der Kontakt wird "
+                + "erst nach Bestätigung angelegt, nicht von dir.",
+            contactDraft: draft)
+    }
+}
+
 // MARK: - AssistantToolRegistry (Whitelist, default-deny)
 public struct AssistantToolRegistry: Sendable {
     private let tools: [any AssistantTool]
@@ -938,6 +986,7 @@ public struct AssistantToolRegistry: Sendable {
             FindOffersTool(client: drive, directory: projectDirectory),
             ReadDriveFileTool(client: drive, directory: projectDirectory),
             SearchContactsTool(client: contacts),
+            CreateContactTool(),
             ListClickUpTasksTool(client: clickUp),
             SearchKatalogTool(catalog: deviceCatalog),
         ]

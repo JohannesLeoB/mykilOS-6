@@ -354,7 +354,8 @@ struct AssistantPageView: View {
                 modelName: (try? appState.claudeAuth.storedCredentials()?.model) ?? ClaudeAuthService.defaultModel,
                 projects: appState.registry.projects,
                 focusedProjectID: context.focusedProjectID,
-                profile: appState.profile.profile
+                profile: appState.profile.profile,
+                onCreateContact: { await appState.createContact($0) }
             )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)

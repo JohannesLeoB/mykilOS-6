@@ -63,6 +63,30 @@ public final class AppState {
         googleAuth.currentUser?.email ?? profile.profile?.displayName ?? "local"
     }
 
+    // S9: legt einen vom Nutzer BESTÄTIGTEN Kontakt via People API an + Audit.
+    // Wird der AssistantChatView als `onCreateContact` injiziert — der Widgets-Layer
+    // kennt keinen Schreib-Client. Erst die Bestätigung an der Karte ruft das hier.
+    public func createContact(_ draft: ContactDraft) async -> ContactCreateOutcome {
+        let contact: GoogleContact
+        do {
+            contact = try await GoogleContactsClient().createContact(draft)
+        } catch GoogleContactsError.notConnected {
+            return .failed("Google nicht verbunden — in den Einstellungen verbinden.")
+        } catch {
+            return .failed("Kontakt konnte nicht angelegt werden: \(error.localizedDescription)")
+        }
+        // Audit ist Pflicht für externe Schreibvorgänge. Schlägt es fehl, ist der
+        // Kontakt dennoch angelegt (externer Effekt) — sichtbar via os.Logger, nicht verschluckt.
+        do {
+            try audit.append(AuditEntry(actorUserID: actorUserID, projectID: "-",
+                                        action: .contactCreated,
+                                        summary: "Kontakt angelegt: \(contact.displayName)"))
+        } catch {
+            MykLog.contacts.error("Audit für Kontaktanlage fehlgeschlagen: \(String(describing: error), privacy: .public)")
+        }
+        return .created(contact.displayName)
+    }
+
     // MARK: Navigations-Brücke
     // ContentView besitzt `module` (Sidebar-Auswahl), ProjectGalleryView besitzt
     // `selectedProject` (welches Projekt offen ist) — beide bewusst reine

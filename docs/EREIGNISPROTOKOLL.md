@@ -30,6 +30,35 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-29 · Claude Code (Opus) — S9: Google Contacts Schreibzugriff (create_contact)
+
+```
+Branch: polish/dampflok; 344 → 348 Tests grün
+Build:  ✅ swift build grün · SwiftLint Token-Regeln sauber
+```
+
+Auf Wunsch von Johannes: der Assistent soll neue Google-Kontakte anlegen können.
+Externer Schreibzugriff → eiserne Regel: nur über **Action-Card → Bestätigung → Audit**.
+
+- **Kit**: `ContactDraft` (Entwurf) + `ContactCreateOutcome` (created/failed) +
+  `ChatContentBlock.contactAction` + `AuditEntry.Action.contactCreated`.
+- **Services**: `GoogleContactsWriting`-Protokoll + `GoogleContactsClient.createContact`
+  (People API `people:createContact`), testbare `buildCreateBody`/`parsePerson`.
+  `CreateContactTool` (`create_contact`) erzeugt NUR einen `ContactDraft` —
+  schreibt nichts. `ToolRunResult.contactDraft`; ConversationEngine rendert daraus
+  einen `.contactAction`-Block; Grounding `contactsWriteEnabled`; Weiche CONTACTS_CREATE.
+- **Widgets**: `ContactActionCard` (Entwurf + „Kontakt anlegen"-Button, Zustände
+  idle/saving/done/failed). `onCreateContact`-Closure von der App injiziert (Widgets
+  kennt keinen Schreib-Client).
+- **App**: `AppState.createContact` ruft People API + schreibt `AuditEntry(.contactCreated)`;
+  an beiden Chat-Aufrufen (global + Projekt) verdrahtet. Audit-Fehler via os.Logger sichtbar.
+- +4 Tests (buildCreateBody nur gesetzte Felder / nur Vorname, parsePerson, displayName).
+
+**Live-Test ausstehend (M2):** Anlegen braucht den `contacts`-Scope → Johannes muss
+Google einmal neu verbinden (Trennen → Verbinden). Code-Pfad + Bestätigung + Audit sind fertig.
+
+---
+
 ## 2026-06-29 · Claude Code (Opus) — S8: Kontakte-Widget im Projektdetail repariert
 
 ```

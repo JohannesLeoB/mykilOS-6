@@ -257,6 +257,7 @@ Wenn Tools aktiviert sind, kann der Assistent folgende Aktionen ausführen
 | `read_drive_file` | Liest den **Inhalt** einer Drive-Datei als Klartext (PDF via PDFKit, Google Docs/Sheets/Slides via Export, Text); findet die Datei per (Teil-)Name rekursiv im Projektordner | toolsEnabled |
 | `list_clickup_tasks` | Liest ClickUp-Aufgaben | toolsEnabled + clickUpListID |
 | `search_contacts` | Sucht Google-Kontakte | toolsEnabled |
+| `create_contact` | Schlägt einen **neuen** Google-Kontakt vor → Bestätigungskarte. Schreibt erst nach Klick „Kontakt anlegen" (People API + Audit), nie automatisch | toolsEnabled (+ Google verbunden, `contacts`-Scope/M2) |
 | `schaetze_projekt` | Kostenschätzung (lokal) | toolsEnabled oder schaetzModus |
 | `query_studio_knowledge` | Fragt Slack-Brain | toolsEnabled |
 | `search_katalog` | Sucht Gerätekatalog (Hersteller, Artikelnr., VK) | toolsEnabled, kein SchaetzModus |
@@ -294,7 +295,7 @@ Fehlermeldung, Dauer-ms, Zusammenfassung.
 
 ---
 
-### Alle Weichen (Stand 2026-06-29 · 30 Weichen)
+### Alle Weichen (Stand 2026-06-29 · 31 Weichen)
 
 #### Airtable
 
@@ -336,7 +337,8 @@ Fehlermeldung, Dauer-ms, Zusammenfassung.
 
 | Integrations-ID | Name | Richtung | Trigger | NO-GO | Notiz |
 |---|---|---|---|---|---|
-| `CONTACTS_QUERY` | Kontakte-Suche | READ | onDemand (Tool-Call) | read-only | People API `searchContacts`. Assistenten-Tool kommt in Welle 1. |
+| `CONTACTS_QUERY` | Kontakte-Suche | READ | onDemand (Tool-Call) | read-only | People API `searchContacts` mit Warmup (kalter Index liefert sonst leer, S8). Tool `search_contacts` + Kataloge-Tab Kontakte. |
+| `CONTACTS_CREATE` | Kontakt anlegen (Assistent) | WRITE | onDemand (Tool-Call) | nur über Karte→Bestätigung→Audit | Tool `create_contact` erzeugt nur einen Entwurf; erst die Bestätigung an der `ContactActionCard` ruft `AppState.createContact` (People API `people:createContact`) + Audit `.contactCreated`. Assistent schreibt NIE selbst. Braucht `contacts`-Scope (Re-Consent M2). S9. |
 | `GOOGLE_USERINFO` | Google Identität | READ | App-Start + Re-Auth | read-only | Ein Login `johannes@mykilos.com` deckt Drive + Mail + Kalender + Kontakte ab. |
 
 #### Claude (Anthropic)

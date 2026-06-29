@@ -19,6 +19,7 @@ public enum AssistantGrounding {
         driveEnabled: Bool = false,
         contactsEnabled: Bool = false,
         clickUpEnabled: Bool = false,
+        contactsWriteEnabled: Bool = false,
         studioBrainEnabled: Bool = false,
         katalogEnabled: Bool = false,
         notesEnabled: Bool = false,
@@ -79,6 +80,9 @@ public enum AssistantGrounding {
             }
             if contactsEnabled {
                 toolLines.append("- search_contacts: Kontakte des verbundenen Accounts per Freitext suchen.")
+            }
+            if contactsWriteEnabled {
+                toolLines.append("- create_contact: schlägt einen NEUEN Google-Kontakt vor. Du schreibst NICHT selbst — es entsteht eine Bestätigungskarte, der Nutzer legt den Kontakt an. Nenne die Kontaktdaten, behaupte aber nie, der Kontakt sei schon gespeichert.")
             }
             if clickUpEnabled {
                 toolLines.append("- list_clickup_tasks: offene ClickUp-Aufgaben dieses Projekts (Status, Fälligkeit).")

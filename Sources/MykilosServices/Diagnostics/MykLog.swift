@@ -15,4 +15,5 @@ public enum MykLog {
     public static let offers    = Logger(subsystem: subsystem, category: "offers")
     public static let chat      = Logger(subsystem: subsystem, category: "chat")
     public static let backup    = Logger(subsystem: subsystem, category: "backup")
+    public static let contacts  = Logger(subsystem: subsystem, category: "contacts")
 }

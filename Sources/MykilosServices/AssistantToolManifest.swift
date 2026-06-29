@@ -26,6 +26,7 @@ public enum AssistantToolManifest {
         "find_offers":            "DRIVE_OFFERS_FIND",
         "read_drive_file":        "DRIVE_FILE_READ",
         "search_contacts":        "CONTACTS_QUERY",
+        "create_contact":         "CONTACTS_CREATE",
         "list_clickup_tasks":     "CLICKUP_TASKS",
         "search_katalog":         "LOCAL_DEVICECATALOG_ARTIKEL",
         "query_studio_knowledge": "STUDIO_KNOWLEDGE_QUERY",

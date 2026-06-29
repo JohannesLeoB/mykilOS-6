@@ -1,4 +1,5 @@
 import Foundation
+import MykilosKit
 
 // MARK: - GoogleContact
 public struct GoogleContact: Identifiable, Equatable, Sendable {
@@ -30,14 +31,23 @@ public protocol GoogleContactsFetching: Sendable {
     func searchContacts(query: String?) async throws -> [GoogleContact]
 }
 
+// MARK: - GoogleContactsWriting (S9)
+// Schreibender Zugriff — getrennt von der Lese-Schnittstelle, damit Lese-Fakes
+// unberührt bleiben. Schreibt EINEN neuen Kontakt (People API createContact).
+// Braucht den `contacts`-Scope (nicht nur readonly) → Google Re-Consent (M2).
+public protocol GoogleContactsWriting: Sendable {
+    func createContact(_ draft: ContactDraft) async throws -> GoogleContact
+}
+
 // MARK: - GoogleContactsClient
 // Durchsucht die echten Kontakte des verbundenen Accounts per Freitext —
 // das ist genau, was Project.links.contactsQuery trägt: keine eigene
 // Kontaktliste je Projekt, sondern eine Suche über alle Kontakte.
-public struct GoogleContactsClient: GoogleContactsFetching {
+public struct GoogleContactsClient: GoogleContactsFetching, GoogleContactsWriting {
     private let tokenProvider: GoogleAccessTokenProviding
     private let session: URLSession
     private let baseURL = "https://people.googleapis.com/v1/people:searchContacts"
+    private let createURL = "https://people.googleapis.com/v1/people:createContact"
 
     public init(
         tokenProvider: GoogleAccessTokenProviding = GoogleAccessTokenProvider(),
@@ -91,7 +101,68 @@ public struct GoogleContactsClient: GoogleContactsFetching {
         return try Self.parseContacts(from: data)
     }
 
+    // MARK: - Schreiben (S9)
+
+    public func createContact(_ draft: ContactDraft) async throws -> GoogleContact {
+        guard draft.givenName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+            throw GoogleContactsError.invalidResponse
+        }
+        guard let accessToken = try? await tokenProvider.validAccessToken() else {
+            throw GoogleContactsError.notConnected
+        }
+        guard let url = URL(string: createURL) else { throw GoogleContactsError.invalidResponse }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try Self.buildCreateBody(draft)
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw GoogleContactsError.invalidResponse }
+        guard (200...299).contains(http.statusCode) else { throw GoogleContactsError.httpError(http.statusCode) }
+        return try Self.parsePerson(from: data)
+    }
+
     // MARK: - Reine, testbare Bausteine (kein Netzwerk/Keychain)
+
+    /// Baut den People-API `Person`-Body für createContact. Nur gesetzte Felder werden
+    /// aufgenommen (keine leeren Arrays). Deterministisch + testbar.
+    static func buildCreateBody(_ draft: ContactDraft) throws -> Data {
+        var person: [String: Any] = [:]
+        var name: [String: String] = ["givenName": draft.givenName.trimmingCharacters(in: .whitespacesAndNewlines)]
+        if let fam = draft.familyName?.trimmingCharacters(in: .whitespacesAndNewlines), fam.isEmpty == false {
+            name["familyName"] = fam
+        }
+        person["names"] = [name]
+        if let mail = draft.email?.trimmingCharacters(in: .whitespacesAndNewlines), mail.isEmpty == false {
+            person["emailAddresses"] = [["value": mail]]
+        }
+        if let phone = draft.phone?.trimmingCharacters(in: .whitespacesAndNewlines), phone.isEmpty == false {
+            person["phoneNumbers"] = [["value": phone]]
+        }
+        if let org = draft.organization?.trimmingCharacters(in: .whitespacesAndNewlines), org.isEmpty == false {
+            person["organizations"] = [["name": org]]
+        }
+        return try JSONSerialization.data(withJSONObject: person, options: [.sortedKeys])
+    }
+
+    /// Dekodiert die von createContact zurückgegebene Person in einen GoogleContact.
+    static func parsePerson(from data: Data) throws -> GoogleContact {
+        do {
+            let person = try JSONDecoder().decode(GoogleContactsPerson.self, from: data)
+            return GoogleContact(
+                id: person.resourceName ?? UUID().uuidString,
+                displayName: person.names?.first?.displayName
+                    ?? person.names?.first?.givenName
+                    ?? "(neuer Kontakt)",
+                email: person.emailAddresses?.first?.value,
+                phone: person.phoneNumbers?.first?.value,
+                organization: person.organizations?.first?.name)
+        } catch {
+            throw GoogleContactsError.decodingFailed
+        }
+    }
 
     /// Säubert die Projekt-Suchbegriffe: Unterstriche (die in echten Kontaktnamen nie
     /// vorkommen, aber in den Projekt-Tokens wie „Fuckner_Huetter" stehen) werden zu
@@ -158,6 +229,7 @@ private struct GoogleContactsPerson: Decodable {
 
 private struct GoogleContactsName: Decodable {
     var displayName: String?
+    var givenName: String?
 }
 
 private struct GoogleContactsEmail: Decodable {

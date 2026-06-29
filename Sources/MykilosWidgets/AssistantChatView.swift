@@ -18,6 +18,10 @@ public struct AssistantChatView: View {
     let focusedDriveFolderID: String?
     let focusedClickUpListID: String?
     let profile: UserProfile?
+    // S9: ausdrückliche Bestätigung legt einen Kontakt an. Wird vom App-Layer
+    // injiziert (People-API + Audit dort), damit der Widgets-Layer keinen
+    // Schreib-Client kennt. Erfolg → Anzeigename, Fehler → Meldung.
+    let onCreateContact: ((ContactDraft) async -> ContactCreateOutcome)?
 
     @Environment(StudioContext.self) private var context
     @State private var draft = ""
@@ -38,7 +42,8 @@ public struct AssistantChatView: View {
         focusedProjectID: String?,
         focusedDriveFolderID: String? = nil,
         focusedClickUpListID: String? = nil,
-        profile: UserProfile? = nil
+        profile: UserProfile? = nil,
+        onCreateContact: ((ContactDraft) async -> ContactCreateOutcome)? = nil
     ) {
         self.scope = scope
         self.chatStore = chatStore
@@ -50,6 +55,7 @@ public struct AssistantChatView: View {
         self.focusedDriveFolderID = focusedDriveFolderID
         self.focusedClickUpListID = focusedClickUpListID
         self.profile = profile
+        self.onCreateContact = onCreateContact
     }
 
     private var messages: [ChatMessage] { chatStore.messages(for: scope) }
@@ -80,7 +86,7 @@ public struct AssistantChatView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: MykSpace.s5) {
                     if messages.isEmpty { emptyState }
-                    ForEach(messages) { ChatMessageBubble(message: $0).id($0.id) }
+                    ForEach(messages) { ChatMessageBubble(message: $0, onCreateContact: onCreateContact).id($0.id) }
                 }
                 .padding(.horizontal, MykSpace.s9)
                 .padding(.vertical, MykSpace.s7)
@@ -300,6 +306,7 @@ public struct AssistantChatView: View {
 // MARK: - ChatMessageBubble
 struct ChatMessageBubble: View {
     let message: ChatMessage
+    var onCreateContact: ((ContactDraft) async -> ContactCreateOutcome)? = nil
     @State private var cursorVisible = true
 
     var body: some View {
@@ -322,6 +329,10 @@ struct ChatMessageBubble: View {
                         confidence: s.confidence, evidenceCount: s.evidenceCount
                     )
                 }
+                // Kontakt-Bestätigungskarten nach der Antwort (S9).
+                ForEach(Array(contactDrafts.enumerated()), id: \.offset) { _, draft in
+                    ContactActionCard(draft: draft, onConfirm: onCreateContact)
+                }
                 if case .failed = message.status {
                     Label("Erneut versuchen über erneutes Senden", systemImage: "exclamationmark.triangle")
                         .font(.mykMono(9.5)).foregroundStyle(MykColor.critical.color)
@@ -340,6 +351,12 @@ struct ChatMessageBubble: View {
     private var calendarActions: [(url: String, label: String)] {
         message.blocks.compactMap {
             if case let .calendarAction(url, label) = $0 { (url, label) } else { nil }
+        }
+    }
+
+    private var contactDrafts: [ContactDraft] {
+        message.blocks.compactMap {
+            if case let .contactAction(draft) = $0 { draft } else { nil }
         }
     }
 
@@ -426,6 +443,86 @@ struct CalendarActionCard: View {
         }
         .buttonStyle(.plain)
         .frame(maxWidth: 360)
+    }
+}
+
+// MARK: - ContactActionCard (S9)
+// Bestätigungskarte für einen vom Assistenten vorgeschlagenen NEUEN Kontakt.
+// Schreibt nichts, bis der Nutzer „Kontakt anlegen" drückt — dann ruft sie die
+// injizierte Aktion (People-API + Audit im App-Layer) und zeigt Erfolg/Fehler.
+struct ContactActionCard: View {
+    let draft: ContactDraft
+    var onConfirm: ((ContactDraft) async -> ContactCreateOutcome)?
+
+    private enum CardPhase: Equatable { case idle, saving, done(String), failed(String) }
+    @State private var phase: CardPhase = .idle
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MykSpace.s3) {
+            HStack(spacing: MykSpace.s3) {
+                Image(systemName: "person.crop.circle.badge.plus")
+                    .font(.mykCaption).foregroundStyle(MykColor.people.color)
+                Text("Neuer Kontakt").font(.mykMono(10)).foregroundStyle(MykColor.muted.color)
+            }
+            Text(draft.displayName).font(.mykBody).foregroundStyle(MykColor.ink.color)
+            ForEach(detailLines, id: \.self) { line in
+                Text(line).font(.mykMono(9.5)).foregroundStyle(MykColor.muted.color)
+            }
+            actionRow
+        }
+        .padding(.horizontal, MykSpace.s5)
+        .padding(.vertical, MykSpace.s4)
+        .background(
+            RoundedRectangle(cornerRadius: MykRadius.md)
+                .fill(MykColor.card.color)
+                .overlay(RoundedRectangle(cornerRadius: MykRadius.md)
+                    .stroke(MykColor.people.color.opacity(0.3), lineWidth: 1))
+        )
+        .frame(maxWidth: 360)
+    }
+
+    private var detailLines: [String] {
+        var lines: [String] = []
+        if let mail = draft.email { lines.append("✉︎ \(mail)") }
+        if let phone = draft.phone { lines.append("☎ \(phone)") }
+        if let org = draft.organization { lines.append("⌂ \(org)") }
+        return lines
+    }
+
+    @ViewBuilder
+    private var actionRow: some View {
+        switch phase {
+        case .idle:
+            Button {
+                guard let onConfirm else { phase = .failed("Anlegen hier nicht verfügbar."); return }
+                phase = .saving
+                Task {
+                    let outcome = await onConfirm(draft)
+                    switch outcome {
+                    case .created(let name): phase = .done(name)
+                    case .failed(let msg):   phase = .failed(msg)
+                    }
+                }
+            } label: {
+                Text("Kontakt anlegen")
+                    .font(.mykMono(10)).foregroundStyle(MykColor.paper.color)
+                    .padding(.horizontal, MykSpace.s4).padding(.vertical, MykSpace.s2)
+                    .background(RoundedRectangle(cornerRadius: MykRadius.sm).fill(MykColor.people.color))
+            }
+            .buttonStyle(.plain)
+            .disabled(onConfirm == nil)
+        case .saving:
+            HStack(spacing: MykSpace.s2) {
+                ProgressView().controlSize(.small)
+                Text("Lege an …").font(.mykMono(9.5)).foregroundStyle(MykColor.muted.color)
+            }
+        case .done(let name):
+            Label("Angelegt: \(name)", systemImage: "checkmark.circle.fill")
+                .font(.mykMono(9.5)).foregroundStyle(MykColor.positive.color)
+        case .failed(let msg):
+            Label(msg, systemImage: "exclamationmark.triangle")
+                .font(.mykMono(9.5)).foregroundStyle(MykColor.critical.color)
+        }
     }
 }
 
