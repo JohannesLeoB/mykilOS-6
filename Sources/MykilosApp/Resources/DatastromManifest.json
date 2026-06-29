@@ -98,6 +98,13 @@
     "link": "mykilos://datastream/CONTACTS_CREATE"
   },
   {
+    "integrationID": "CONTACTS_DIRECTORY",
+    "name": "Google Workspace-Verzeichnis (Kataloge-Kontakte)",
+    "system": "Google Contacts",
+    "direction": "READ",
+    "link": "mykilos://datastream/CONTACTS_DIRECTORY"
+  },
+  {
     "integrationID": "GOOGLE_USERINFO",
     "name": "Google Identität",
     "system": "Google Identity",

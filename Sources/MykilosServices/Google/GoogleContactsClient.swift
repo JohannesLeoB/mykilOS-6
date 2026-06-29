@@ -29,6 +29,16 @@ public enum GoogleContactsError: Error, Sendable, Equatable {
 // MARK: - GoogleContactsFetching
 public protocol GoogleContactsFetching: Sendable {
     func searchContacts(query: String?) async throws -> [GoogleContact]
+    /// Durchsucht das Google-Workspace-VERZEICHNIS der Domain (S19): Team-Profile +
+    /// admin-geteilte Domain-Kontakte (kontounabhängig). Default-Impl wirft, damit
+    /// bestehende Fakes unberührt bleiben — der echte Client überschreibt sie.
+    func searchDirectory(query: String?) async throws -> [GoogleContact]
+}
+
+public extension GoogleContactsFetching {
+    func searchDirectory(query: String?) async throws -> [GoogleContact] {
+        throw GoogleContactsError.invalidResponse
+    }
 }
 
 // MARK: - GoogleContactsWriting (S9)
@@ -48,6 +58,7 @@ public struct GoogleContactsClient: GoogleContactsFetching, GoogleContactsWritin
     private let session: URLSession
     private let baseURL = "https://people.googleapis.com/v1/people:searchContacts"
     private let createURL = "https://people.googleapis.com/v1/people:createContact"
+    private let directoryURL = "https://people.googleapis.com/v1/people:searchDirectoryPeople"
 
     public init(
         tokenProvider: GoogleAccessTokenProviding = GoogleAccessTokenProvider(),
@@ -80,6 +91,25 @@ public struct GoogleContactsClient: GoogleContactsFetching, GoogleContactsWritin
             contacts = try await runSearch(query: query, accessToken: accessToken)
         }
         return contacts
+    }
+
+    // S19: Workspace-Verzeichnis durchsuchen (Team-Profile + admin-geteilte Domain-Kontakte).
+    // Braucht den directory.readonly-Scope → Re-Consent (M2). Read-only.
+    public func searchDirectory(query rawQuery: String?) async throws -> [GoogleContact] {
+        let query = Self.normalizedQuery(rawQuery)
+        guard query.isEmpty == false else { return [] }
+        guard let accessToken = try? await tokenProvider.validAccessToken() else {
+            throw GoogleContactsError.notConnected
+        }
+        guard let url = Self.buildDirectoryURL(query: query, baseURL: directoryURL) else {
+            throw GoogleContactsError.invalidResponse
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw GoogleContactsError.invalidResponse }
+        guard (200...299).contains(http.statusCode) else { throw GoogleContactsError.httpError(http.statusCode) }
+        return try Self.parseDirectory(from: data)
     }
 
     private func warmup(accessToken: String) async {
@@ -192,6 +222,36 @@ public struct GoogleContactsClient: GoogleContactsFetching, GoogleContactsWritin
         return components?.url
     }
 
+    // S19: searchDirectoryPeople — Domain-Profile (Team) + admin-geteilte Domain-Kontakte.
+    static func buildDirectoryURL(query: String, baseURL: String) -> URL? {
+        var components = URLComponents(string: baseURL)
+        components?.queryItems = [
+            URLQueryItem(name: "query", value: query),
+            URLQueryItem(name: "readMask", value: "names,emailAddresses,phoneNumbers,organizations"),
+            URLQueryItem(name: "sources", value: "DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE"),
+            URLQueryItem(name: "sources", value: "DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT"),
+            URLQueryItem(name: "pageSize", value: "30"),
+        ]
+        return components?.url
+    }
+
+    // searchDirectoryPeople liefert `people: [Person]` (anders als searchContacts: `results[].person`).
+    static func parseDirectory(from data: Data) throws -> [GoogleContact] {
+        do {
+            let decoded = try JSONDecoder().decode(GoogleDirectoryResponse.self, from: data)
+            return (decoded.people ?? []).map { person in
+                GoogleContact(
+                    id: person.resourceName ?? UUID().uuidString,
+                    displayName: person.names?.first?.displayName ?? "(ohne Namen)",
+                    email: person.emailAddresses?.first?.value,
+                    phone: person.phoneNumbers?.first?.value,
+                    organization: person.organizations?.first?.name)
+            }
+        } catch {
+            throw GoogleContactsError.decodingFailed
+        }
+    }
+
     static func parseContacts(from data: Data) throws -> [GoogleContact] {
         do {
             let decoded = try JSONDecoder().decode(GoogleContactsSearchResponse.self, from: data)
@@ -213,6 +273,10 @@ public struct GoogleContactsClient: GoogleContactsFetching, GoogleContactsWritin
 
 private struct GoogleContactsSearchResponse: Decodable {
     var results: [GoogleContactsSearchResult]?
+}
+
+private struct GoogleDirectoryResponse: Decodable {
+    var people: [GoogleContactsPerson]?
 }
 
 private struct GoogleContactsSearchResult: Decodable {

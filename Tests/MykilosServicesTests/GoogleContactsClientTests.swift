@@ -35,6 +35,39 @@ struct GoogleContactsClientTests {
         #expect(GoogleContactsClient.normalizedQuery("   ") == "")
     }
 
+    // S19: Verzeichnis-Suche — URL hat query, readMask, beide sources, pageSize.
+    @Test func directoryURLEnthaeltSourcesUndReadMask() {
+        let url = GoogleContactsClient.buildDirectoryURL(query: "Weck", baseURL: "https://people.googleapis.com/v1/people:searchDirectoryPeople")
+        let comps = url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }
+        let items = comps?.queryItems ?? []
+        #expect(items.first { $0.name == "query" }?.value == "Weck")
+        #expect(items.first { $0.name == "readMask" }?.value == "names,emailAddresses,phoneNumbers,organizations")
+        let sources = items.filter { $0.name == "sources" }.compactMap(\.value)
+        #expect(sources.contains("DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE"))
+        #expect(sources.contains("DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT"))
+        #expect(items.first { $0.name == "pageSize" }?.value == "30")
+    }
+
+    // S19: searchDirectoryPeople-Antwort (people: [...]) wird korrekt dekodiert.
+    @Test func parseDirectoryDekodiertPeople() throws {
+        let json = """
+        {"people":[
+          {"resourceName":"people/c1","names":[{"displayName":"Mario Weck"}],
+           "emailAddresses":[{"value":"m.weck@mykilos.com"}],"organizations":[{"name":"MYKILOS"}]},
+          {"resourceName":"people/c2","names":[{"displayName":"Jilliana"}]}
+        ]}
+        """
+        let contacts = try GoogleContactsClient.parseDirectory(from: Data(json.utf8))
+        #expect(contacts.count == 2)
+        #expect(contacts.first?.displayName == "Mario Weck")
+        #expect(contacts.first?.email == "m.weck@mykilos.com")
+        #expect(contacts.first?.organization == "MYKILOS")
+    }
+
+    @Test func parseDirectoryLeerOhnePeople() throws {
+        #expect(try GoogleContactsClient.parseDirectory(from: Data("{}".utf8)).isEmpty)
+    }
+
     // S9: createContact-Body enthält nur gesetzte Felder im People-Person-Format.
     @Test func createBodyEnthaeltNurGesetzteFelder() throws {
         let draft = ContactDraft(givenName: "Sinem", familyName: "Cirnavuk",

@@ -19,6 +19,9 @@ public enum GoogleOAuthScope: String, CaseIterable, Codable, Sendable {
     // Schreibender Kontakt-Scope (S9): nötig für people:createContact. Schließt
     // contacts.readonly ein, ist aber ein eigener Scope → erfordert Re-Consent (M2).
     case contacts               = "https://www.googleapis.com/auth/contacts"
+    // Verzeichnis-Scope (S19): nötig für people:searchDirectoryPeople (Workspace-Domain-
+    // Profile + admin-geteilte Domain-Kontakte). Erfordert Re-Consent (M2).
+    case directoryReadonly      = "https://www.googleapis.com/auth/directory.readonly"
     // Userinfo-Scopes: Name + E-Mail nach OAuth-Login anzeigen (S17).
     // Erfordert einmaliges Re-Consent (prompt=consent ist bereits gesetzt).
     case userinfoEmail          = "https://www.googleapis.com/auth/userinfo.email"
@@ -31,7 +34,7 @@ public enum GoogleOAuthScope: String, CaseIterable, Codable, Sendable {
         .calendarEventsReadonly, .gmailReadonly, .gmailCompose,
         // contacts (Schreiben, S9) ersetzt contacts.readonly — schließt Lesen ein.
         // Erfordert einmaliges Re-Consent (M2). Lesen funktioniert weiter darüber.
-        .contacts,
+        .contacts, .directoryReadonly,
         .userinfoEmail, .userinfoProfile,
     ]
 }

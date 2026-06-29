@@ -152,8 +152,11 @@ Vier **umsortierbare Unter-Tabs** (Tab mit der Maus ziehen → Reihenfolge wird 
   Zeigt MYKILOS-VK. Quelle: `_Daten/Kalkulation/Devices/catalog.csv`
   (5.565 Artikel aus Airtable-DB `appdxTeT6bhSBmwx5` — nur Export, nie schreiben).
   **Voraussetzung:** CSV-Datei muss im `_Daten/`-Ordner liegen (nicht im Repo).
-- **Kontakte** — Freitextsuche über die Google-Kontakte des verbundenen Accounts
-  (read-only, People API). Voraussetzung: Google verbunden.
+- **Kontakte** — Freitextsuche im **Google-Workspace-Verzeichnis** der Domain mykilos.com
+  (S19): Team-Profile + vom Admin geteilte Domain-Kontakte (read-only, People API
+  `searchDirectoryPeople`). Voraussetzung: Google verbunden + `directory.readonly` (M2).
+  Hinweis: zeigt das **Verzeichnis**, nicht die persönlichen Google-Kontakte von info@ —
+  das geteilte Studio-Kontaktbuch liegt zusätzlich in Airtable (`lookup_kontakt`).
 - **Notizen** — die lokalen Assistenten-Notizen (S4). Direkt hier anlegen (Sichern) und
   löschen, oder über den Assistenten-Chat. Rein lokal. **Zwei Ansichten umschaltbar (S18):**
   *Liste* (clean) oder *Wand* (bunte Notizzettel, je nach Notiz eingefärbt & leicht geneigt);
@@ -307,7 +310,7 @@ Fehlermeldung, Dauer-ms, Zusammenfassung.
 
 ---
 
-### Alle Weichen (Stand 2026-06-29 · 33 Weichen)
+### Alle Weichen (Stand 2026-06-29 · 34 Weichen)
 
 #### Airtable
 
@@ -351,7 +354,8 @@ Fehlermeldung, Dauer-ms, Zusammenfassung.
 
 | Integrations-ID | Name | Richtung | Trigger | NO-GO | Notiz |
 |---|---|---|---|---|---|
-| `CONTACTS_QUERY` | Kontakte-Suche | READ | onDemand (Tool-Call) | read-only | People API `searchContacts` mit Warmup (kalter Index liefert sonst leer, S8). Tool `search_contacts` + Kataloge-Tab Kontakte. |
+| `CONTACTS_QUERY` | Kontakte-Suche (Assistent) | READ | onDemand (Tool-Call) | read-only | People API `searchContacts` mit Warmup (kalter Index liefert sonst leer, S8). Assistenten-Tool `search_contacts` (persönliche Kontakte des verbundenen Accounts). |
+| `CONTACTS_DIRECTORY` | Workspace-Verzeichnis (Kataloge) | READ | onDemand (Suche) | read-only | People API `searchDirectoryPeople`: Team-Profile + admin-geteilte Domain-Kontakte von mykilos.com. `KontakteKatalogTab.searchDirectory`. Braucht `directory.readonly` (M2). NICHT info@-Privatkontakte. S19. |
 | `CONTACTS_CREATE` | Kontakt anlegen (Assistent) | WRITE | onDemand (Tool-Call) | nur über Karte→Bestätigung→Audit | Tool `create_contact` erzeugt nur einen Entwurf; erst die Bestätigung an der `ContactActionCard` ruft `AppState.createContact` (People API `people:createContact`) + Audit `.contactCreated`. Assistent schreibt NIE selbst. Braucht `contacts`-Scope (Re-Consent M2). S9. |
 | `GOOGLE_USERINFO` | Google Identität | READ | App-Start + Re-Auth | read-only | Ein Login `johannes@mykilos.com` deckt Drive + Mail + Kalender + Kontakte ab. |
 

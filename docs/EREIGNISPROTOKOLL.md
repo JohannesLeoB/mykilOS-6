@@ -30,6 +30,30 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-29 · Claude Code (Opus) — S19: Kontakte-Tab → Google-Workspace-Verzeichnis
+
+```
+Branch: polish/dampflok; 386 → 389 Tests grün · Build grün · Token-Regeln clean
+```
+
+Auf Nutzer-Entscheidung (AskUserQuestion: „Google Workspace-Verzeichnis"): Der Kataloge-
+Kontakte-Tab durchsucht jetzt das **Domain-Verzeichnis** von mykilos.com statt der
+persönlichen Kontakte des Logins.
+- `GoogleContactsClient.searchDirectory` (People API `people:searchDirectoryPeople`, Quellen
+  `DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE` + `_DOMAIN_CONTACT`), Default-Extension lässt Fakes intakt.
+- Neuer Scope `directory.readonly` in `readOnlyDefaults` (→ M2). `KontakteKatalogTab` nutzt
+  `searchDirectory`; Texte/Platzhalter angepasst; Fehlerzustände sichtbar.
+- Weiche `CONTACTS_DIRECTORY` (Manifest + Airtable-Handbuch + Benutzerhandbuch, jetzt 34 Weichen).
+- +3 Tests (buildDirectoryURL Quellen/readMask/pageSize, parseDirectory people[], leer).
+
+**Wichtiger Hinweis (im Handbuch dokumentiert):** Das Verzeichnis zeigt Team-Profile +
+admin-geteilte Domain-Kontakte — NICHT die persönlichen Google-Kontakte von info@mykilos.com.
+Falls die Studio-Kontakte dort nur privat in info@ liegen, müssen sie vom Workspace-Admin als
+geteilte Domain-Kontakte angelegt werden (oder man nutzt das Airtable-Kontaktbuch, 914 Records).
+Live via M2 (directory.readonly).
+
+---
+
 ## 2026-06-29 · Claude Code (Opus, GOMODE) — Verifikation am Hustadt-Gate + Würfel-Wahrheit
 
 ```

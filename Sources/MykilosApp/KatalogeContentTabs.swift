@@ -3,7 +3,7 @@ import MykilosDesign
 import MykilosServices
 import MykilosKit
 
-// MARK: - Kontakte-Katalog (Google-Kontaktsuche, read-only)
+// MARK: - Kontakte-Katalog (Google-Workspace-Verzeichnis, read-only, S19)
 
 @MainActor
 struct KontakteKatalogTab: View {
@@ -19,15 +19,15 @@ struct KontakteKatalogTab: View {
             searchBar
             switch state {
             case .idle:
-                hint("Suche nach Name, Firma oder E-Mail in deinen Google-Kontakten.")
+                hint("Suche im mykilOS.com-Workspace-Verzeichnis: Team-Profile und vom Admin geteilte Domain-Kontakte (Name, Firma, E-Mail).")
             case .loading:
                 VStack { Spacer(); ProgressView("Suche …").font(.mykSmall); Spacer() }.frame(maxWidth: .infinity)
             case .notConnected:
-                hint("Google nicht verbunden — in den Einstellungen verbinden.")
+                hint("Google nicht verbunden bzw. Verzeichnis-Berechtigung fehlt — in den Einstellungen neu verbinden (directory.readonly).")
             case .error(let msg):
                 hint("Fehler: \(msg)")
             case .loaded:
-                if results.isEmpty { hint("Keine Kontakte für \"\(query)\".") } else { list }
+                if results.isEmpty { hint("Keine Verzeichnis-Treffer für \"\(query)\".") } else { list }
             }
         }
     }
@@ -35,7 +35,7 @@ struct KontakteKatalogTab: View {
     private var searchBar: some View {
         HStack(spacing: MykSpace.s3) {
             Image(systemName: "magnifyingglass").font(.mykCaption).foregroundStyle(MykColor.muted.color)
-            TextField("Kontakt suchen …", text: $query)
+            TextField("Verzeichnis durchsuchen (Name, Firma, E-Mail) …", text: $query)
                 .font(.mykBody).textFieldStyle(.plain)
                 .onSubmit { Task { await search() } }
             Button("Suchen") { Task { await search() } }
@@ -84,7 +84,7 @@ struct KontakteKatalogTab: View {
         guard trimmed.isEmpty == false else { state = .idle; results = []; return }
         state = .loading
         do {
-            results = try await client.searchContacts(query: trimmed)
+            results = try await client.searchDirectory(query: trimmed)
             state = .loaded
         } catch GoogleContactsError.notConnected {
             state = .notConnected
