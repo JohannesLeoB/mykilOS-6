@@ -4,3 +4,8 @@
 DerivedData/
 .DS_Store
 dist/
+
+# Zip-Dateien (Skills, Exports — nicht im Repo)
+*.zip
+skills/
+

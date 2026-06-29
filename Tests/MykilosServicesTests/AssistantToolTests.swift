@@ -8,7 +8,9 @@ struct AssistantToolTests {
     // MARK: Whitelist enthält die erwarteten Tools, input_schema serialisiert
     @Test func standardRegistryHatErwarteteTools() throws {
         let registry = AssistantToolRegistry.standard()
-        #expect(registry.toolNames.sorted() == ["list_calendar_events", "search_gmail", "suggest_calendar_event"])
+        // Kern-Read-only-Tools sind immer da (weitere Tools kommen über opt. Parameter dazu).
+        let names = Set(registry.toolNames)
+        #expect(names.isSuperset(of: ["search_gmail", "list_calendar_events", "suggest_calendar_event", "list_drive_folder"]))
 
         let defs = registry.definitions()
         let json = try JSONEncoder().encode(defs)
@@ -134,6 +136,52 @@ struct AssistantToolTests {
         )
         #expect(result.isError == false)
         #expect(result.actionURL?.contains("calendar.google.com") == true)
+    }
+
+    // MARK: SearchKatalogTool (L11 GATE)
+
+    @Test func searchKatalogToolImRegistry() {
+        let registry = AssistantToolRegistry.standard(deviceCatalog: nil)
+        #expect(registry.toolNames.contains("search_katalog"))
+    }
+
+    @Test func searchKatalogToolOhneKatalogGibtFehler() async {
+        let registry = AssistantToolRegistry.standard(deviceCatalog: nil)
+        let result = await registry.run(name: "search_katalog", inputJSON: Data(#"{"query":"Gaggenau"}"#.utf8))
+        #expect(result.isError == true)
+        #expect(result.text.contains("Kein Gerätekatalog"))
+    }
+
+    @Test func searchKatalogToolOhneQueryGibtFehler() async {
+        let fakeCatalog = makeFakeCatalog()
+        let registry = AssistantToolRegistry.standard(deviceCatalog: fakeCatalog)
+        let result = await registry.run(name: "search_katalog", inputJSON: Data(#"{"query":""}"#.utf8))
+        #expect(result.isError == true)
+        #expect(result.text.contains("Suchbegriff"))
+    }
+
+    @Test func searchKatalogToolFindetArtikel() async {
+        let fakeCatalog = makeFakeCatalog()
+        let registry = AssistantToolRegistry.standard(deviceCatalog: fakeCatalog)
+        let result = await registry.run(name: "search_katalog", inputJSON: Data(#"{"query":"testgerät"}"#.utf8))
+        #expect(result.isError == false)
+        #expect(result.text.contains("Testgerät GmbH"))
+    }
+
+    @Test func searchKatalogToolKeineResultate() async {
+        let fakeCatalog = makeFakeCatalog()
+        let registry = AssistantToolRegistry.standard(deviceCatalog: fakeCatalog)
+        let result = await registry.run(name: "search_katalog", inputJSON: Data(#"{"query":"xyzabcdef"}"#.utf8))
+        #expect(result.isError == false)
+        #expect(result.text.contains("Keine Artikel"))
+    }
+
+    private func makeFakeCatalog() -> DeviceCatalog {
+        let csv = """
+Name,Hersteller,Kategorie,Artikelbeschreibung,Artikelnummer,MYKILOS,Suchtext
+,Testgerät GmbH,Backöfen,Testgerät Backofen 60cm,TG-001,1234.56,testgerät backofen
+"""
+        return (try? DeviceCatalog(csv: csv)) ?? DeviceCatalog(entries: [])
     }
 }
 

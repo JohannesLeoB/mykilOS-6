@@ -79,6 +79,15 @@ Notizen, Clockodo, Kontakte, Bilder, Angebote).
 
 ## Wo wir stehen
 
+> **🜂 EINSTIEG: [HYPERBUILD.md](HYPERBUILD.md) — der Brühwürfel. Bei Session-Start
+> ZUERST lesen.** mykilOS 6+ Hyperbuild = die ganze App hochkonzentriert auf einer Seite:
+> echter Stand (Branch `polish/dampflok`, 270 Tests, Core-Repair-Strang), Architektur-Skelett,
+> die eine Lektion (Proxy- statt Ziel-Optimierung), „fertig"=Hustadt-Live-Gate, die einzige
+> To-do-Liste (Core Repair A–G, Polish L24–L30, manuelle Aktionen M1–M7), eiserne Regeln.
+> Historie komprimiert: [docs/handoffs/_archiv/](docs/handoffs/_archiv/INDEX.md) (53 Handoffs)
+> + [docs/_archiv/](docs/_archiv/INDEX.md) (erledigte Pläne). Der Verlauf unten bleibt als
+> Detail-Nachschlagewerk.
+
 ## ⚠️ P0-HARD-GATE: Projekt-„Übersicht” überlagert die Sidebar
 
 **Status: FIX COMMITTED (9ddf75a) · Live-Abnahme durch Johannes ausstehend.**
@@ -246,6 +255,23 @@ ist bitgenau roundtrip-sicher).
 - `MykilosKit` importiert NIE SwiftUI oder GRDB.
 - `MykilosWidgets` importiert NIE GRDB.
 - Schreibvorgänge kommen NIE aus Views — nur über Stores.
+
+### Datenstrom-Handbuch (Eiserne Regel — ab 2026-06-28)
+- **Jede neue Daten-Weiche wird sofort** im Datenstrom-Handbuch eingetragen — nie am Ende der Session, nie "irgendwann".
+- Heimat: Airtable `appuVMh3KDfKw4OoQ` → Tabelle `tblaUVftka0GvXzeU` (Datenstrom-Handbuch).
+- Felder: Integrations-ID (eindeutige Konstante), Name, System, Richtung, Trigger, Status, NO-GO, Opt-in, Notizen.
+- Die `integrationID` im `DataFlowLogger.log()`-Aufruf im Code muss **exakt** mit dem `Integrations-ID`-Feld übereinstimmen.
+- Session-Abschluss-Checkliste: Handbuch vollständig? → erst dann committen.
+
+### Benutzerhandbuch (Eiserne Regel — ab 2026-06-28)
+- **Jede neue oder geänderte Funktion** wird sofort in `docs/BENUTZERHANDBUCH.md` dokumentiert.
+- Struktur je Funktion: **Name · Was es tut · Wo zu finden · Voraussetzungen · Einschränkungen**.
+- Das Handbuch enthält **immer die vollständige Datenstrom-Schaltzentrale** — alle Weichen-Tabellen,
+  Handshake-Protokoll, NO-GOs. Bei neuer Weiche: Airtable-Handbuch UND `docs/BENUTZERHANDBUCH.md`
+  gleichzeitig aktualisieren.
+- Das Handbuch wird mit dem Feature-Commit mitgepusht — kein separater Doku-Commit.
+- Entfernte Features → Abschnitt löschen. Keine veralteten "deprecated"-Einträge stehen lassen.
+- Zielgruppe: Johannes + Team. Klare, direkte Sprache.
 
 ### Prozess
 - Eine Session = ein kleiner PR = ein Handoff (`docs/handoffs/HANDOFF_AKT{n}_S{m}.md`).

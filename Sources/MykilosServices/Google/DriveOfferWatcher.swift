@@ -28,25 +28,30 @@ public final class DriveOfferWatcher {
         self.client = client
     }
 
-    /// Ein Poll-Durchlauf. Liefert die neu erkannten Angebots-Signale (leer beim
-    /// Baseline-Lauf, bei Auth-/Netzwerkfehlern und wenn nichts Neues da ist).
+    /// Ein Poll-Durchlauf. Liefert alle neuen Signale: `offerDetected` für neue
+    /// Angebots-PDFs, `driveFileAdded` für alle anderen neuen Dateien.
+    /// Leer beim Baseline-Lauf, bei Auth-/Netzwerkfehlern und wenn nichts Neues da ist.
     /// Fehler werden bewusst geschluckt: ein Hintergrund-Poll darf die UI nie
     /// mit Fehlerzuständen stören — das übernimmt das DriveWidget selbst.
     public func poll(projectID: String, folderID: String) async -> [WidgetSignal] {
         guard folderID.isEmpty == false else { return [] }
         guard let files = try? await client.listFolder(folderID: folderID) else { return [] }
 
-        let offers = Self.detectOffers(in: files)
+        let nonFolders = files.filter { $0.mimeType != "application/vnd.google-apps.folder" }
 
         guard baselined else {
-            seen = Set(offers.map(\.id))
+            seen = Set(nonFolders.map(\.id))
             baselined = true
             return []
         }
 
-        let fresh = offers.filter { seen.contains($0.id) == false }
+        let fresh = nonFolders.filter { seen.contains($0.id) == false }
         seen.formUnion(fresh.map(\.id))
-        return fresh.map { .offerDetected(projectID: projectID, label: $0.name) }
+        return fresh.map { file in
+            Self.isOffer(file)
+                ? .offerDetected(projectID: projectID, label: file.name)
+                : .driveFileAdded(projectID: projectID, fileName: file.name)
+        }
     }
 
     // MARK: - Reine, testbare Kernlogik (kein Netzwerk/Zustand)

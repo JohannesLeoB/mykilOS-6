@@ -15,6 +15,8 @@ public struct AssistantChatView: View {
     let modelName: String
     let projects: [Project]
     let focusedProjectID: String?
+    let focusedDriveFolderID: String?
+    let focusedClickUpListID: String?
     let profile: UserProfile?
 
     @Environment(StudioContext.self) private var context
@@ -23,6 +25,8 @@ public struct AssistantChatView: View {
     // Datenschutz-Opt-in: Tools (Gmail/Kalender lesen) gehen erst nach bewusster
     // Aktivierung an die Anthropic-API. Default AUS, persistent.
     @AppStorage("assistant.toolsEnabled") private var toolsEnabled = false
+    // Schätzchat-Modus: nur schaetze_projekt aktiv, projektlose Eingabe erlaubt.
+    @AppStorage("assistant.schaetzModus") private var schaetzModus = false
 
     public init(
         scope: ChatScope,
@@ -32,6 +36,8 @@ public struct AssistantChatView: View {
         modelName: String,
         projects: [Project],
         focusedProjectID: String?,
+        focusedDriveFolderID: String? = nil,
+        focusedClickUpListID: String? = nil,
         profile: UserProfile? = nil
     ) {
         self.scope = scope
@@ -41,6 +47,8 @@ public struct AssistantChatView: View {
         self.modelName = modelName
         self.projects = projects
         self.focusedProjectID = focusedProjectID
+        self.focusedDriveFolderID = focusedDriveFolderID
+        self.focusedClickUpListID = focusedClickUpListID
         self.profile = profile
     }
 
@@ -155,45 +163,85 @@ public struct AssistantChatView: View {
         }
     }
 
-    // MARK: Datenschutz-Opt-in für Live-Tools
+    // MARK: Datenschutz-Opt-in für Live-Tools + Schätzchat-Toggle
     private var optInBar: some View {
-        HStack(spacing: MykSpace.s4) {
-            Image(systemName: toolsEnabled ? "bolt.fill" : "bolt.slash")
-                .font(.mykCaption)
-                .foregroundStyle(toolsEnabled ? MykColor.positive.color : MykColor.faint.color)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(toolsEnabled ? "Live-Zugriffe aktiv" : "Live-Zugriffe aus")
-                    .font(.mykMono(9.5)).foregroundStyle(MykColor.muted.color)
-                Text(toolsEnabled
-                     ? "Mail/Kalender werden bei Bedarf gelesen und an Anthropic gesendet."
-                     : "Aktivieren, damit der Assistent deine Mail/Kalender lesen darf.")
-                    .font(.mykMono(9)).foregroundStyle(MykColor.faint.color).lineLimit(1)
+        VStack(spacing: 0) {
+            // Schätzchat-Modus
+            HStack(spacing: MykSpace.s4) {
+                Image(systemName: schaetzModus ? "function" : "function")
+                    .font(.mykCaption)
+                    .foregroundStyle(schaetzModus ? MykColor.tasks.color : MykColor.faint.color)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(schaetzModus ? "Schätzchat aktiv" : "Chat")
+                        .font(.mykMono(9.5)).foregroundStyle(MykColor.muted.color)
+                    Text(schaetzModus
+                         ? "Nur Kostenschätzung aktiv. Eingabe: z. B. '5m Eichenküche'. Kein Mail/Kalender/Drive."
+                         : "Schätzchat aktivieren für projektlose Kostenschätzungen per KI.")
+                        .font(.mykMono(9)).foregroundStyle(MykColor.faint.color).lineLimit(2)
+                }
+                Spacer()
+                Toggle("", isOn: $schaetzModus).labelsHidden().toggleStyle(.switch).scaleEffect(0.8)
+                    .tint(MykColor.tasks.color)
             }
-            Spacer()
-            Toggle("", isOn: $toolsEnabled).labelsHidden().toggleStyle(.switch).scaleEffect(0.8)
+            .padding(.horizontal, MykSpace.s9).padding(.vertical, MykSpace.s3)
+            .overlay(alignment: .top) { Divider().overlay(MykColor.line.color) }
+
+            // Live-Zugriffe (nur wenn nicht im Schätzchat-Modus)
+            if !schaetzModus {
+                VStack(spacing: 0) {
+                    HStack(spacing: MykSpace.s4) {
+                        Image(systemName: toolsEnabled ? "bolt.fill" : "bolt.slash")
+                            .font(.mykCaption)
+                            .foregroundStyle(toolsEnabled ? MykColor.positive.color : MykColor.faint.color)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(toolsEnabled ? "Live-Zugriffe aktiv" : "Live-Zugriffe aus")
+                                .font(.mykMono(9.5)).foregroundStyle(MykColor.muted.color)
+                            Text(toolsEnabled
+                                 ? "Lesen bei Bedarf, senden an Anthropic."
+                                 : "Aktivieren f\u{00FC}r Mail, Kalender, Drive, Aufgaben & Kontakte.")
+                                .font(.mykMono(9)).foregroundStyle(MykColor.faint.color).lineLimit(1)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $toolsEnabled).labelsHidden().toggleStyle(.switch).scaleEffect(0.8)
+                    }
+                    .padding(.horizontal, MykSpace.s9).padding(.vertical, MykSpace.s3)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: MykSpace.s2) {
+                            ForEach(AssistantCapability.allCases, id: \.label) { cap in
+                                AssistantCapabilityChip(cap: cap, active: toolsEnabled)
+                            }
+                        }
+                        .padding(.horizontal, MykSpace.s9).padding(.bottom, MykSpace.s3)
+                    }
+                }
+                .overlay(alignment: .top) { Divider().overlay(MykColor.line.color) }
+            }
         }
-        .padding(.horizontal, MykSpace.s9).padding(.vertical, MykSpace.s3)
-        .overlay(alignment: .top) { Divider().overlay(MykColor.line.color) }
     }
 
     // MARK: Eingabe
     private var composer: some View {
-        HStack(alignment: .bottom, spacing: MykSpace.s4) {
-            TextField("Nachricht an den Assistenten …", text: $draft, axis: .vertical)
+        let placeholder = schaetzModus
+            ? "Schätze mir: z. B. '5m Eichenküche' ..."
+            : "Nachricht an den Assistenten ..."
+        return HStack(alignment: .bottom, spacing: MykSpace.s4) {
+            TextField(placeholder, text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.mykBody)
                 .lineLimit(1...5)
                 .padding(.horizontal, MykSpace.s5).padding(.vertical, MykSpace.s4)
                 .background(
                     RoundedRectangle(cornerRadius: MykRadius.md)
-                        .fill(MykColor.card.color)
-                        .overlay(RoundedRectangle(cornerRadius: MykRadius.md).stroke(MykColor.line.color, lineWidth: 1))
+                        .fill(schaetzModus ? MykColor.tasks.color.opacity(0.07) : MykColor.card.color)
+                        .overlay(RoundedRectangle(cornerRadius: MykRadius.md).stroke(
+                            schaetzModus ? MykColor.tasks.color.opacity(0.4) : MykColor.line.color,
+                            lineWidth: 1))
                 )
                 .onSubmit { send(draft) }
             Button { send(draft) } label: {
                 Image(systemName: engine.isResponding ? "ellipsis" : "arrow.up.circle.fill")
                     .font(.mykHeadline)
-                    .foregroundStyle(canSend ? MykColor.ink.color : MykColor.faint.color)
+                    .foregroundStyle(canSend ? (schaetzModus ? MykColor.tasks.color : MykColor.ink.color) : MykColor.faint.color)
             }
             .buttonStyle(.plain)
             .disabled(canSend == false)
@@ -214,7 +262,10 @@ public struct AssistantChatView: View {
         Task {
             await engine.send(
                 toSend, scope: scope, focusedProjectID: focusedProjectID,
+                focusedDriveFolderID: focusedDriveFolderID,
+                focusedClickUpListID: focusedClickUpListID,
                 signals: signals, projects: projects, toolsEnabled: toolsEnabled,
+                schaetzModusEnabled: schaetzModus,
                 profile: profile
             )
         }
@@ -249,14 +300,15 @@ public struct AssistantChatView: View {
 // MARK: - ChatMessageBubble
 struct ChatMessageBubble: View {
     let message: ChatMessage
+    @State private var cursorVisible = true
 
     var body: some View {
         HStack {
             if message.role == .user { Spacer(minLength: 40) }
             VStack(alignment: message.role == .user ? .trailing : .leading, spacing: MykSpace.s2) {
-                // Tool-Spuren (Quelle sichtbar) über der Antwort.
+                // Tool-Spuren (Quelle sichtbar, L12: mit Zeitstempel) über der Antwort.
                 ForEach(Array(toolActivities.enumerated()), id: \.offset) { _, activity in
-                    ToolCallRow(label: activity.label, isError: activity.isError)
+                    ToolCallRow(label: activity.label, isError: activity.isError, timestamp: message.createdAt)
                 }
                 bubble
                 // Kalender-Aktionskarten nach der Antwort.
@@ -305,15 +357,13 @@ struct ChatMessageBubble: View {
 
     @ViewBuilder
     private var bubble: some View {
-        if message.role == .assistant, message.status == .streaming, message.text.isEmpty {
-            HStack(spacing: 6) {
-                ProgressView().scaleEffect(0.6).tint(MykColor.muted.color)
-                Text("denkt nach …").font(.mykSmall).foregroundStyle(MykColor.muted.color)
-            }
-            .padding(.horizontal, MykSpace.s5).padding(.vertical, MykSpace.s4)
-            .background(RoundedRectangle(cornerRadius: MykRadius.md).fill(MykColor.card.color))
+        let isStreaming = message.role == .assistant && message.status == .streaming
+        if isStreaming, message.text.isEmpty {
+            ThinkingIndicator()
         } else {
-            Text(Self.rendered(message.text))
+            let cursor: String = (isStreaming && cursorVisible) ? "\u{2588}" : ""
+            let displayText = isStreaming ? message.text + cursor : message.text
+            Text(Self.rendered(displayText))
                 .font(.mykBody)
                 .foregroundStyle(message.role == .user ? MykColor.paper.color : MykColor.ink.color)
                 .textSelection(.enabled)
@@ -322,6 +372,10 @@ struct ChatMessageBubble: View {
                     RoundedRectangle(cornerRadius: MykRadius.md)
                         .fill(message.role == .user ? MykColor.ink.color : MykColor.card.color)
                 )
+                .onAppear {
+                    guard isStreaming else { return }
+                    withAnimation(.easeInOut(duration: 0.5).repeatForever()) { cursorVisible.toggle() }
+                }
         }
     }
 
@@ -375,11 +429,92 @@ struct CalendarActionCard: View {
     }
 }
 
+// MARK: - ThinkingIndicator (L14)
+// Animierte 3-Punkt-Ladeanzeige während Claude denkt (keine Antwort-Tokens bisher).
+struct ThinkingIndicator: View {
+    @State private var phase: Int = 0
+    private let timer = Timer.publish(every: 0.42, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<3) { i in
+                Circle()
+                    .fill(MykColor.muted.color)
+                    .frame(width: 6, height: 6)
+                    .scaleEffect(phase == i ? 1.35 : 0.85)
+                    .animation(.easeInOut(duration: 0.38), value: phase)
+            }
+        }
+        .padding(.horizontal, MykSpace.s5).padding(.vertical, MykSpace.s4)
+        .background(RoundedRectangle(cornerRadius: MykRadius.md).fill(MykColor.card.color))
+        .onReceive(timer) { _ in phase = (phase + 1) % 3 }
+    }
+}
+
+// MARK: - AssistantCapability + AssistantCapabilityChip (L15)
+// Zeigt welche Live-Tools verfügbar sind — sichtbare Capability-Chips im optInBar.
+enum AssistantCapability: CaseIterable {
+    case gmail, kalender, drive, aufgaben, kontakte, studio, kalkulation
+
+    var label: String {
+        switch self {
+        case .gmail:       "Gmail"
+        case .kalender:    "Kalender"
+        case .drive:       "Drive"
+        case .aufgaben:    "Aufgaben"
+        case .kontakte:    "Kontakte"
+        case .studio:      "Studio-Wissen"
+        case .kalkulation: "Kalkulation"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .gmail:       "envelope"
+        case .kalender:    "calendar"
+        case .drive:       "folder"
+        case .aufgaben:    "checkmark.square"
+        case .kontakte:    "person.2"
+        case .studio:      "building.2"
+        case .kalkulation: "eurosign.square"
+        }
+    }
+
+    var color: MykColor {
+        switch self {
+        case .gmail, .kalender, .kontakte: .people
+        case .drive:       .drive
+        case .aufgaben:    .tasks
+        case .studio:      .brand
+        case .kalkulation: .tasks
+        }
+    }
+}
+
+struct AssistantCapabilityChip: View {
+    let cap: AssistantCapability
+    let active: Bool
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: cap.icon)
+            Text(cap.label)
+        }
+        .font(.mykMono(8.5))
+        .foregroundStyle(active ? cap.color.color : MykColor.faint.color)
+        .padding(.horizontal, MykSpace.s3)
+        .padding(.vertical, 3)
+        .background(Capsule().fill(active ? cap.color.color.opacity(0.1) : MykColor.faint.color.opacity(0.06)))
+        .overlay(Capsule().stroke(active ? cap.color.color.opacity(0.25) : MykColor.line.color, lineWidth: 1))
+    }
+}
+
 // MARK: - ToolCallRow
-// Sichtbare Spur eines gelaufenen read-only Tools („Quelle ist immer sichtbar").
+// Sichtbare Spur eines gelaufenen read-only Tools (L12: welches Tool, wann).
 struct ToolCallRow: View {
     let label: String
     let isError: Bool
+    var timestamp: Date? = nil
 
     var body: some View {
         HStack(spacing: 6) {
@@ -388,11 +523,24 @@ struct ToolCallRow: View {
             Text(label)
                 .font(.mykMono(9.5))
                 .lineLimit(1)
+            if let ts = timestamp {
+                Text(relativeTime(ts))
+                    .font(.mykMono(9))
+                    .foregroundStyle(MykColor.faint.color)
+            }
         }
         .foregroundStyle(isError ? MykColor.critical.color : MykColor.muted.color)
         .padding(.horizontal, MykSpace.s4)
         .padding(.vertical, 3)
         .background(Capsule().fill(MykColor.card.color))
+    }
+
+    private func relativeTime(_ date: Date) -> String {
+        let diff = -date.timeIntervalSinceNow
+        if diff < 60   { return "gerade eben" }
+        if diff < 3600 { return "vor \(Int(diff / 60)) min" }
+        let h = Int(diff / 3600)
+        return "vor \(h) \(h == 1 ? "Std" : "Std")"
     }
 }
 

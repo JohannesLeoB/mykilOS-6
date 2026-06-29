@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 import MykilosKit
 import MykilosServices
 
@@ -17,9 +18,13 @@ public final class AppState {
     public let homeBoard:  WidgetBoardStore
     public let homeNotes:  NoteStore
     public let audit:      AuditStore
+    public let favorites:  FavoritesStore
     public let chat:       ChatStore
     public let conversation: ConversationEngine
     public let profile:    ProfileStore
+    // Schaltzentrum-Logbuch: jeder externe Datensync hinterlässt hier einen
+    // Handshake (lokal + Airtable-Spiegel). Siehe DataFlowLogger.
+    public let dataFlow:   DataFlowLogger
 
     // MARK: Integrationen
     public let googleAuth: GoogleAuthService
@@ -47,6 +52,11 @@ public final class AppState {
     // und andere Views direkt darauf zugreifen können ohne googleAuth zu kennen.
     public var currentGoogleUser: GoogleUserInfo? { googleAuth.currentUser }
 
+    // Wer hat den Datenstrom ausgelöst? Für Handshake-Einträge im Schaltzentrum.
+    public var actorUserID: String {
+        googleAuth.currentUser?.email ?? profile.profile?.displayName ?? "local"
+    }
+
     // MARK: Navigations-Brücke
     // ContentView besitzt `module` (Sidebar-Auswahl), ProjectGalleryView besitzt
     // `selectedProject` (welches Projekt offen ist) — beide bewusst reine
@@ -56,6 +66,9 @@ public final class AppState {
     // Feld ist die Brücke: setzen → ContentView wechselt das Modul, Gallery
     // öffnet das Projekt und räumt danach selbst wieder auf (nil).
     public var pendingProjectSelection: Project?
+
+    // MARK: Backup (Mandate G) — sichtbarer Speicherzustand für „Backup jetzt"
+    public private(set) var backupState: SaveState = .idle
 
     public init(database: GRDBDatabase) {
         self.database = database
@@ -70,6 +83,7 @@ public final class AppState {
             db: database
         )
         self.audit = AuditStore(db: database)
+        self.favorites = FavoritesStore(db: database)
         self.profile = ProfileStore(db: database)
         let chatStore = ChatStore(db: database)
         self.chat = chatStore
@@ -78,6 +92,9 @@ public final class AppState {
         self.clickUpAuth = ClickUpAuthService()
         self.sevdeskAuth = SevdeskAuthService()
         self.airtableAuth = AirtableAuthService()
+        // Logger spiegelt nach Airtable über den eng begrenzten Schreibpfad
+        // (nur Datenstrom-Log der Mastermind-Base; Whitelist im AirtableClient).
+        self.dataFlow = DataFlowLogger(db: database, airtable: AirtableClient())
         let claudeCredentials = KeychainClaudeCredentialsStore()
         self.claudeAuth = ClaudeAuthService(credentialsStore: claudeCredentials)
         self.assistantLLM = ClaudeMessagesClient(credentialsStore: claudeCredentials)
@@ -85,7 +102,7 @@ public final class AppState {
         // Preisbuch-CSV aus Application-Support, falls vorhanden — sonst nil-Lookup).
         // Muss vor ConversationEngine initialisiert werden, damit die Registry sie bekommt.
         let kalkulationsEngine = KalkulationsEngine(
-            provider: BaselineAnchorProvider(),
+            provider: BrainSeedProvider(),
             learningStore: LearningStore(),
             deviceCatalog: DeviceCatalog.loadDefault(),
             auditStore: audit   // bestätigte Anpassungen landen im Audit-Log
@@ -97,7 +114,8 @@ public final class AppState {
         self.conversation = ConversationEngine(
             chatStore: chatStore,
             provider: ClaudeChatClient(),
-            registry: .standard(kalkulationsEngine: kalkulationsEngine)
+            registry: .standard(kalkulationsEngine: kalkulationsEngine),
+            dataFlowLogger: dataFlow
         )
     }
 
@@ -140,12 +158,23 @@ public final class AppState {
     @discardableResult
     public func pollAllActiveProjectsForOffers(into context: StudioContext) async -> Int {
         var total = 0
+        var scanned = 0
         for project in registry.activeProjects() {
             guard let folderID = project.links.driveFolderID, folderID.isEmpty == false else { continue }
+            scanned += 1
             let watcher = offerWatcher(for: project.projectNumber)
             let signals = await watcher.poll(projectID: project.projectNumber, folderID: folderID)
             for signal in signals { context.emit(signal) }
             total += signals.count
+        }
+        // Handshake nur bei echtem Treffer protokollieren — der 300s-Hintergrund-
+        // Sweep soll das Log nicht mit „nichts Neues" fluten.
+        if total > 0 {
+            dataFlow.log(
+                integrationID: "DRIVE_POLL_OFFERS", actorUserID: actorUserID, action: .success,
+                recordsRead: scanned, recordsWritten: 0,
+                summary: "\(total) neue Angebots-PDF(s) in \(scanned) Projektordnern erkannt"
+            )
         }
         return total
     }
@@ -174,9 +203,14 @@ public final class AppState {
         } catch {
             // AuditStore macht den Fehler über saveState sichtbar.
         }
+        try? dataFlow.load()
+        try? favorites.load()   // leere Favoritenmenge ist kein Fehler (L25)
         // Registry seeden/laden
         await registry.seedIfEmpty()
         await registry.load()
+        // L24: Assistent bekommt das Kunden-Verzeichnis (lokaler Snapshot) — nach dem
+        // Laden, damit lookup_kunde echte Daten sieht statt einer leeren Cold-Start-Liste.
+        refreshAssistantKundenWissen()
 
         // B2-Fix: wenn Google verbunden aber kein UserInfo gecacht (z. B. Login vor S17),
         // einmal im Hintergrund nachladen — non-fatal, Sidebar zeigt Name ohne Flackern.
@@ -189,9 +223,53 @@ public final class AppState {
         guard airtableAuth.status == .connected else { return }
         do {
             guard let credentials = try airtableAuth.storedCredentials() else { return }
+            dataFlow.log(integrationID: "AIRTABLE_KUNDEN_PROJEKTE", actorUserID: actorUserID,
+                         action: .start, summary: "Auto-Sync bei App-Start")
             await registry.syncFromAirtable(baseID: credentials.baseID, auth: airtableAuth)
+            if case .error(let msg) = airtableAuth.status {
+                dataFlow.log(integrationID: "AIRTABLE_KUNDEN_PROJEKTE", actorUserID: actorUserID,
+                             action: .error, errorMessage: msg, summary: "Airtable-Sync fehlgeschlagen")
+            } else {
+                dataFlow.log(integrationID: "AIRTABLE_KUNDEN_PROJEKTE", actorUserID: actorUserID,
+                             action: .success, recordsRead: registry.projects.count,
+                             summary: "Projekte/Kunden aus Mastermind synchronisiert")
+                refreshAssistantKundenWissen()   // frische Kunden → Assistent
+            }
         } catch {
             airtableAuth.setError(String(describing: error))
+        }
+    }
+
+    // L24: baut die Assistenten-Tool-Registry mit dem aktuellen Kunden-Snapshot neu auf.
+    // Rein lokal (kein Airtable-Call) — nutzt die bereits geladene Registry. Erhält die
+    // KalkulationsEngine, sonst verschwände schaetze_projekt.
+    private func refreshAssistantKundenWissen() {
+        let brain = KundenBrain(customers: registry.customers, projects: registry.projects)
+        conversation.updateRegistry(.standard(kalkulationsEngine: kalkulationsEngine, kundenDirectory: brain))
+    }
+
+    // MARK: - Backup (Mandate G)
+    // Erzwungener WAL-Checkpoint + konsistentes Backup, off-main ausgeführt.
+    // Lokal, read-only auf die DB — kein externer Schreibzugriff.
+    public func createBackup() async {
+        backupState = .saving
+        let db = database
+        let appSupportDir = AppDatabase.productionURL.deletingLastPathComponent()
+        let version = AppIdentity.version
+        let commit = AppIdentity.gitCommit
+        do {
+            let url = try await Task.detached(priority: .utility) {
+                let service = BackupService(appSupportDir: appSupportDir)
+                let folder = try service.createConsistentBackup(
+                    db: db, tag: "manual", appVersion: version, gitCommit: commit)
+                try? service.pruneOldBackups(olderThanDays: 30)
+                return folder
+            }.value
+            backupState = .saved(Date())
+            MykLog.backup.notice("Backup erstellt: \(url.lastPathComponent, privacy: .public)")
+        } catch {
+            backupState = .failed(String(describing: error))
+            MykLog.backup.error("Backup fehlgeschlagen: \(String(describing: error), privacy: .public)")
         }
     }
 }

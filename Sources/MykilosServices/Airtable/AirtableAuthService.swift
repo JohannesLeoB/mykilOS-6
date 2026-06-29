@@ -72,7 +72,22 @@ public final class AirtableAuthService {
     }
 
     public func storedCredentials() throws -> AirtableCredentials? {
-        try credentialsStore.load()
+        guard let creds = try credentialsStore.load() else { return nil }
+        // Auto-Heal: häufiger Bedienfehler — PAT und Base-ID wurden in der Onboarding-
+        // Maske vertauscht eingegeben. Eindeutig erkennbar: das Base-ID-Feld enthält
+        // einen PAT/API-Key (pat…/key…) UND das PAT-Feld eine echte Base-ID (app…).
+        // Nur dann tauschen (sonst nichts anfassen) und still neu speichern.
+        if Self.looksLikeToken(creds.baseID), creds.pat.hasPrefix("app") {
+            let healed = AirtableCredentials(pat: creds.baseID, baseID: creds.pat)
+            try? credentialsStore.store(healed)   // best-effort; in-memory-Korrektur zählt sofort
+            return healed
+        }
+        return creds
+    }
+
+    /// Heuristik: sieht der String wie ein Airtable-PAT/Key aus (nicht wie eine Base-ID)?
+    static func looksLikeToken(_ s: String) -> Bool {
+        s.hasPrefix("pat") || s.hasPrefix("key")
     }
 
     public func connect(pat: String, baseID: String) throws {

@@ -15,7 +15,12 @@ public enum AssistantGrounding {
         projects: [Project],
         now: Date,
         toolsEnabled: Bool = false,
-        kalkulationsEnabled: Bool = false
+        kalkulationsEnabled: Bool = false,
+        driveEnabled: Bool = false,
+        contactsEnabled: Bool = false,
+        clickUpEnabled: Bool = false,
+        studioBrainEnabled: Bool = false,
+        katalogEnabled: Bool = false
     ) -> String {
         var lines: [String] = []
         var intro = "Du bist der mykilOS-Projektassistent für ein Design-/Küchenstudio. "
@@ -53,17 +58,33 @@ public enum AssistantGrounding {
 
         lines.append("")
         if toolsEnabled {
-            var toolMsg = "Wichtig: Erfinde keine Fakten. Du hast LIVE-Lesezugriff auf Gmail (search_gmail) "
-                + "und Google Kalender (list_calendar_events) — nutze diese Tools, wenn Mails oder "
-                + "Termine gefragt sind. Für Terminvorschläge nutze suggest_calendar_event: es erstellt "
-                + "einen Kalender-Link, den der Nutzer im Browser öffnen kann (kein API-Write). "
-            if kalkulationsEnabled {
-                toolMsg += "Für Kostenschätzungen nutze schaetze_projekt: beschreibe Raum, Material "
-                    + "und Größe als Freitext — du erhältst Min/Mitte/Max-Netto-Preise aus der lokalen "
-                    + "Kalkulationsdatenbank (kein Netzwerkzugriff, nur lesen). "
+            var toolLines: [String] = [
+                "Wichtig: Erfinde keine Fakten. Du hast LIVE-Lesezugriff auf folgende Werkzeuge — nutze sie statt zu raten:",
+                "- search_gmail: Gmail durchsuchen (Betreff/Snippet).",
+                "- list_calendar_events: Termine aus Google Kalender.",
+                "- suggest_calendar_event: erzeugt einen Kalender-Link (kein API-Write).",
+            ]
+            if driveEnabled {
+                toolLines.append("- list_drive_folder: Dateien und Unterordner im verlinkten Drive-Projektordner (nur Metadaten lesen). Mit 'unterordner' gezielt z. B. in '01 ANGEBOTE' schauen.")
             }
-            toolMsg += "Für Drive, Aufgaben und Rechnungen hast du KEINE Live-Zugriffe. "
-                + "Mails versenden darfst du nur als Vorschlag formulieren, nie als erledigt darstellen."
+            if contactsEnabled {
+                toolLines.append("- search_contacts: Kontakte des verbundenen Accounts per Freitext suchen.")
+            }
+            if clickUpEnabled {
+                toolLines.append("- list_clickup_tasks: offene ClickUp-Aufgaben dieses Projekts (Status, Fälligkeit).")
+            }
+            if studioBrainEnabled {
+                toolLines.append("- query_studio_knowledge: Studio-Wissensbasis aus der Projekthistorie (Projekte, Lieferanten, Team, Problem-Signale, Preis-Nennungen). Nutze sie für Fragen zu früheren/laufenden Projekten und Lieferanten.")
+            }
+            if katalogEnabled {
+                toolLines.append("- search_katalog: Artikel- und Gerätekatalog durchsuchen (Gaggenau, Miele, Blum, Häfele…). Gibt Hersteller, Beschreibung, Artikelnummer und MYKILOS-VK. Nützlich für Preisfragen zu konkreten Geräten.")
+            }
+            if kalkulationsEnabled {
+                toolLines.append("- schaetze_projekt: Kostenschätzung (Min/Mitte/Max-Netto) aus der lokalen Kalkulationsdatenbank.")
+            }
+            var toolMsg = toolLines.joined(separator: "\n")
+            toolMsg += "\nWenn für eine Frage kein Werkzeug oben passt (z. B. Rechnungen), sag offen, dass dir der Live-Zugriff fehlt. "
+            toolMsg += "Mails versenden darfst du nur als Vorschlag formulieren, nie als erledigt darstellen."
             lines.append(toolMsg)
         } else {
             lines.append(

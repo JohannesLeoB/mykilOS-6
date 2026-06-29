@@ -17,8 +17,12 @@ import MykilosWidgets
 struct OffersTabView: View {
     let projectID: String
     let driveFolderID: String?
+    /// Optionaler expliziter lokaler Pfad-Hinweis (Airtable `driveFolderPath`).
+    var driveFolderPath: String? = nil
 
     @State private var loader = OffersLoader()
+    @State private var searchText = ""
+    @State private var sortByDate = true   // true = neueste zuerst, false = Name A–Z
 
     var body: some View {
         WidgetContainer(
@@ -29,6 +33,7 @@ struct OffersTabView: View {
         ) {
             VStack(alignment: .leading, spacing: MykSpace.s5) {
                 header
+                if case .content = loader.renderState { searchAndSort }
                 columns
             }
         }
@@ -58,6 +63,39 @@ struct OffersTabView: View {
         }
     }
 
+    private var searchAndSort: some View {
+        HStack(spacing: MykSpace.s4) {
+            Image(systemName: "magnifyingglass")
+                .font(.mykCaption)
+                .foregroundStyle(MykColor.muted.color)
+            TextField("Dateiname suchen…", text: $searchText)
+                .font(.mykSmall)
+                .textFieldStyle(.plain)
+            Spacer()
+            Button {
+                sortByDate.toggle()
+            } label: {
+                Label(sortByDate ? "Datum" : "Name",
+                      systemImage: sortByDate ? "calendar" : "textformat.abc")
+                    .font(.mykMono(9.5))
+                    .foregroundStyle(MykColor.muted.color)
+            }
+            .buttonStyle(.plain)
+            .help(sortByDate ? "Sortierung: Neueste zuerst — klicken für Name A–Z" : "Sortierung: Name A–Z — klicken für Datum")
+        }
+        .padding(.horizontal, MykSpace.s4)
+        .padding(.vertical, MykSpace.s2)
+        .background(RoundedRectangle(cornerRadius: MykRadius.sm).fill(MykColor.line.color.opacity(0.18)))
+    }
+
+    private func filtered(_ offers: [ClassifiedOffer]) -> [ClassifiedOffer] {
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let base = q.isEmpty ? offers : offers.filter { $0.file.name.localizedCaseInsensitiveContains(q) }
+        return sortByDate
+            ? base.sorted { ($0.file.modifiedAt ?? .distantPast) > ($1.file.modifiedAt ?? .distantPast) }
+            : base.sorted { $0.file.name.localizedCompare($1.file.name) == .orderedAscending }
+    }
+
     private var refreshButton: some View {
         Button {
             Task { await loader.load(rootFolderID: driveFolderID) }
@@ -81,160 +119,186 @@ struct OffersTabView: View {
 
     private var columns: some View {
         HStack(alignment: .top, spacing: MykSpace.s7) {
-            OfferColumn(title: "Eingehende Angebote", files: loader.incoming, folderFound: loader.incomingFolderFound)
+            OfferColumn(
+                title: "Eingehende Angebote",
+                offers: filtered(loader.incoming),
+                folderFound: loader.incomingFolderFound,
+                projectFolderID: driveFolderID,
+                projectFolderPath: driveFolderPath
+            )
             Divider().overlay(MykColor.line.color.opacity(0.6))
-            OfferColumn(title: "Ausgehende Angebote", files: loader.outgoing, folderFound: loader.outgoingFolderFound)
+            OfferColumn(
+                title: "Ausgehende Angebote",
+                offers: filtered(loader.outgoing),
+                folderFound: loader.outgoingFolderFound,
+                projectFolderID: driveFolderID,
+                projectFolderPath: driveFolderPath
+            )
         }
         .frame(maxWidth: .infinity)
     }
 }
 
 // MARK: - OfferColumn
+// Zeigt Belege gruppiert nach Dokumenttyp (Angebote / Aufträge / Rechnungen / …).
 private struct OfferColumn: View {
     let title: String
-    let files: [GoogleDriveFile]
+    let offers: [ClassifiedOffer]
     let folderFound: Bool
+    var projectFolderID: String? = nil
+    var projectFolderPath: String? = nil
+
+    // Gruppiert nach Typ, in stabiler Anzeigereihenfolge (OfferDocumentType.rawValue).
+    private var groups: [(type: OfferDocumentType, offers: [ClassifiedOffer])] {
+        Dictionary(grouping: offers, by: \.type)
+            .sorted { $0.key.rawValue < $1.key.rawValue }
+            .map { (type: $0.key, offers: $0.value) }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MykSpace.s3) {
-            Text("\(title) · \(files.count)")
+        VStack(alignment: .leading, spacing: MykSpace.s4) {
+            Text("\(title) · \(offers.count)")
                 .font(.mykCaption)
                 .foregroundStyle(MykColor.muted.color)
             if folderFound == false {
                 Text("Ordner nicht gefunden")
                     .font(.mykSmall)
                     .foregroundStyle(MykColor.muted.color)
-            } else if files.isEmpty {
+            } else if offers.isEmpty {
                 Text("Keine Belege")
                     .font(.mykSmall)
                     .foregroundStyle(MykColor.muted.color)
             } else {
-                VStack(spacing: 0) {
-                    ForEach(files) { file in
-                        OfferRow(file: file)
-                        if file.id != files.last?.id {
-                            Divider().overlay(MykColor.line.color.opacity(0.6))
-                        }
-                    }
+                ForEach(groups, id: \.type) { group in
+                    typeSection(group.type, group.offers)
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private func typeSection(_ type: OfferDocumentType, _ offers: [ClassifiedOffer]) -> some View {
+        VStack(alignment: .leading, spacing: MykSpace.s2) {
+            Text("\(type.label) · \(offers.count)")
+                .font(.mykMono(9.5))
+                .foregroundStyle(MykColor.cash.color)
+                .padding(.top, MykSpace.s2)
+            VStack(spacing: 0) {
+                ForEach(offers) { offer in
+                    OfferRow(file: offer.file, meta: offer,
+                             projectFolderID: projectFolderID,
+                             projectFolderPath: projectFolderPath)
+                    if offer.id != offers.last?.id {
+                        Divider().overlay(MykColor.line.color.opacity(0.6))
+                    }
+                }
+            }
+        }
+    }
 }
 
-// MARK: - OffersLoader
-// Pro Tab-Instanz, reiner Lesefetch. Löst zuerst die zwei realen Unterordner
-// ("...ausgehende Angebote" / "...eingehende Angebote") unterhalb des Projekt-
-// Drive-Ordners tolerant über den Namen auf, dann werden deren Inhalte separat
-// gelistet — alles über den bestehenden read-only `GoogleDriveClient`.
-@MainActor
-@Observable
-private final class OffersLoader {
-    private(set) var incoming: [GoogleDriveFile] = []
-    private(set) var outgoing: [GoogleDriveFile] = []
-    private(set) var incomingFolderFound = true
-    private(set) var outgoingFolderFound = true
-    private(set) var renderState: WidgetRenderState = .loading
-
-    private let client: GoogleDriveFetching
-    // Generation-Token: nur das jüngste load() committet (Projektwechsel/Retry).
-    private var loadGeneration = 0
-
-    init(client: GoogleDriveFetching = GoogleDriveClient()) {
-        self.client = client
-    }
-
-    func load(rootFolderID: String?) async {
-        loadGeneration &+= 1
-        let generation = loadGeneration
-        guard let rootFolderID, rootFolderID.isEmpty == false else {
-            incoming = []
-            outgoing = []
-            renderState = .empty
-            return
-        }
-        renderState = .loading
-        do {
-            let rootChildren = try await client.listFolder(folderID: rootFolderID)
-            guard generation == loadGeneration else { return }
-
-            let incomingFolder = Self.subfolder(in: rootChildren, matching: "eingehende")
-            let outgoingFolder = Self.subfolder(in: rootChildren, matching: "ausgehende")
-            incomingFolderFound = incomingFolder != nil
-            outgoingFolderFound = outgoingFolder != nil
-
-            async let incomingFiles = Self.files(in: incomingFolder, client: client)
-            async let outgoingFiles = Self.files(in: outgoingFolder, client: client)
-            let (resolvedIncoming, resolvedOutgoing) = try await (incomingFiles, outgoingFiles)
-            guard generation == loadGeneration else { return }
-
-            incoming = resolvedIncoming
-            outgoing = resolvedOutgoing
-            renderState = (resolvedIncoming.isEmpty && resolvedOutgoing.isEmpty) ? .empty : .content
-        } catch GoogleDriveError.notConnected {
-            guard generation == loadGeneration else { return }
-            incoming = []
-            outgoing = []
-            renderState = .permissionRequired
-        } catch {
-            guard generation == loadGeneration else { return }
-            incoming = []
-            outgoing = []
-            renderState = .error(String(describing: error))
-        }
-    }
-
-    // Tolerant: echte Ordner heißen z.B. "04 ausgehende Angebote" /
-    // "05 eingehende Angebote" — Nummerierung und Großschreibung ignorieren wir,
-    // nur das Schlüsselwort muss im Namen vorkommen.
-    private static func subfolder(in children: [GoogleDriveFile], matching keyword: String) -> GoogleDriveFile? {
-        children.first {
-            $0.mimeType == "application/vnd.google-apps.folder"
-                && $0.name.lowercased().contains(keyword)
-        }
-    }
-
-    private static func files(in folder: GoogleDriveFile?, client: GoogleDriveFetching) async throws -> [GoogleDriveFile] {
-        guard let folder else { return [] }
-        let children = try await client.listFolder(folderID: folder.id)
-        return children.filter { $0.mimeType != "application/vnd.google-apps.folder" }
-    }
-}
+// OffersLoader ist in OffersLoader.swift — intern, testbar.
 
 // MARK: - OfferRow
 private struct OfferRow: View {
     let file: GoogleDriveFile
+    var meta: ClassifiedOffer? = nil
+    var projectFolderID: String? = nil
+    var projectFolderPath: String? = nil
+
+    @State private var showPreview = false
+    @State private var resolvedLocalURL: URL?
+
+    // Belegnummer + Version als kompakte Kennung (z.B. "2026-0151 · v3").
+    private var metaLine: String? {
+        guard let meta else { return nil }
+        var parts: [String] = []
+        if let nr = meta.belegNummer { parts.append(nr) }
+        if let v = meta.version { parts.append(v) }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    // Lokaler Pfad der Datei im Projektbaum (xattr-/Namens-Auflösung). `nil`, wenn
+    // nicht lokal materialisiert → dann greift der Remote-PDF-Fallback bzw. Browser.
+    private func resolveLocalURL() -> URL? {
+        guard let projectFolderID, projectFolderID.isEmpty == false else { return nil }
+        return LocalDriveRootResolver.shared.localURL(
+            forFileID: file.id, fileName: file.name,
+            inProjectFolderID: projectFolderID, explicitProjectPath: projectFolderPath
+        )
+    }
+
+    // Read-only Remote-Fallback: PDF-Bytes aus Drive (kein Schreiben), damit die
+    // Vorschau auch nicht-materialisierte Belege echt rendert statt Safari zu öffnen.
+    private func remotePDFData() -> (@Sendable () async -> Data?)? {
+        guard file.mimeType == "application/pdf" else { return nil }
+        let fileID = file.id
+        return { try? await GoogleDriveClient().downloadContent(fileID: fileID) }
+    }
 
     var body: some View {
-        Button {
-            if let link = file.webViewLink, let url = URL(string: link) {
-                NSWorkspace.shared.open(url)
-            }
-        } label: {
-            HStack(spacing: MykSpace.s4) {
-                Image(systemName: "doc.text")
+        HStack(spacing: MykSpace.s4) {
+            Button {
+                resolvedLocalURL = resolveLocalURL()
+                showPreview.toggle()
+            } label: {
+                Image(systemName: file.iconName)
                     .font(.mykCaption)
                     .foregroundStyle(MykColor.cash.color)
                     .frame(width: 20)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(file.name)
-                        .font(.mykSmall)
-                        .foregroundStyle(MykColor.ink.color)
-                        .lineLimit(1)
-                    if let modifiedAt = file.modifiedAt {
-                        Text(modifiedAt.formatted(.relative(presentation: .named)))
-                            .font(.mykMono(9.5))
-                            .foregroundStyle(MykColor.muted.color)
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showPreview, arrowEdge: .trailing) {
+                FilePreviewView(file: file, localURL: resolvedLocalURL, remotePDFData: remotePDFData())
+                    .frame(width: 300)
+                    .padding(MykSpace.s2)
+            }
+
+            Button {
+                // Lokal-zuerst öffnen (macOS-Vorschau), sonst Browser-Fallback — nie blind Safari.
+                let local = resolveLocalURL()
+                let fallback = file.webViewLink.flatMap { URL(string: $0) }
+                LocalDriveRootResolver.shared.openFile(localURL: local, fallbackURL: fallback)
+            } label: {
+                HStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(file.name)
+                            .font(.mykSmall)
+                            .foregroundStyle(MykColor.ink.color)
+                            .lineLimit(1)
+                        HStack(spacing: MykSpace.s2) {
+                            if let metaLine {
+                                Text(metaLine)
+                                    .font(.mykMono(9.5))
+                                    .foregroundStyle(MykColor.cash.color)
+                            }
+                            if let modifiedAt = file.modifiedAt {
+                                Text(modifiedAt.formatted(.relative(presentation: .named)))
+                                    .font(.mykMono(9.5))
+                                    .foregroundStyle(MykColor.muted.color)
+                            }
+                        }
                     }
+                    Spacer()
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.mykMono(10))
+                        .foregroundStyle(MykColor.faint.color)
                 }
-                Spacer()
-                Image(systemName: "arrow.up.right.square")
-                    .font(.mykMono(10))
-                    .foregroundStyle(MykColor.faint.color)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, MykSpace.s3)
+        .contextMenu {
+            Button("Im Finder zeigen") {
+                if let local = resolveLocalURL() {
+                    LocalDriveRootResolver.shared.revealInFinder(localURL: local)
+                } else if let link = file.webViewLink, let url = URL(string: link) {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            if let link = file.webViewLink, let url = URL(string: link) {
+                Button("Im Browser öffnen") { NSWorkspace.shared.open(url) }
             }
         }
-        .buttonStyle(.plain)
-        .padding(.vertical, MykSpace.s3)
     }
 }

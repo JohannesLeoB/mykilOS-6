@@ -15,6 +15,13 @@ public protocol AirtableFetching: Sendable {
     func fetchRecords(baseID: String, table: String) async throws -> [[String: AirtableFieldValue]]
 }
 
+// MARK: - AirtableRecordCreating
+// Eng begrenzter, append-only Schreibpfad. Bewusst getrennt vom Lese-Protokoll,
+// damit Schreib-Aufrufer explizit sein müssen. KEIN update/delete — existiert nicht.
+public protocol AirtableRecordCreating: Sendable {
+    func createRecord(baseID: String, table: String, fields: [String: AirtableFieldValue]) async throws -> String
+}
+
 // MARK: - AirtableFieldValue
 public enum AirtableFieldValue: Sendable, Equatable, Decodable {
     case string(String)
@@ -45,13 +52,30 @@ public enum AirtableFieldValue: Sendable, Equatable, Decodable {
         if case .number(let n) = self { return n }
         return nil
     }
+
+    /// JSON-serialisierbarer Wert für den Schreibpfad (POST-Body).
+    var jsonValue: Any {
+        switch self {
+        case .string(let s): return s
+        case .array(let a):  return a
+        case .number(let n): return n
+        case .null:          return NSNull()
+        }
+    }
 }
 
 // MARK: - AirtableClient
-public struct AirtableClient: AirtableFetching {
+public struct AirtableClient: AirtableFetching, AirtableRecordCreating {
     private let credentialsStore: AirtableCredentialsStoring
     private let session: URLSession
     private let apiBase = "https://api.airtable.com/v0"
+
+    // MARK: NO-GO-Schreibgrenzen (unverhandelbar)
+    // Geschrieben wird AUSSCHLIESSLICH in die eigene Mastermind-Base und nur in
+    // die zwei Schaltzentrum-Tabellen. Nie die geteilte Base, nie Projekt-/Kunden-
+    // /Kalkulations-Daten, nie DELETE/PATCH (existieren nicht).
+    public static let writableBaseID = "appuVMh3KDfKw4OoQ"
+    public static let writableTables: Set<String> = ["Datenstrom-Handbuch", "Datenstrom-Log"]
 
     public init(
         credentialsStore: AirtableCredentialsStoring = KeychainAirtableCredentialsStore(),
@@ -87,6 +111,38 @@ public struct AirtableClient: AirtableFetching {
         } while offset != nil
 
         return allRecords
+    }
+
+    // MARK: - Schreibpfad (append-only, hart begrenzt)
+
+    /// Legt EINEN neuen Record an. Wirft `invalidBaseID`, wenn Base oder Tabelle
+    /// nicht auf der Whitelist stehen — das ist die harte NO-GO-Durchsetzung:
+    /// kein Schreiben in Projekt-/Kunden-/Kalkulationsdaten, kein Schreiben in
+    /// fremde Basen. Gibt die neue Record-ID zurück.
+    public func createRecord(baseID: String, table: String, fields: [String: AirtableFieldValue]) async throws -> String {
+        guard baseID == Self.writableBaseID, Self.writableTables.contains(table) else {
+            throw AirtableError.invalidBaseID("Schreiben nur in \(Self.writableTables) der Mastermind-Base erlaubt (versucht: \(table)@\(baseID))")
+        }
+        guard let credentials = try? credentialsStore.load() else {
+            throw AirtableError.notConnected
+        }
+        let encoded = table.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? table
+        guard let url = URL(string: "\(apiBase)/\(baseID)/\(encoded)") else {
+            throw AirtableError.invalidResponse
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(credentials.pat)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let payload: [String: Any] = ["records": [["fields": fields.mapValues(\.jsonValue)]]]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw AirtableError.invalidResponse }
+        guard (200...299).contains(http.statusCode) else { throw AirtableError.httpError(http.statusCode) }
+        let decoded = try? JSONDecoder().decode(CreateRecordResponse.self, from: data)
+        return decoded?.records.first?.id ?? ""
     }
 
     // MARK: - Reine, testbare Bausteine
@@ -183,4 +239,10 @@ public struct AirtablePage: Decodable, Sendable {
 private struct AirtableRecord: Decodable {
     let id: String
     let fields: [String: AirtableFieldValue]
+}
+
+// MARK: - CreateRecordResponse
+private struct CreateRecordResponse: Decodable {
+    struct Created: Decodable { let id: String }
+    let records: [Created]
 }

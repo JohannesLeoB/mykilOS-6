@@ -57,6 +57,16 @@ public struct CashWidget: View {
         }
         .task(id: sevdeskRef) {
             await loader.load(contactRef: sevdeskRef)
+            // Budget-Signal: echtes Monitoring (L22). Schwelle 70% → reviewSuggested-
+            // Klasse; 90%+ → budgetThresholdCrossed-Signal für TodayView / FocusWidget.
+            if let budget, budget > 0,
+               loader.ist > 0 {
+                let actual = loader.ist
+                let ratio = actual / budget
+                if ratio >= 0.9 {
+                    context.emit(.budgetThresholdCrossed(projectID: projectID, ratio: ratio))
+                }
+            }
         }
         .task(id: projectID) {
             // Schon mal bestätigt (vor einem Neustart)? Dann nicht erneut als

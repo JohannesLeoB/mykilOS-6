@@ -67,6 +67,26 @@ struct DriveOfferWatcherTests {
         #expect(second.isEmpty)
     }
 
+    @Test func neueNichtAngebotDateiEmitiertDriveFileAdded() async {
+        let fake = FakeDriveClient(files: [
+            file(id: "1", name: "Zeichnung.pdf", mime: "application/pdf"),
+        ])
+        let watcher = DriveOfferWatcher(client: fake)
+
+        _ = await watcher.poll(projectID: "ME-24", folderID: "folder1")   // Baseline
+
+        fake.files.append(file(id: "2", name: "Grundriss_v2.pdf", mime: "application/pdf"))
+        let signals = await watcher.poll(projectID: "ME-24", folderID: "folder1")
+
+        #expect(signals.count == 1)
+        if case let .driveFileAdded(projectID, fileName) = signals.first {
+            #expect(projectID == "ME-24")
+            #expect(fileName == "Grundriss_v2.pdf")
+        } else {
+            Issue.record("erwartet driveFileAdded, war \(String(describing: signals.first))")
+        }
+    }
+
     @Test func fehlerOderLeererOrdnerMeldetNichts() async {
         let failing = FakeDriveClient(files: [], error: GoogleDriveError.notConnected)
         let watcher = DriveOfferWatcher(client: failing)
@@ -105,5 +125,10 @@ final class FakeDriveClient: GoogleDriveFetching, @unchecked Sendable {
     func getFileName(folderID: String) async throws -> String {
         if let error { throw error }
         return "TestOrdner"
+    }
+
+    func downloadContent(fileID: String) async throws -> Data {
+        if let error { throw error }
+        return Data()
     }
 }

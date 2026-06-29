@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import os
 import MykilosKit
 import MykilosDesign
 import MykilosServices
@@ -7,8 +8,12 @@ import MykilosWidgets
 
 @main
 struct MykilOS6App: App {
-    @State private var appState = AppState(database: AppDatabase.production)
-    @State private var context  = StudioContext()
+    // Mandate F: Start-Phase explizit — ready (DB offen) oder failed (Wiederherstellung).
+    // Kein eagerly-force-unwrapped AppState mehr, der vor dem ersten View crashen kann.
+    enum BootPhase { case ready(AppState); case failed(message: String, dbPath: String) }
+    @State private var phase: BootPhase
+    @State private var context = StudioContext()
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // Single-Instance-Guard: läuft bereits eine andere Instanz, diese aktivieren
@@ -23,21 +28,19 @@ struct MykilOS6App: App {
             others.first?.activate(options: [.activateIgnoringOtherApps])
             exit(0)
         }
+        // Launch-Marker + wiederherstellbarer DB-Start.
+        MykLog.lifecycle.notice("mykilOS Start — v\(AppIdentity.version, privacy: .public) build \(AppIdentity.build, privacy: .public) commit \(AppIdentity.gitCommit, privacy: .public)")
+        switch AppDatabase.boot() {
+        case .ready(let db):
+            _phase = State(initialValue: .ready(AppState(database: db)))
+        case .failed(let message, let dbPath):
+            _phase = State(initialValue: .failed(message: message, dbPath: dbPath))
+        }
     }
-    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(appState)
-                .environment(context)
-                .task { await appState.bootstrap() }
-                // Beim Wechsel in den Hintergrund / vor App-Quit (macOS geht über
-                // .background) alle ungespeicherten Notizen sichern — sonst kann
-                // Cmd-Q eine im Debounce-Fenster hängende Eingabe verlieren.
-                .onChange(of: scenePhase) { _, phase in
-                    if phase == .background { appState.flushAllNotes() }
-                }
+            rootView
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1340, height: 860)
@@ -55,6 +58,98 @@ struct MykilOS6App: App {
         .defaultSize(width: 440, height: 300)
         .windowResizability(.contentSize)
     }
+
+    @ViewBuilder
+    private var rootView: some View {
+        switch phase {
+        case .ready(let appState):
+            ContentView()
+                .environment(appState)
+                .environment(context)
+                .task { await appState.bootstrap() }
+                // Beim Wechsel in den Hintergrund / vor App-Quit (macOS geht über
+                // .background) alle ungespeicherten Notizen sichern — sonst kann
+                // Cmd-Q eine im Debounce-Fenster hängende Eingabe verlieren.
+                .onChange(of: scenePhase) { _, scene in
+                    if scene == .background { appState.flushAllNotes() }
+                }
+        case .failed(let message, let dbPath):
+            DatabaseRecoveryView(
+                message: message, dbPath: dbPath,
+                onRestoreLatest: {
+                    switch AppDatabase.restoreLatestBackupThenBoot() {
+                    case .ready(let db): phase = .ready(AppState(database: db))
+                    case .failed(let m, let p): phase = .failed(message: m, dbPath: p)
+                    }
+                },
+                onReset: {
+                    switch AppDatabase.recoverByResettingDatabase() {
+                    case .ready(let db): phase = .ready(AppState(database: db))
+                    case .failed(let m, let p): phase = .failed(message: m, dbPath: p)
+                    }
+                }
+            )
+        }
+    }
+}
+
+// MARK: - DatabaseRecoveryView (Mandate F)
+// Sichtbarer, handlungsfähiger Fehlerzustand statt stillem Absturz, wenn die
+// Produktions-DB nicht geöffnet werden kann. Zeigt den DB-Pfad und bietet ein
+// zerstörungsfreies Zurücksetzen (korrupte Datei wird in Quarantäne verschoben,
+// nicht gelöscht) als letzte Rettung an.
+struct DatabaseRecoveryView: View {
+    let message: String
+    let dbPath: String
+    let onRestoreLatest: () -> Void
+    let onReset: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MykSpace.s6) {
+            HStack(spacing: MykSpace.s4) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.mykDisplay)
+                    .foregroundStyle(MykColor.critical.color)
+                Text("Datenbank konnte nicht geöffnet werden")
+                    .font(.mykDisplay)
+                    .foregroundStyle(MykColor.ink.color)
+            }
+            Text("mykilOS konnte die lokale Datenbank nicht laden. Deine geteilten Daten "
+                 + "(Drive, Kalender, Airtable) sind nicht betroffen — sie liegen extern.")
+                .font(.mykBody)
+                .foregroundStyle(MykColor.inkSoft.color)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: MykSpace.s2) {
+                Text("Fehler").font(.mykMono(9.5)).foregroundStyle(MykColor.muted.color)
+                Text(message).font(.mykMono(10)).foregroundStyle(MykColor.critical.color)
+                    .lineLimit(4).textSelection(.enabled)
+                Text("DB-Pfad").font(.mykMono(9.5)).foregroundStyle(MykColor.muted.color)
+                Text(dbPath).font(.mykMono(10)).foregroundStyle(MykColor.inkSoft.color)
+                    .lineLimit(2).truncationMode(.middle).textSelection(.enabled)
+            }
+            .padding(MykSpace.s5)
+            .background(RoundedRectangle(cornerRadius: MykRadius.md).fill(MykColor.paper2.color))
+
+            VStack(alignment: .leading, spacing: MykSpace.s4) {
+                HStack(spacing: MykSpace.s4) {
+                    Button("Aus letztem Backup wiederherstellen", action: onRestoreLatest)
+                    Text("Stellt das jüngste konsistente Backup wieder her (atomar, geprüft).")
+                        .font(.mykMono(9.5))
+                        .foregroundStyle(MykColor.faint.color)
+                }
+                HStack(spacing: MykSpace.s4) {
+                    Button("Datenbank zurücksetzen", role: .destructive, action: onReset)
+                    Text("Verschiebt die beschädigte Datei in Quarantäne und legt eine neue an.")
+                        .font(.mykMono(9.5))
+                        .foregroundStyle(MykColor.faint.color)
+                }
+            }
+        }
+        .padding(MykSpace.s9)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(MykColor.paper.color)
+    }
 }
 
 // MARK: - AppModule
@@ -62,7 +157,8 @@ enum AppModule: String, CaseIterable, Identifiable {
     case today        = "Heute"
     case projects     = "Projekte"
     case assistant    = "Assistent"
-    case brands       = "Marken & Daten"
+    case brands       = "Integrationen"
+    case kataloge     = "Kataloge"
     case offers       = "Angebote"
     case kalkulation  = "Kalkulation"
     case settings     = "Einstellungen"
@@ -73,6 +169,7 @@ enum AppModule: String, CaseIterable, Identifiable {
         case .projects:    "square.grid.2x2"
         case .assistant:   "sparkles"
         case .brands:      "building.2"
+        case .kataloge:    "books.vertical"
         case .offers:      "doc.text"
         case .kalkulation: "eurosign.square"
         case .settings:    "gearshape"
@@ -178,7 +275,7 @@ struct ContentView: View {
         } label: {
             Image(systemName: sidebarCollapsed ? "sidebar.left" : "sidebar.left")
                 .symbolVariant(sidebarCollapsed ? .none : .slash)
-                .font(.system(size: 13, weight: .regular))
+                .font(.mykSmall)
                 .foregroundStyle(MykColor.faint.color)
                 .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
@@ -222,6 +319,7 @@ struct ContentView: View {
         case .assistant:   AssistantPageView()
         case .offers:      GlobalOffersView()
         case .brands:      BrandsView(onNavigateToSettings: { module = .settings })
+        case .kataloge:    KatalogeView()
         case .kalkulation: KalkulationsPageView()
         case .settings:    SettingsView()
         }
@@ -314,6 +412,14 @@ struct ComingSoonView: View {
 }
 
 struct AboutMykilOSView: View {
+    // Alle Diagnose-Werte aus der EINEN Quelle (AppIdentity) — kein Netzwerk,
+    // kein Keychain, keine zweite Pfad-/Versionsberechnung.
+    private var version: String   { AppIdentity.version }
+    private var build: String     { AppIdentity.build }
+    private var bundlePath: String { AppIdentity.bundlePath }
+    private var gitCommit: String { AppIdentity.gitCommit }
+    private var buildDate: String { AppIdentity.buildDate }
+
     var body: some View {
         VStack(alignment: .leading, spacing: MykSpace.s6) {
             HStack(alignment: .center, spacing: MykSpace.s5) {
@@ -330,7 +436,7 @@ struct AboutMykilOSView: View {
                     Text("mykilOS 6")
                         .font(.mykDisplay)
                         .foregroundStyle(MykColor.ink.color)
-                    Text("Version 6.4.0 · Sidebar CI + Brand Orange")
+                    Text("Version \(version) · Build \(build)")
                         .font(.mykMono(11))
                         .foregroundStyle(MykColor.muted.color)
                 }
@@ -343,13 +449,67 @@ struct AboutMykilOSView: View {
 
             Divider().overlay(MykColor.line.color)
 
+            // Diagnose-Informationen — kein Keychain, keine Tokens
+            VStack(alignment: .leading, spacing: MykSpace.s3) {
+                DiagRow(label: "Commit", value: gitCommit)
+                DiagRow(label: "Gebaut", value: buildDate)
+                DiagRow(label: "Bundle", value: bundlePath)
+                DiagRow(label: "DB", value: AppIdentity.dbPath)
+            }
+
+            Divider().overlay(MykColor.line.color)
+
             Text("Copyright MYKILOS")
                 .font(.mykCaption)
                 .foregroundStyle(MykColor.muted.color)
         }
         .padding(MykSpace.s7)
-        .frame(width: 440, alignment: .leading)
+        .frame(width: 540, alignment: .leading)
         .background(MykColor.paper.color)
+    }
+}
+
+private struct DiagRow: View {
+    let label: String
+    let value: String
+    var body: some View {
+        HStack(alignment: .top, spacing: MykSpace.s3) {
+            Text(label)
+                .font(.mykMono(9.5))
+                .foregroundStyle(MykColor.muted.color)
+                .frame(width: 48, alignment: .trailing)
+            Text(value)
+                .font(.mykMono(9.5))
+                .foregroundStyle(MykColor.inkSoft.color)
+                .lineLimit(2)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+        }
+    }
+}
+
+// MARK: - AppIdentity
+// Statische Diagnose-Informationen ohne Keychain/Netzwerk. EINE Quelle der Wahrheit
+// für About-Fenster UND Settings → Diagnose. Git-Commit/Branch/Build-Datum werden
+// vom Build-Skript (build_and_run.sh) in die Info.plist injiziert (Keys Myk…);
+// bei `swift run` ohne Bundle fallen sie ehrlich auf „–"/„unbekannt" zurück.
+public enum AppIdentity {
+    public static var dbPath: String { AppDatabase.productionURL.path }
+    public static var bundlePath: String { Bundle.main.bundlePath }
+    public static var version: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "–"
+    }
+    public static var build: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "–"
+    }
+    public static var gitCommit: String {
+        Bundle.main.infoDictionary?["MykGitCommit"] as? String ?? "unbekannt"
+    }
+    public static var gitBranch: String {
+        Bundle.main.infoDictionary?["MykGitBranch"] as? String ?? "–"
+    }
+    public static var buildDate: String {
+        Bundle.main.infoDictionary?["MykBuildDate"] as? String ?? "–"
     }
 }
 
@@ -378,8 +538,10 @@ struct AppCommands: Commands {
                 .keyboardShortcut("2", modifiers: .command)
             Button("Assistent")       { activeModule = .assistant }
                 .keyboardShortcut("3", modifiers: .command)
-            Button("Marken & Daten")  { activeModule = .brands }
+            Button("Integrationen")   { activeModule = .brands }
                 .keyboardShortcut("4", modifiers: .command)
+            Button("Kataloge")        { activeModule = .kataloge }
+                .keyboardShortcut("8", modifiers: .command)
             Button("Angebote")        { activeModule = .offers }
                 .keyboardShortcut("5", modifiers: .command)
             Button("Kalkulation")     { activeModule = .kalkulation }

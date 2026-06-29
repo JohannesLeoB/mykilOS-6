@@ -11,7 +11,10 @@ struct ProjectCard: View {
     let action: () -> Void
 
     @Environment(StudioContext.self) private var context
+    @Environment(AppState.self) private var appState
     @State private var isHovered = false
+
+    private var isFavorite: Bool { appState.favorites.isFavorite(project.projectNumber) }
 
     private var signalCount: Int { context.signals(for: project.projectNumber).count }
     private var hasCriticalSignal: Bool {
@@ -64,6 +67,7 @@ struct ProjectCard: View {
             // Projekt-Kürzel oben rechts + Signal-Badge oben links
             VStack {
                 HStack {
+                    starButton
                     // Signal-Badge: nur wenn aktive Sitzungs-Signale vorhanden
                     if signalCount > 0 {
                         Text("\(signalCount)")
@@ -134,6 +138,24 @@ struct ProjectCard: View {
         .padding(MykSpace.s5)
     }
 
+    // Stern-Toggle (L25). Eigener Plain-Button im Hero — macOS leitet den inneren
+    // Button-Tap, der Kartentap bleibt fürs Öffnen. try? ist hier vertretbar: der
+    // Store macht Fehler über saveState sichtbar, die View bleibt fehlerfrei.
+    private var starButton: some View {
+        Button {
+            try? appState.favorites.toggle(projectNumber: project.projectNumber)
+        } label: {
+            Image(systemName: isFavorite ? "star.fill" : "star")
+                .font(.mykSmall)
+                .foregroundStyle(isFavorite ? MykColor.tasks.color : .white.opacity(0.85))
+                .padding(6)
+                .background(Circle().fill(.black.opacity(0.22)))
+                .padding(MykSpace.s4)
+        }
+        .buttonStyle(.plain)
+        .help(isFavorite ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen")
+    }
+
     // MARK: Helfer
     private var addendumBadge: some View {
         Text("Nachtrag")
@@ -153,16 +175,7 @@ struct ProjectCard: View {
             )
     }
 
-    private var heroGradient: [Color] {
-        switch project.kind {
-        case .kitchen:      [Color(hex: 0xD9B9A4), Color(hex: 0x9A8F7E)]
-        case .lighting:     [Color(hex: 0xB8C4A8), Color(hex: 0x7A8F6A)]
-        case .addendum:     [Color(hex: 0xB8C4D4), Color(hex: 0x6A7A8F)]
-        case .lead:         [Color(hex: 0xD4C4B8), Color(hex: 0x9A8A7A)]
-        case .quote:        [Color(hex: 0xC4B8D4), Color(hex: 0x8A7A9A)]
-        case .studioInternal:[Color(hex: 0xC4C4C4), Color(hex: 0x8A8A8A)]
-        }
-    }
+    private var heroGradient: [Color] { project.kind.heroGradient }
 
     private var kindColor: Color { project.kind.accentColor }
 }
@@ -188,6 +201,20 @@ extension ProjectKind {
         case .lead:          MykColor.muted.color
         case .quote:         MykColor.tasks.color    // Ocker
         case .studioInternal:MykColor.faint.color
+        }
+    }
+
+    // L26: token-basierter Hero-Verlauf aus der Quellen-Palette (adaptiv, dark-safe) —
+    // ersetzt die hartkodierten Color(hex:)-Verläufe. Geteilt von Galerie-Karte,
+    // Detail-Hero und Mini-Karte. Farbe bleibt Quellen-Sprache.
+    var heroGradient: [Color] {
+        switch self {
+        case .kitchen:       [MykColor.drive.color.opacity(0.85), MykColor.drive.color.opacity(0.45)]
+        case .lighting:      [MykColor.people.color.opacity(0.85), MykColor.people.color.opacity(0.45)]
+        case .addendum:      [MykColor.cash.color.opacity(0.85), MykColor.cash.color.opacity(0.45)]
+        case .lead:          [MykColor.muted.color.opacity(0.85), MykColor.muted.color.opacity(0.45)]
+        case .quote:         [MykColor.tasks.color.opacity(0.85), MykColor.tasks.color.opacity(0.45)]
+        case .studioInternal:[MykColor.faint.color, MykColor.bone.color]
         }
     }
 }

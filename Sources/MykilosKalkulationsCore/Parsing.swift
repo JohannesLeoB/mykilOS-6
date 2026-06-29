@@ -193,7 +193,9 @@ public final class EstimateRequestParser {
         // "zeile" (und ihre Varianten) zählt als Zeilenstichwort, nicht nur "küchenzeile".
         let patterns = [
             #"([0-9]+(?:[,.][0-9]+)?)\s*(?:laufmeter|lfm)\b"#,
-            #"([0-9]+(?:[,.][0-9]+)?)\s*(?:laufende\s+meter|m)\s+(?:küchenzeile|kuechenzeile|unterschränke|unterschraenke|us|unterbau|zeile|rückzeile|rueckzeile|wandzeile|spülenzeile|spuelenzeile|us-zeile)"#
+            #"([0-9]+(?:[,.][0-9]+)?)\s*(?:laufende\s+meter|m)\s+(?:küchenzeile|kuechenzeile|unterschränke|unterschraenke|us|unterbau|zeile|rückzeile|rueckzeile|wandzeile|spülenzeile|spuelenzeile|us-zeile)"#,
+            // "5m Eichenküche" / "5m Küche" — natürliche Kurzeingabe ohne Zeilen-Keyword
+            #"([0-9]+(?:[,.][0-9]+)?)\s*(?:laufende\s+meter|m)\s+(?:\w+)?küche\b"#,
         ]
         return firstDouble(patterns: patterns, in: lower)
     }

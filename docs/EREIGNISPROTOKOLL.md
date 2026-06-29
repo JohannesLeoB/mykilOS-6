@@ -30,6 +30,275 @@ nie dauerhafter Arbeitsort.
 
 ---
 
+## 2026-06-29 · Claude Code (Opus) — Polish-Loop L24–L30 abgeschlossen
+
+```
+Branch: polish/dampflok (gepusht → PR #3); 296 → 320 Tests grün (54 Suites)
+Build:  ✅ swift build grün   ·   DMG-Pipeline verifiziert (dist/mykilOS-6.dmg)
+```
+
+Nach Core Repair A–G die offene UI-/Hirn-Politur fertiggestellt. Recon per 5-Agenten-
+Workflow (echter Stand + Plan je Item), dann sequentiell mit build+test grün je Schritt.
+
+- **L24** Kunden-Kontext: `KundenBrain` + `lookup_kunde` (read-only lokaler Sync-Cache,
+  keine Kontaktdetails → search_contacts). Weiche AIRTABLE_KUNDEN_LOOKUP. `b1bed54`
+- **L25** Favoriten: `FavoritesStore` (GRDB v7, Cold-Start) + Stern-Toggle Galerie/Detail;
+  Widget zeigt echte Favoriten statt prefix(6)-Platzhalter. `b1bed54`
+- **L26** Dark Mode + Token-Disziplin: NotesWidget (Tinte/Pergament), Ordner-Blau,
+  Hero-Verläufe → adaptive MykColor-Tokens; alle `.font(.system)`/`Color(hex|red:)` aus
+  Feature-Code; SwiftLint-Token-Regeln scharfgestellt + lokal verifiziert (0 Verstöße). `b17ac81`
+- **L27** Timeline-Tab: `TimelineMerger` (rein/testbar) verschmilzt Drive/Angebote/
+  Kalender/Audit; `TimelineTabView` verdrahtet (vorher Platzhalter). `2646769`
+- **L28** RecentActivityWidget echt: DataFlow-Handshakes + Audit, neueste-zuerst
+  (`RecentActivityFeed`); Leerzustand über kanonischen WidgetContainer. `6b1b77e`
+- **L29** Test-Decke: Unit + Cold-Start für alle neuen Stores/Tools (320 Tests). `6b1b77e`
+- **L30** Abschluss: Ledger/Protokoll/Benutzerhandbuch final; **DMG-Pipeline verifiziert**
+  (Bundle ohne GUI-Start gebaut, `MykGitCommit`=6b1b77e injiziert, `dist/mykilOS-6.dmg` 6,6 MB).
+
+Read-only gewahrt, kein externer Schreibzugriff. Kein Merge ohne Johannes' Freigabe.
+
+---
+
+## 2026-06-28 · Claude Code (Opus) — Core Repair Session (PR #3, Mandate A–G)
+
+```
+Branch: polish/dampflok (lokal, KEIN Push ohne Freigabe)
+Build:  ✅ swift build grün
+Tests:  fortlaufend grün (Start 270 → siehe je Mandat)
+```
+
+Ausgangslage (Recon, 7 read-only Mapper): Commit `ac1c914` hat für fast jedes
+Mandat *Bausteine* angelegt, aber kaum etwas *verdrahtet* — exakt das Proxy-Muster.
+Verifizierter Befund: B `LocalDriveRootResolver` 0 Caller (orphaned); D `localURL`
+nie übergeben → PDF öffnet Safari; E `ConversationEngine` loggt Roh-Tool-Namen →
+Schaltzentrum 0 Handshakes; F `try!` bleibt in Prod-DB, kein `os.Logger`; G
+`BackupService` orphaned, WAL-Test ist Fake-String-Copy; A Commit immer „unbekannt",
+Diagnose nur im About-Fenster. C ist verdrahtet, aber Ordnernamen-Klassifikation 0 Tests.
+
+**Mandate E — Typed I/O (toolName→manifestID) ✅ (275 Tests grün)**
+- `AssistantToolManifest` (MykilosServices): statische Map aller 9 Tools → kanonische
+  Manifest-ID + Umbrella-Fallback `ASSISTANT_TOOL_CALL`.
+- `ConversationEngine` loggt jetzt `manifestID(forTool:)` statt `toolUse.name` (Fix F12)
+  → Schaltzentrum-Zeile `GMAIL_SEARCH` lightet nach echtem `search_gmail`-Lauf.
+- 3 neue, ehrliche Weichen im Manifest: `DRIVE_ASSISTANT_LIST`, `CALENDAR_SUGGEST`,
+  `STUDIO_KNOWLEDGE_QUERY` (jedes Tool eine eigene Zeile statt Sammel-Umbrella).
+- Divergente `docs/datastream_manifest.json` gelöscht (F12: „Docs-Version löschen") —
+  Resources-Manifest ist jetzt einzige Quelle der Wahrheit.
+- Bug-zementierenden Test korrigiert (`integrationID == "schaetze_projekt"` →
+  `"KALKULATION_LOCAL"`); neuer Gate-Test `gmailToolLoggtUnterManifestIDGmailSearch`;
+  neue `AssistantToolManifestTests` (Map↔Manifest-Konsistenz, Drift-Guard).
+- BENUTZERHANDBUCH: 22 → 25 Weichen, 3 neue Zeilen, `ASSISTANT_TOOL_CALL`-Notiz korrigiert.
+
+**Mandate A — App-Diagnose in Settings + echter Git-Commit ✅ (275 Tests grün)**
+- `AppDatabase.productionURL` extrahiert → EINE Pfad-Quelle; `AppIdentity.dbPath`
+  delegiert dorthin (kann nie vom real geöffneten Pfad divergieren, Forensik A).
+- `AppIdentity` um `gitCommit`/`gitBranch`/`buildDate` erweitert (liest Info.plist-
+  Keys `MykGitCommit`/`MykGitBranch`/`MykBuildDate`). Das kaputte `#if GIT_COMMIT`-
+  Makro (kompilierte nie zu echtem Wert) ist raus — Commit war immer „unbekannt".
+- `build_and_run.sh` injiziert `git rev-parse --short HEAD`, Branch und UTC-Build-
+  Datum via `plutil -insert` in die Info.plist (end-to-end verifiziert).
+- Neuer `diagnoseSection` in `SettingsView` (Version·Build·Commit·Branch·Gebaut·
+  Bundle·DB) — erfüllt das Hustadt-Gate „Settings → Diagnose zeigt Version+Commit".
+  About-Fenster nutzt jetzt dieselbe `AppIdentity`-Quelle (+ Build-Datum-Zeile).
+- BENUTZERHANDBUCH: neuer Abschnitt „Diagnose".
+
+**Mandate B — Lokales Drive-Routing verdrahtet ✅ (280 Tests grün)**
+- Neuer Foundation-only `DriveLocalResolver` (MykilosServices): liest xattr
+  `com.google.drivefs.item-id#S`, `firstChild(of:withItemID:)`, rekursives
+  `find(itemID:in:fileName:maxDepth:)` mit Namens-Fallback — **echt testbar**.
+- `LocalDriveRootResolver` (vorher 0 Caller, orphaned) delegiert jetzt an
+  `DriveLocalResolver`, bekommt `localURL(forFileID:…)` (Datei im Projektbaum),
+  `driveFolderPath`-Fast-Path (Forensik F9 konsumiert) und `revealInFinder(localURL:)`.
+- `FilesTabView`/`DriveTreeStore` VERDRAHTET: löst den Projektordner lokal auf
+  (Quellzeile „· LOKAL"), Datei-Tap löst lokalen Pfad auf → `FilePreviewView(localURL:)`,
+  Kontextmenü „Im Finder zeigen". `ProjectDetailView` reicht `driveFolderPath` durch.
+- Neue `DriveLocalResolverTests` (5, echte `setxattr`/Temp-Baum, inkl. Hustadt-
+  Struktur „05 eingehende Angebote/Vorplanung/angebot.pdf" + maxDepth + Namens-Fallback).
+- BENUTZERHANDBUCH: „Dateien"-Abschnitt auf lokales Öffnen/Finder-Zeigen aktualisiert.
+- ⚠️ Live-Verify (Johannes): echtes xattr `…item-id#S` am Hustadt-Mount + materialisierter Ordner.
+
+**Mandate D — Echte Dokument-Vorschau statt Safari ✅ (280 Tests grün)**
+- `FilePreviewView`: PDFKit-Render lokal-zuerst, sonst optionaler read-only
+  Remote-Fallback (`remotePDFData`-Closure → Drive `downloadContent` → `PDFDocument(data:)`).
+  Vorher war der `localURL`-Pfad toter Code (nie befüllt) → immer Browser (F11).
+- `OffersTabView`/`OfferRow` VERDRAHTET: Datei-Tap löst lokalen Pfad auf →
+  `FilePreviewView(localURL:remotePDFData:)`; Namens-Button öffnet **lokal-zuerst**
+  (`openFile(localURL:fallbackURL:)`) statt blind `NSWorkspace.open(webViewLink)`;
+  Kontextmenü „Im Finder zeigen". `driveFolderID`/`driveFolderPath` durchgereicht
+  (ProjectDetail + GlobalOffersView). `FilesTabView`-Vorschau ebenfalls mit Remote-Fallback.
+- BENUTZERHANDBUCH: „Angebote"-Abschnitt auf echte Vorschau/lokales Öffnen aktualisiert.
+- Offen (bewusst, kein Gate): Material-Tab öffnet weiter im Browser; QuickLook für
+  Nicht-PDF-Typen wäre Folge-Politur. ⚠️ Live-Verify: Hustadt-PDF rendert + öffnet lokal.
+
+**Mandate C — Angebote testbar gemacht + echte Tests ✅ (290 Tests grün)**
+- Reine Logik aus `OffersLoader` (MykilosApp, untestbar) in `OffersCollector`
+  (MykilosServices) herausgelöst: `subfolder`/`collect`/`load`→`Result`. `OffersLoader`
+  ist jetzt nur noch der dünne @Observable-Wrapper (Render-State/Generation/Fehler). F7 behoben.
+- Neue echte Tests: `OffersCollector.collect` (Rekursion bis Hustadt-Tiefe, parentName-
+  Fluss, maxDepth-Schnitt) + `OffersCollector.load` end-to-end (eingehend=Lieferanten-
+  Angebot, ausgehend „Rechnung"+SR→Schlussrechnung, Ordner-nicht-gefunden) — gegen die
+  ECHTE Produktionslogik statt eines Test-Klons.
+- **Ordnernamen-Klassifikation** (das Kernsignal, vorher 0 Tests): 7 Tests für
+  `resolveType` (Rechnung+SR/TR/Standard, Angebot gewinnt gegen Präfix, Auftrag,
+  Bestellungen incoming, Vorplanung bleibt eingehendesAngebot).
+- **Echte Pagination-Schleife** getestet: `listFolderFolgtNextPageTokenUeberZweiSeiten`
+  mit gestubbter `URLSession` (StubURLProtocol) — Seite 1 (nextPageToken) → Seite 2
+  (pageToken=PAGE2) → zusammengeführt. Der frühere Fake-Test ist als solcher markiert.
+- **Divergenz dokumentiert (bewusst):** Der Angebote-TAB klassifiziert reich über
+  `OfferDocumentClassifier` (Ordnername + Präfix); das `offerDetected`-SIGNAL nutzt weiter
+  `DriveOfferWatcher.detectOffers` (konservative Dateinamen-Keywords). Zwei Zwecke, kein Bug.
+- ⚠️ Live-Verify (Johannes): Hustadt `05 eingehende Angebote/Vorplanung…` zeigt das PDF.
+
+**Mandate F — Crash-Diagnostik: wiederherstellbare DB, kein try!, os.Logger, Export ✅ (294 Tests grün)**
+- **try! eliminiert** (Forensik F13): `AppDatabase` ist jetzt `boot() -> Boot(.ready/.failed)`
+  (do/catch, crasht nie) + `recoverByResettingDatabase()` (Quarantäne statt Löschen);
+  `GRDBDatabase.inMemory()` nutzt reguläres `try`. Grep bestätigt: 0 `try!`/`fatalError` in Sources.
+- **Wiederherstellbarer Start**: `MykilOS6App` führt `BootPhase`; bei `.failed` rendert die neue
+  `DatabaseRecoveryView` (Fehlertext + DB-Pfad + „Datenbank zurücksetzen") statt eines Absturzes
+  vor dem ersten View. Kein eager force-unwrapped `AppState` mehr.
+- **os.Logger**: neues `MykLog` (Subsystem `de.mykilos.mykilos6`, Kategorien lifecycle/db/
+  drive/offers/chat/backup). Launch-Marker (Version+Build+Commit) in `MykilOS6App.init`,
+  DB-Öffnen/-Reset protokolliert. Nie Secrets im Log.
+- **Redaktierter Export**: reiner `DiagnosticsReport.build(...)` (MykilosServices, nimmt per
+  Konstruktion keine Geheimnisse) + „Diagnose kopieren"-Button (Settings → Diagnose) → Zwischenablage.
+- Neue Tests: `GRDBDatabaseRecoverabilityTests` (gültiger Pfad → Roundtrip; unbeschreibbarer Pfad →
+  wirft statt Crash), `DiagnosticsReportTests` (Identität+Handshakes enthalten; keine Secret-Marker).
+- BENUTZERHANDBUCH: „Diagnose"-Abschnitt um Export + Wiederherstellung erweitert.
+
+**Mandate G — Backup/Restore verdrahtet + echter WAL-Round-Trip ✅ (296 Tests grün)**
+- `BackupService` war komplett, aber orphaned + Checkpoint nur dokumentiert. Jetzt:
+  `createConsistentBackup(db:…)` ERZWINGT `db.checkpoint()` vor dem Kopieren (nicht mehr umgehbar)
+  + `latestBackupFolder()`.
+- **Backup verdrahtet**: `AppState.createBackup()` (off-main, `SaveState`) + „Backup jetzt"-Button
+  in Settings → Diagnose (mit Status). Prune >30 Tage. Read-only auf die DB, kein externer Schreibzugriff.
+- **Restore verdrahtet — sicher**: `AppDatabase.restoreLatestBackupThenBoot()` nur aus der
+  `DatabaseRecoveryView` erreichbar (DB ist dort NICHT offen → kein Risiko durch offenes Handle).
+  `BackupService.restore` ist atomar (temp+move), prüft SHA-256, legt vorher Rettungsbackup an.
+- **Echter WAL-Round-Trip** (ersetzt den String-Copy-Fake): reale on-disk GRDB-DB (WAL) → Zeile
+  schreiben → `createConsistentBackup` (Checkpoint) → ALLE DB-Dateien löschen → `restore` →
+  neu öffnen → Zeile (777) wieder da. Plus SHA-256-Known-Vector („abc") + `latestBackupFolder`-Test.
+
+---
+
+### Core Repair (PR #3) — Mandate A–G alle code-fertig ✅
+
+Branch `polish/dampflok`, lokal (KEIN Push/Merge ohne Johannes' Freigabe). **296 Tests grün, 48 Suites.**
+Reihenfolge gefahren: E → A → B → D → C → F → G (Hustadt-kritische zuerst). Jeder Schritt build+test grün.
+Offen = ausschließlich Live-Abnahme am echten Gerät (Hustadt-Gate, siehe Handoff). Keine externen Schreibzugriffe.
+
+---
+
+## 2026-06-28 · Claude Code — Forensik-Session + Übergabe Core Repair
+
+```
+Branch: polish/dampflok HEAD 00d3833
+Build:  ✅ swift build grün
+Tests:  ✅ 243 Tests grün — keine Änderung
+```
+
+**Keine Code-Änderungen.** Reine Forensik-Session.
+
+**Forensik-Audit (60 Agenten, 51 Befunde, 42 bestätigt):**
+- Wurzel-Ursache identifiziert: Proxy-Optimierung (Tests grün, Ledger-Checkmark) statt
+  Ziel-Verifikation (Feature läuft live mit echten Daten für echten Nutzer).
+- L23 GmailCacheStore: committed ✅ aber nie in Production verdrahtet ❌.
+- DataFlowLogger Bug: `toolUse.name` ("search_gmail") statt Manifest-ID ("GMAIL_SEARCH")
+  → Schaltzentrum zeigt 0 Handshakes für alle 8 Tool-Zeilen.
+- `driveReadonly` Scope fehlt in `readOnlyDefaults` → nie angefragt bei Login.
+- `driveFolderPath` existiert, wird nie befüllt.
+- OffersTabView: kein Rekursion, kein nextPageToken, keine Tests.
+- `AppDatabase.production` verwendet `try!` → 7 IPS Crash-Reports.
+- Zwei divergente Datenstrom-Manifests (docs vs Resources).
+- AGENTS.md: veralteter Stand (Akt-5, 80 Tests), nicht synchron mit CLAUDE.md.
+
+**Übergabe:** 13 Forensik-Fragen vollständig beantwortet mit Ursache/Datei/Test-Gap/
+Gegenmaßnahme → `docs/handoffs/HANDOFF_POLISH_DAMPFLOK.md`.
+
+**Nächste Session:** Core Repair (Codex-Mandate A–G). Abnahme-Kriterium: Hustadt-Projekt
+(`driveFolderID: 13ITPqAMdz6JrS13u8y7JvkTVXAWznA_S`) besteht Live-Gate.
+
+---
+
+## 2026-06-28 · Dampflok Iter. 0 + L1 — polish/dampflok Branch Setup + BrainSeedProvider
+
+```
+Branch: polish/dampflok (von main)
+Build:  ✅ swift build grün
+Tests:  ✅ 207 Tests grün (+6 neue: BrainSeedProviderTests)
+```
+
+**Iteration 0 (Setup):**
+- Branch `polish/dampflok` angelegt + gepusht.
+- `docs/POLISH_LOOP_LEDGER.md` erstellt (L1–L30, alle pending).
+- Airtable-Tabelle `Polish-Log` (`tblberJMgRArGSypE`) in `appuVMh3KDfKw4OoQ` angelegt.
+- `SCHALTZENTRUM_DATENSTROM.md`: Weiche `POLISH_LOG_WRITE` eingetragen.
+
+**L1 — Kalkulation echt:**
+- `AppState.swift`: `BaselineAnchorProvider()` → `BrainSeedProvider()` (Fallback bleibt).
+- `BrainSeedProvider.swift` in MykilosServices tracked und wirksam.
+- `Parsing.swift`: `parseRun` um Küche-Pattern erweitert (`5m Eichenküche` → 5 lfm).
+- `BrainSeedProviderTests.swift`: 6 Tests — CSV-Parse, Fallback, Smoke DoT > 0.
+- Commit: 51b8ed0. Polish-Log L1: done.
+
+**L4 — Lern-Loop-Politur:**
+- `KalkulationsWidget.anpassen()`: nach `.saved` 2,5 s → `.idle` + Felder-Reset
+  (faktor/grund/lernen), damit sofortige Folgeanpassung möglich.
+- `KalkulationsWidget.promote()`: `promoteBestaetigung` nach 3 s auto-clear.
+- `promoteSchreibtAuditEntry()` GATE-Test: end-to-end Audit-Pfad verifiziert
+  (3× recordAdjustment → Kandidat → promote → AuditEntry.calibrationPromoted,
+  3× AuditEntry.estimateAdjusted in GRDBDatabase).
+- Bestehende Cold-Start-Tests grün (Regression geprüft).
+- 216 Tests grün. Commit: 60c9abd. Polish-Log L4: done.
+
+**L3 — Geräte & Stundensätze:**
+- `StundensatzLoader.swift`: `merge(airtableRecords:base:)` merged Airtable-Werte
+  aus Clockodo-Leistungen gegen CostModel.stages-Hardcode (8 Keys). Name-Matching
+  für alle 8 Gewerk-Keys. Null-Raten und unbekannte Namen ignoriert. Beide Formate
+  (fieldName + fieldID) unterstützt.
+- `StundensatzLoaderTests`: 6 Tests — Hardcode, Leer, Override, Unbekannt, NullRate, fieldID.
+- `DeviceCatalog.loadDefault()` war bereits live seit L1. Weiche `DEVICE_CATALOG_LOAD`
+  in Airtable Datenstrom-Handbuch registriert.
+- 215 Tests grün. Commit: 573c16e. Polish-Log L3: done.
+
+**L6 — Knoten-Link + DatastromManifest (e17d07e):**
+- `Sources/MykilosApp/Resources/DatastromManifest.json`: 22 Weichen als JSON-Array mit
+  `integrationID`, `name`, `system`, `direction`, `link` (`mykilos://datastream/<ID>`).
+- `DatastromManifestTests.swift`: 6 GATE-Tests — Datei vorhanden, gültiges JSON, count ≥ 3,
+  alle integrationIDs gesetzt, alle Pflichtfelder, Link-Format korrekt.
+- 223 Tests grün (+6). Commit: e17d07e.
+
+**Datenpfad-Fix (5b955b6) — BrainSeedProvider + DeviceCatalog:**
+- `BrainSeedProvider.defaultURL`: sucht zuerst `~/Claude/Projects/mykilOS/MYKILOS 6/_Daten/Kalkulation/Brain/active_price_anchors.csv`, dann Application Support als Fallback.
+- `DeviceCatalog.defaultURL()`: analog für `Devices/catalog.csv`.
+- Beide CSVs liegen bereits bereit (203 echte Tischler-Anker, 5.565 Geräte/Beschläge). Keine Test-Änderung nötig.
+- 217 Tests grün. Commit: 5b955b6.
+
+**L5 — Alle Ströme instrumentieren (DataFlowLogger):**
+- `ConversationEngine.swift`: `dataFlowLogger: DataFlowLogger?` in `init` aufgenommen.
+  `runLoop`: nach jedem `registry.run(...)` → `dataFlowLogger?.log(integrationID: toolUse.name, ...)`.
+  Loggt `.success` oder `.error` je Tool-Ergebnis.
+- `AppState.swift`: `ConversationEngine(... dataFlowLogger: dataFlow)` — `dataFlow` wird live injiziert.
+- `ConversationEngineTests.swift`: `dataFlowLoggerLogtJedesToolRun()` GATE-Test — scripted
+  `schaetze_projekt` tool_use → Logger enthält genau 1 Entry mit integrationID==„schaetze_projekt",
+  action==.success.
+- 217 Tests grün. Commit: 5d50c26. Polish-Log L5: done.
+
+**L7 — SchaltzentrumView in Settings (1af4888):**
+- `SettingsView.swift`: `SchaltzentrumView()` nach `privateAreaSection` eingefügt.
+- `KatalogeView.swift`: Quote-Fix — unterminated string literal durch deutsche „"-Anführungszeichen → escapte ASCII-Quotes.
+- 225 Tests grün. Commit: 1af4888. Polish-Log L7: done.
+
+**L2 — Schätzchat-Toggle:**
+- `AssistantTool.swift`: `schaetzDefinitions()` → nur `schaetze_projekt`.
+- `ConversationEngine.swift`: `schaetzModusEnabled: Bool` Parameter, isoliert Tool-Liste,
+  setzt `effectiveProjectID = "schaetzung"` wenn kein Projekt; Mail/Kalender/Drive-Sperre.
+- `AssistantChatView.swift`: `@AppStorage("assistant.schaetzModus")`, optInBar zweigeteilt,
+  Composer-Tint amber + Placeholder-Wechsel bei aktivem Modus.
+- `ConversationEngineTests.swift`: 2 GATE-Tests + `FakeKalkulationsEngine`.
+- 209 Tests grün. Commit: d5b1c1a. Polish-Log L2: done.
+
+---
+
 ## 2026-06-28 · S17 — Security-Härtung + Google Identity (feat/security-haertung)
 
 ```
@@ -107,6 +376,52 @@ ist durch die S16-Kette subsumiert → geschlossen.
 ---
 
 ## Einträge (neueste zuerst)
+
+---
+
+### 2026-06-28 · Claude Sonnet 4.6 (Dampflok) — L16–L22 abgeschlossen (polish/dampflok)
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `polish/dampflok` · HEAD: `3e5c60e`
+**Build:** ✅ swift build grün
+**Tests:** ✅ 237 Tests grün (37 Suites)
+**Status:** ✅ L16–L22 fertig, auf origin gepusht
+
+**Was gebaut wurde:**
+- L16/L17/L18: Bereits vollständig implementiert (parallel agent) — `downloadContent`, `FilePreviewView`, DriveTreeRow-Popover
+- L19: `format=full`, `GmailAttachment`-Struct, `extractAttachments` (rekursiv), Tool-Output mit Dateinamen (+4 Tests)
+- L20: Angebote-Tab Suchfeld + Datum/Name-Sortierung + Preview-Popover (Icon-Klick → FilePreviewView)
+- L21: `GlobalOffersView` bereits vollständig implementiert
+- L22: `CashWidget` emittiert `budgetThresholdCrossed` nach Sevdesk-Load (ratio ≥ 90%)
+- Fix: zip-Dateien (files.zip, skills/) aus Tracking entfernt + .gitignore ergänzt
+
+**Offen (L23–L30):** GmailCacheStore, Kontakt-Kontext, Favoriten, Timeline, Leerzustände, Test-Decke, Abschluss-Handoff
+
+---
+
+### 2026-06-28 · Claude Sonnet 4.6 (Dampflok) — L6–L15 abgeschlossen (polish/dampflok)
+
+**Pfad:** `/Users/johannesleoberger/Claude/Projects/mykilOS/MYKILOS 6/mykilOS6/`
+**Branch:** `polish/dampflok` · HEAD: `be51948`
+**Build:** ✅ swift build grün
+**Tests:** ✅ 233 Tests grün (37 Suites) — inkl. Drive-Thumbnail-Fix (urlEnthaeltOrdnerIDUndFelder)
+**Status:** ✅ L6–L15 fertig, auf origin gepusht
+
+**Was gebaut wurde (Block 2–4):**
+- L6: `DatastromManifest.json` (22 Weichen) + 6 GATE-Tests (`DatastromManifestTests`) → Knoten-Links live
+- L7: `SchaltzentrumView` (Live-Anzeige Weichen + letzter Handshake) in `BrandsView` + `SettingsView`
+- L8: `DatastromAuditTests` — scannt `.swift`-Dateien auf hardkodierte `integrationID`-Strings vs. Manifest
+- L9: `BrandsView` → „Integrationen" (Umbenennung), `AppModule.brands.rawValue` angepasst
+- L10: `KatalogeView` (read-only Gerätekatalog, Suche, 200 Zeilen max, Hover) + `AppModule.kataloge` (⌘8)
+- L11: `SearchKatalogTool` in `AssistantToolRegistry.standard()` + 5 GATE-Tests
+- L12: `ToolCallRow` bekommt Zeitstempel (relative Anzeige); `activityLabel()` um 5 Tool-Namen erweitert
+- L13: Gmail-Labels bereits vollständig — kein Change nötig
+- L14: `ThinkingIndicator` (3-Punkt-Bounce, Timer 0.42s) + Streaming-Cursor `▌` in `AssistantChatView`
+- L15: `katalogEnabled` in `ConversationEngine.send()` → `AssistantGrounding.systemPrompt()`, Tool-Hint im Prompt
+
+**Offene Punkte nach L15:**
+- L16: Drive-Scope + `downloadFileContent` (Block 5 beginnt)
+- BENUTZERHANDBUCH + EREIGNISPROTOKOLL in diesem Commit nachgezogen
 
 ---
 

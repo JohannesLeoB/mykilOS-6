@@ -48,7 +48,14 @@ extension AssistantConversing {
 public final class ConversationEngine {
     private let chatStore: ChatStore
     private let provider: any AssistantConversing
-    private let registry: AssistantToolRegistry?
+    private var registry: AssistantToolRegistry?
+    private let dataFlowLogger: DataFlowLogger?
+
+    /// Ersetzt die Tool-Registry — z. B. nachdem Kunden geladen/synchronisiert wurden,
+    /// damit `lookup_kunde` mit frischen Daten arbeitet (L24). Rein additiv, kein State-Bruch.
+    public func updateRegistry(_ newRegistry: AssistantToolRegistry) {
+        self.registry = newRegistry
+    }
     private static let maxToolRounds = 6
 
     public private(set) var isResponding = false
@@ -56,20 +63,25 @@ public final class ConversationEngine {
     public init(
         chatStore: ChatStore,
         provider: any AssistantConversing,
-        registry: AssistantToolRegistry? = nil
+        registry: AssistantToolRegistry? = nil,
+        dataFlowLogger: DataFlowLogger? = nil
     ) {
         self.chatStore = chatStore
         self.provider = provider
         self.registry = registry
+        self.dataFlowLogger = dataFlowLogger
     }
 
     public func send(
         _ text: String,
         scope: ChatScope,
         focusedProjectID: String?,
+        focusedDriveFolderID: String? = nil,
+        focusedClickUpListID: String? = nil,
         signals: [WidgetSignal],
         projects: [Project],
         toolsEnabled: Bool = false,
+        schaetzModusEnabled: Bool = false,
         now: Date = Date(),
         profile: UserProfile? = nil
     ) async {
@@ -87,16 +99,37 @@ public final class ConversationEngine {
             return   // Persistenzfehler ist über chatStore.saveState sichtbar.
         }
 
+        // Schätzchat: nur schaetze_projekt, projektlose Eingabe erlaubt.
+        let effectiveProjectID = focusedProjectID ?? (schaetzModusEnabled ? "schaetzung" : nil)
+
         // API-Konversation: persistierter Verlauf (ohne den leeren Platzhalter),
         // plus die transienten tool_use/tool_result-Turns dieser Runde.
         var convo = chatStore.messages(for: scope).filter { $0.id != placeholder.id }
-        let kalkulationsEnabled = toolsEnabled && (registry?.toolNames.contains("schaetze_projekt") == true)
+        let effectiveToolsEnabled = toolsEnabled || schaetzModusEnabled
+        let has: (String) -> Bool = { name in effectiveToolsEnabled && (self.registry?.toolNames.contains(name) == true) }
+        let kalkulationsEnabled = has("schaetze_projekt")
+        // Werkzeuge nennen wir dem Modell nur, wenn sie a) registriert UND b) im
+        // aktuellen Scope sinnvoll sind (Drive/ClickUp brauchen eine Projekt-Handle).
+        let driveEnabled      = !schaetzModusEnabled && has("list_drive_folder") && (focusedDriveFolderID?.isEmpty == false)
+        let clickUpEnabled    = !schaetzModusEnabled && has("list_clickup_tasks") && (focusedClickUpListID?.isEmpty == false)
+        let contactsEnabled   = !schaetzModusEnabled && has("search_contacts")
+        let studioBrainEnabled = !schaetzModusEnabled && has("query_studio_knowledge")
+        let katalogEnabled    = !schaetzModusEnabled && has("search_katalog")
         let system = AssistantGrounding.systemPrompt(
-            profile: profile, focusedProjectID: focusedProjectID,
-            signals: signals, projects: projects, now: now, toolsEnabled: toolsEnabled,
-            kalkulationsEnabled: kalkulationsEnabled
+            profile: profile, focusedProjectID: effectiveProjectID,
+            signals: signals, projects: projects, now: now, toolsEnabled: effectiveToolsEnabled,
+            kalkulationsEnabled: kalkulationsEnabled,
+            driveEnabled: driveEnabled, contactsEnabled: contactsEnabled,
+            clickUpEnabled: clickUpEnabled, studioBrainEnabled: studioBrainEnabled,
+            katalogEnabled: katalogEnabled
         )
-        let tools = (toolsEnabled ? registry?.definitions() : nil) ?? []
+        // Schätzchat bekommt NUR schaetze_projekt — kein Mail/Kalender/Drive-Leak.
+        let tools: [ClaudeToolDefinition]
+        if schaetzModusEnabled {
+            tools = registry?.schaetzDefinitions() ?? []
+        } else {
+            tools = (toolsEnabled ? registry?.definitions() : nil) ?? []
+        }
 
         do {
             var activities: [ChatContentBlock] = []
@@ -104,7 +137,7 @@ public final class ConversationEngine {
             let onTextDelta: (String) -> Void = { [chatStore] text in
                 chatStore.updateStreamingText(id: placeholderID, text: text, in: scope)
             }
-            let finalText = try await runLoop(convo: &convo, activities: &activities, system: system, tools: tools, focusedProjectID: focusedProjectID, onTextDelta: onTextDelta)
+            let finalText = try await runLoop(convo: &convo, activities: &activities, system: system, tools: tools, focusedProjectID: effectiveProjectID, focusedDriveFolderID: focusedDriveFolderID, focusedClickUpListID: focusedClickUpListID, onTextDelta: onTextDelta)
             // Tool-Spuren (Transparenz) vor die Antwort; nur Anzeige, nicht an die API.
             try chatStore.updateAssistantTurn(
                 id: placeholder.id, blocks: activities + [.text(finalText)], status: .complete, in: scope
@@ -129,6 +162,8 @@ public final class ConversationEngine {
         system: String,
         tools: [ClaudeToolDefinition],
         focusedProjectID: String? = nil,
+        focusedDriveFolderID: String? = nil,
+        focusedClickUpListID: String? = nil,
         onTextDelta: ((String) -> Void)? = nil
     ) async throws -> String {
         // Tool-loses Streaming: Claude gibt garantiert keinen tool_use zurück →
@@ -155,8 +190,18 @@ public final class ConversationEngine {
             // Tools ausführen → tool_result-Turn (role user) anhängen + Anzeige-Spur.
             var resultBlocks: [ChatContentBlock] = []
             for toolUse in response.toolUses {
-                let result = await (registry?.run(name: toolUse.name, inputJSON: toolUse.inputJSON, projektID: focusedProjectID)
+                let result = await (registry?.run(name: toolUse.name, inputJSON: toolUse.inputJSON, projektID: focusedProjectID, driveFolderID: focusedDriveFolderID, clickUpListID: focusedClickUpListID)
                     ?? ToolRunResult(text: "Keine Tools verfügbar.", isError: true))
+                // Mandate E / Forensik F12: die kanonische Manifest-ID loggen, nicht
+                // den rohen Tool-Namen — sonst findet das SchaltzentrumView nie einen
+                // Handshake (es matcht auf integrationID aus dem Manifest).
+                dataFlowLogger?.log(
+                    integrationID: AssistantToolManifest.manifestID(forTool: toolUse.name),
+                    actorUserID: "assistant",
+                    action: result.isError ? .error : .success,
+                    errorMessage: result.isError ? result.text : nil,
+                    summary: "Tool-Call: \(toolUse.name)"
+                )
                 resultBlocks.append(.toolResult(toolUseID: toolUse.id, summary: result.text, isError: result.isError))
                 activities.append(.toolActivity(
                     label: Self.activityLabel(name: toolUse.name, inputJSON: toolUse.inputJSON),
@@ -209,6 +254,11 @@ public final class ConversationEngine {
         case "list_calendar_events":      base = "Kalender gelesen"
         case "suggest_calendar_event":    base = "Kalender-Link generiert"
         case "schaetze_projekt":          base = "Kostenschätzung erstellt"
+        case "list_drive_folder":         base = "Drive-Ordner gelesen"
+        case "search_contacts":           base = "Kontakte durchsucht"
+        case "list_clickup_tasks":        base = "ClickUp gelesen"
+        case "query_studio_knowledge":    base = "Wissensbasis durchsucht"
+        case "search_katalog":            base = "Katalog durchsucht"
         default:                          base = name
         }
         if let query, query.isEmpty == false { return "\(base) · \(query)" }

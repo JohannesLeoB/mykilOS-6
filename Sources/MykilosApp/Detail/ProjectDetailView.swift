@@ -28,7 +28,9 @@ struct ProjectDetailView: View {
                 ProjectHeroView(
                     project:  project,
                     customer: appState.registry.customer(for: project),
-                    onBack:   onBack
+                    onBack:   onBack,
+                    isFavorite: appState.favorites.isFavorite(project.projectNumber),
+                    onToggleFavorite: { try? appState.favorites.toggle(projectNumber: project.projectNumber) }
                 )
                 tabBar
                 Divider().overlay(MykColor.line.color)
@@ -141,22 +143,33 @@ struct ProjectDetailView: View {
                     ?? ClaudeAuthService.defaultModel,
                 projects: appState.registry.projects,
                 focusedProjectID: project.projectNumber,
+                focusedDriveFolderID: project.links.driveFolderID,
+                focusedClickUpListID: project.links.clickUpListID,
                 profile: appState.profile.profile
             )
         case .files:
             FilesTabView(
                 projectID: project.projectNumber,
-                driveFolderID: project.links.driveFolderID
+                driveFolderID: project.links.driveFolderID,
+                driveFolderPath: project.links.driveFolderPath
             )
         case .offers:
             OffersTabView(
                 projectID: project.projectNumber,
-                driveFolderID: project.links.driveFolderID
+                driveFolderID: project.links.driveFolderID,
+                driveFolderPath: project.links.driveFolderPath
             )
         case .material:
             MaterialTabView(
                 projectID: project.projectNumber,
                 driveFolderID: project.links.driveFolderID
+            )
+        case .timeline:
+            TimelineTabView(
+                projectID: project.projectNumber,
+                driveFolderID: project.links.driveFolderID,
+                calendarQuery: project.links.calendarQuery,
+                auditStore: appState.audit
             )
         default:
             ComingTabView(tab: activeTab)

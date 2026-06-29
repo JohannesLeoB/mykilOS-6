@@ -36,7 +36,8 @@ let package = Package(
                     "MykilosKalkulationsCore",
                     .product(name: "GRDB", package: "GRDB.swift"),
                 ],
-                path: "Sources/MykilosServices"),
+                path: "Sources/MykilosServices",
+                resources: [.copy("Resources/studio_brain.json")]),
 
         // Widgets — SwiftUI. NotesWidget braucht NoteStore aus MykilosServices.
         .target(name: "MykilosWidgets",

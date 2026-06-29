@@ -22,9 +22,11 @@ public final class GRDBDatabase: Sendable {
         try runMigrations()
     }
 
-    // In-Memory für Tests — kein Disk-I/O, schnell, isoliert
+    // In-Memory für Tests — kein Disk-I/O, schnell, isoliert.
+    // Kein try! mehr (Mandate F): Fehler propagieren regulär.
     public static func inMemory() throws -> GRDBDatabase {
-        let db = GRDBDatabase.__inMemory()
+        let db = GRDBDatabase(queue: try DatabaseQueue())
+        try db.runMigrations()
         return db
     }
 
@@ -37,6 +39,18 @@ public final class GRDBDatabase: Sendable {
     public func write<T: Sendable>(_ block: @Sendable (Database) throws -> T) throws -> T {
         try queue.write(block)
     }
+
+    /// WAL-Checkpoint: schreibt alle ausstehenden WAL-Transaktionen in die Hauptdatei.
+    /// Muss vor einem konsistenten Backup aufgerufen werden.
+    /// Nach dem Checkpoint ist db.sqlite allein ein gültiges Backup (db.sqlite-wal ist leer/klein).
+    public func checkpoint() throws {
+        try queue.write { db in
+            try db.execute(sql: "PRAGMA wal_checkpoint(TRUNCATE)")
+        }
+    }
+
+    /// Gibt den Dateipfad der Hauptdatenbank zurück (für Backup-Service).
+    public var dbPath: String { queue.path }
 
     // MARK: - Migrations (niemals ändern, nur anhängen)
     private func runMigrations() throws {
@@ -117,15 +131,36 @@ public final class GRDBDatabase: Sendable {
             }
         }
 
+        // v6_dataflow_log — Schaltzentrum-Logbuch. Jeder externe Datensync
+        // schreibt hier einen Handshake (lokale Wahrheit; Airtable spiegelt nicht-fatal).
+        migrator.registerMigration("v6_dataflow_log") { db in
+            try db.create(table: "dataFlowLog") { t in
+                t.primaryKey("id", .text)
+                t.column("timestamp",      .double).notNull().indexed()
+                t.column("integrationID",  .text).notNull().indexed()
+                t.column("actorUserID",    .text).notNull()
+                t.column("action",         .text).notNull()
+                t.column("recordsRead",    .integer).notNull().defaults(to: 0)
+                t.column("recordsWritten", .integer).notNull().defaults(to: 0)
+                t.column("httpStatus",     .integer)
+                t.column("errorMessage",   .text)
+                t.column("durationMs",     .integer).notNull().defaults(to: 0)
+                t.column("summary",        .text).notNull()
+            }
+        }
+
+        // v7_project_favorites (L25) — angepinnte Projekte. Schlüssel = projectNumber
+        // (Business-Schlüssel, kein UUID), damit Favoriten Airtable-Re-Syncs überleben.
+        migrator.registerMigration("v7_project_favorites") { db in
+            try db.create(table: "projectFavorites") { t in
+                t.primaryKey("projectNumber", .text)
+                t.column("addedAt", .double).notNull()
+            }
+        }
+
         try migrator.migrate(queue)
     }
 
     // Interner init für Tests (ohne Migrations-Fehler)
     private init(queue: DatabaseQueue) { self.queue = queue }
-
-    private static func __inMemory() -> GRDBDatabase {
-        let db = GRDBDatabase(queue: try! DatabaseQueue())
-        try! db.runMigrations()
-        return db
-    }
 }

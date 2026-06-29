@@ -84,7 +84,11 @@ private let toolDateFormatter: DateFormatter = {
 // MARK: - SearchGmailTool (read-only) — beantwortet „Wo ist die Mail an …?"
 public struct SearchGmailTool: AssistantTool {
     private let client: GoogleGmailFetching
-    public init(client: GoogleGmailFetching = GoogleGmailClient()) { self.client = client }
+    private let cache: GmailCacheStore?
+    public init(client: GoogleGmailFetching = GoogleGmailClient(), cache: GmailCacheStore? = nil) {
+        self.client = client
+        self.cache = cache
+    }
 
     public let name = "search_gmail"
     public let description =
@@ -99,14 +103,26 @@ public struct SearchGmailTool: AssistantTool {
         let query = (input["query"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard query.isEmpty == false else { return ToolRunResult(text: "Leere Suchabfrage.", isError: true) }
         do {
-            let messages = try await client.searchMessages(query: query, maxResults: 10)
+            let messages: [GoogleGmailMessage]
+            if let hit = await cache?.cached(for: query) {
+                messages = hit
+            } else {
+                let fresh = try await client.searchMessages(query: query, maxResults: 10)
+                await cache?.store(fresh, for: query)
+                messages = fresh
+            }
             guard messages.isEmpty == false else {
                 return ToolRunResult(text: "Keine Mails für „\(query)“ gefunden.")
             }
             let lines = messages.map { m -> String in
                 let date = m.receivedAt.map { toolDateFormatter.string(from: $0) } ?? "ohne Datum"
                 let place = Self.placement(from: m.labels)
-                return "• \(m.subject) — von \(m.from) (\(date))\(place.isEmpty ? "" : " · Ablage: \(place)")\n  \(m.snippet)"
+                var line = "• \(m.subject) — von \(m.from) (\(date))\(place.isEmpty ? "" : " · Ablage: \(place)")"
+                if m.attachments.isEmpty == false {
+                    line += " · Anhänge: \(m.attachments.map(\.filename).joined(separator: ", "))"
+                }
+                line += "\n  \(m.snippet)"
+                return line
             }
             return ToolRunResult(text: lines.joined(separator: "\n"))
         } catch GoogleGmailError.notConnected {
@@ -274,6 +290,238 @@ public struct KostenSchaetzungTool: AssistantTool {
     }
 }
 
+// MARK: - ListDriveFolderTool
+// Listet Dateien und Unterordner im verlinkten Google-Drive-Projektordner.
+// Liest ausschließlich Metadaten (Name, Typ, Datum) — nie Dateiinhalte.
+// _driveFolderID wird von der Registry injiziert (kein echter Tool-Parameter).
+struct ListDriveFolderTool: AssistantTool {
+    private let client: GoogleDriveFetching
+    init(client: GoogleDriveFetching = GoogleDriveClient()) { self.client = client }
+
+    var name: String { "list_drive_folder" }
+    var description: String {
+        "Listet Dateien und Unterordner im verlinkten Google-Drive-Projektordner. "
+        + "Gibt Name, Typ und Änderungsdatum zurück — liest KEINE Dateiinhalte. "
+        + "Mit 'unterordner' (z. B. '01 ANGEBOTE', '02 CAD') gezielt in einen Unterordner schauen."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "unterordner",
+                       description: "Optionaler Unterordner-Name (z. B. '01 ANGEBOTE'). Leer = Projektordner-Wurzel.")]
+    }
+
+    func run(input: [String: String]) async -> ToolRunResult {
+        let folderID = (input["_driveFolderID"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let filter   = (input["unterordner"]    ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !folderID.isEmpty else {
+            return ToolRunResult(text: "Kein Drive-Ordner für dieses Projekt verknüpft.", isError: true)
+        }
+        do {
+            var files = try await client.listFolder(folderID: folderID)
+            var prefix = "Projektordner"
+            if !filter.isEmpty {
+                if let sub = files.first(where: { $0.isFolder && $0.name.lowercased().contains(filter) }) {
+                    files = try await client.listFolder(folderID: sub.id)
+                    prefix = sub.name
+                } else {
+                    let folders = files.filter { $0.isFolder }.map { $0.name }.joined(separator: ", ")
+                    return ToolRunResult(text: "Unterordner '\(filter)' nicht gefunden. Vorhandene Ordner: \(folders)")
+                }
+            }
+            return format(files, prefix: prefix)
+        } catch GoogleDriveError.notConnected {
+            return ToolRunResult(text: "Google Drive nicht verbunden. In Einstellungen verbinden.", isError: true)
+        } catch {
+            return ToolRunResult(text: "Drive-Abruf fehlgeschlagen: \(error.localizedDescription)", isError: true)
+        }
+    }
+
+    private func format(_ files: [GoogleDriveFile], prefix: String) -> ToolRunResult {
+        guard !files.isEmpty else { return ToolRunResult(text: "\(prefix): leer.") }
+        let fmt = DateFormatter(); fmt.dateFormat = "dd.MM.yy"
+        let lines = files.prefix(30).map { f in
+            "• \(f.name) [\(f.typeLabel)]\(f.modifiedAt.map { " — \(fmt.string(from: $0))" } ?? "")"
+        }
+        let more = files.count > 30 ? "\n… und \(files.count - 30) weitere." : ""
+        return ToolRunResult(text: "\(prefix) (\(files.count) Einträge):\n" + lines.joined(separator: "\n") + more)
+    }
+}
+
+// MARK: - SearchContactsTool (read-only) — beantwortet „Wer ist …? Kontaktdaten?"
+struct SearchContactsTool: AssistantTool {
+    private let client: GoogleContactsFetching
+    init(client: GoogleContactsFetching = GoogleContactsClient()) { self.client = client }
+
+    var name: String { "search_contacts" }
+    var description: String {
+        "Durchsucht die Google-Kontakte des verbundenen Accounts (nur lesen). "
+        + "Gibt Name, E-Mail, Telefon und Organisation passender Kontakte zurück."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "query", description: "Suchbegriff (Name, Firma, E-Mail-Fragment)")]
+    }
+
+    func run(input: [String: String]) async -> ToolRunResult {
+        let query = (input["query"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard query.isEmpty == false else { return ToolRunResult(text: "Leere Suchabfrage.", isError: true) }
+        do {
+            let contacts = try await client.searchContacts(query: query)
+            guard contacts.isEmpty == false else {
+                return ToolRunResult(text: "Keine Kontakte für „\(query)“ gefunden.")
+            }
+            let lines = contacts.prefix(15).map { c -> String in
+                var parts = ["• \(c.displayName)"]
+                if let org = c.organization, org.isEmpty == false { parts.append("(\(org))") }
+                if let mail = c.email, mail.isEmpty == false { parts.append("· \(mail)") }
+                if let tel = c.phone, tel.isEmpty == false { parts.append("· \(tel)") }
+                return parts.joined(separator: " ")
+            }
+            return ToolRunResult(text: lines.joined(separator: "\n"))
+        } catch GoogleContactsError.notConnected {
+            return ToolRunResult(text: "Google ist nicht verbunden. Bitte in den Einstellungen verbinden.", isError: true)
+        } catch {
+            return ToolRunResult(text: "Kontaktsuche fehlgeschlagen: \(error)", isError: true)
+        }
+    }
+}
+
+// MARK: - ListClickUpTasksTool (read-only) — beantwortet „Was ist offen?"
+// _clickUpListID wird von der Registry injiziert (kein echter Tool-Parameter).
+struct ListClickUpTasksTool: AssistantTool {
+    private let client: ClickUpFetching
+    init(client: ClickUpFetching = ClickUpClient()) { self.client = client }
+
+    var name: String { "list_clickup_tasks" }
+    var description: String {
+        "Listet die offenen ClickUp-Aufgaben des aktuellen Projekts (nur lesen) "
+        + "mit Status, Fälligkeit und Zuständigkeit. Nur im Projekt-Chat verfügbar."
+    }
+    var parameters: [ToolParameter] { [] }
+
+    func run(input: [String: String]) async -> ToolRunResult {
+        let listID = (input["_clickUpListID"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard listID.isEmpty == false else {
+            return ToolRunResult(text: "Keine ClickUp-Liste für dieses Projekt verknüpft.", isError: true)
+        }
+        do {
+            let tasks = try await client.tasks(listID: listID)
+            guard tasks.isEmpty == false else { return ToolRunResult(text: "Keine offenen Aufgaben in dieser Liste.") }
+            let lines = tasks.prefix(25).map { t -> String in
+                var parts = ["• \(t.name) [\(t.status)]"]
+                if t.isUrgent { parts.append("· DRINGEND") }
+                if let due = t.dueDate { parts.append("· fällig \(toolDateFormatter.string(from: due))") }
+                if let who = t.assignee, who.isEmpty == false { parts.append("· \(who)") }
+                return parts.joined(separator: " ")
+            }
+            return ToolRunResult(text: lines.joined(separator: "\n"))
+        } catch ClickUpError.notConnected {
+            return ToolRunResult(text: "ClickUp ist nicht verbunden. Bitte in den Einstellungen verbinden.", isError: true)
+        } catch {
+            return ToolRunResult(text: "ClickUp-Abruf fehlgeschlagen: \(error)", isError: true)
+        }
+    }
+}
+
+// MARK: - SearchKatalogTool (read-only, lokal) — Artikel-/Gerätekatalog-Suche
+// Durchsucht den lokalen DeviceCatalog (CSV-Export aus Airtable appdxTeT6bhSBmwx5).
+// Gibt Hersteller, Beschreibung und MYKILOS-VK zurück. NIE schreiben.
+struct SearchKatalogTool: AssistantTool {
+    private let catalog: DeviceCatalog?
+    init(catalog: DeviceCatalog? = DeviceCatalog.loadDefault()) { self.catalog = catalog }
+
+    var name: String { "search_katalog" }
+    var description: String {
+        "Sucht Artikel und Geräte im lokalen Preiskatalog (Gaggenau, Miele, Blum…). "
+        + "Gibt Hersteller, Beschreibung, Artikelnummer und MYKILOS-Verkaufspreis zurück. "
+        + "Nützlich für Kalkulationsfragen wie \"Was kostet ein Gaggenau Backofen?\". Nur lesen."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "query", description: "Suchbegriff: Hersteller, Kategorie, Artikelnummer oder Produktbeschreibung", required: true)]
+    }
+
+    func run(input: [String: String]) async -> ToolRunResult {
+        let query = (input["query"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            return ToolRunResult(text: "Bitte einen Suchbegriff angeben (z. B. \"Gaggenau Backofen\" oder \"Blum Scharnier\").", isError: true)
+        }
+        guard let catalog else {
+            return ToolRunResult(text: "Kein Gerätekatalog geladen. Die CSV muss unter \(DeviceCatalog.defaultURL().path) liegen.", isError: true)
+        }
+        let results = catalog.search(query, limit: 10)
+        guard !results.isEmpty else {
+            return ToolRunResult(text: "Keine Artikel f\u{00FC}r \"\(query)\" im Katalog gefunden. Tipp: k\u{00FC}rzerer Suchbegriff oder Herstellername.")
+        }
+        let priceFormatter = NumberFormatter()
+        priceFormatter.numberStyle = .currency
+        priceFormatter.locale = Locale(identifier: "de_DE")
+        priceFormatter.maximumFractionDigits = 2
+        let lines = results.map { e -> String in
+            let price = e.sellNet.map { priceFormatter.string(from: $0 as NSDecimalNumber) ?? "–" } ?? "–"
+            return "• \(e.manufacturer) | \(e.description) | Art. \(e.articleNumber) | \(price)"
+        }
+        return ToolRunResult(text: "Katalog-Treffer f\u{00FC}r \"\(query)\":\n" + lines.joined(separator: "\n"))
+    }
+}
+
+// MARK: - QueryStudioKnowledgeTool (read-only, lokal) — die „allwissende" Wissensbasis
+struct QueryStudioKnowledgeTool: AssistantTool {
+    private let brain: StudioBrain
+    init(brain: StudioBrain) { self.brain = brain }
+
+    var name: String { "query_studio_knowledge" }
+    var description: String {
+        "Durchsucht die lokale Studio-Wissensbasis aus der Projekthistorie "
+        + "(Projekte mit Phase/Problem-Signalen/Beträgen, Lieferanten, Team). "
+        + "Nutze sie für Fragen zu früheren oder laufenden Projekten, Kunden und Lieferanten. "
+        + "Leere/allgemeine Anfrage gibt eine Gesamtübersicht (Kennzahlen, Top-Köpfe/Lieferanten)."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "query", description: "Kunde, Projekt, Ort oder Lieferant (leer = Übersicht)", required: false)]
+    }
+
+    func run(input: [String: String]) async -> ToolRunResult {
+        let query = (input["query"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if query.isEmpty || ["übersicht", "overview", "statistik", "gesamt", "stats"].contains(query.lowercased()) {
+            return ToolRunResult(text: brain.overview)
+        }
+        let hits = brain.lookup(query)
+        guard hits.isEmpty == false else {
+            return ToolRunResult(text: "Keine Treffer in der Studio-Wissensbasis für „\(query)“. Tipp: Kundenname, Ort oder Lieferant.")
+        }
+        return ToolRunResult(text: hits.map(brain.describe).joined(separator: "\n"))
+    }
+}
+
+// MARK: - LookupKundeTool (read-only, lokal) — Airtable-Kunden-Verzeichnis (L24)
+// Durchsucht die lokal synchronisierten Airtable-Kunden (Name/Kundennummer/
+// Projektanzahl). KEINE Kontaktdetails (dafür search_contacts), KEIN Live-Airtable-
+// Zugriff — arbeitet nur auf dem KundenBrain-Snapshot.
+struct LookupKundeTool: AssistantTool {
+    private let brain: KundenBrain
+    init(brain: KundenBrain) { self.brain = brain }
+
+    var name: String { "lookup_kunde" }
+    var description: String {
+        "Durchsucht die lokal synchronisierten Airtable-Kunden (nur lesen): Kundenname, "
+        + "Kundennummer und Anzahl Projekte. Liefert KEINE E-Mail/Telefon — dafür "
+        + "search_contacts (Google-Kontakte). Leere Anfrage = Kundenübersicht."
+    }
+    var parameters: [ToolParameter] {
+        [ToolParameter(name: "query", description: "Kundenname oder Kundennummer (leer = Übersicht)", required: false)]
+    }
+
+    func run(input: [String: String]) async -> ToolRunResult {
+        let query = (input["query"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if query.isEmpty || ["übersicht", "overview", "alle", "liste"].contains(query.lowercased()) {
+            return ToolRunResult(text: brain.overview)
+        }
+        let hits = brain.lookup(query)
+        guard hits.isEmpty == false else {
+            return ToolRunResult(text: "Keine Kunden für „\(query)“ gefunden. Tipp: Teil des Namens oder Kundennummer.")
+        }
+        return ToolRunResult(text: hits.map(brain.describe).joined(separator: "\n"))
+    }
+}
+
 // MARK: - AssistantToolRegistry (Whitelist, default-deny)
 public struct AssistantToolRegistry: Sendable {
     private let tools: [any AssistantTool]
@@ -282,17 +530,34 @@ public struct AssistantToolRegistry: Sendable {
 
     /// Standard-Read-only-Whitelist. SEVDESK ist hier bewusst NICHT enthalten und
     /// wird auch nie ergänzt (NO-GO: Sevdesk nie lesen/schreiben).
-    /// `kalkulationsEngine` ergänzt `schaetze_projekt`, wenn vorhanden.
+    /// `kalkulationsEngine` ergänzt `schaetze_projekt`, `drive` ergänzt `list_drive_folder`.
     public static func standard(
         gmail: GoogleGmailFetching = GoogleGmailClient(),
+        gmailCache: GmailCacheStore? = nil,
         calendar: GoogleCalendarFetching = GoogleCalendarClient(),
-        kalkulationsEngine: (any KalkulationsEngineProviding)? = nil
+        drive: GoogleDriveFetching = GoogleDriveClient(),
+        contacts: GoogleContactsFetching = GoogleContactsClient(),
+        clickUp: ClickUpFetching = ClickUpClient(),
+        studioBrain: StudioBrain? = StudioBrain.shared,
+        kalkulationsEngine: (any KalkulationsEngineProviding)? = nil,
+        deviceCatalog: DeviceCatalog? = DeviceCatalog.loadDefault(),
+        kundenDirectory: KundenBrain? = nil
     ) -> AssistantToolRegistry {
         var tools: [any AssistantTool] = [
-            SearchGmailTool(client: gmail),
+            SearchGmailTool(client: gmail, cache: gmailCache),
             ListCalendarTool(client: calendar),
             SuggestCalendarEventTool(),
+            ListDriveFolderTool(client: drive),
+            SearchContactsTool(client: contacts),
+            ListClickUpTasksTool(client: clickUp),
+            SearchKatalogTool(catalog: deviceCatalog),
         ]
+        if let studioBrain {
+            tools.append(QueryStudioKnowledgeTool(brain: studioBrain))
+        }
+        if let kundenDirectory {
+            tools.append(LookupKundeTool(brain: kundenDirectory))
+        }
         if let engine = kalkulationsEngine {
             tools.append(KostenSchaetzungTool(engine: engine))
         }
@@ -305,15 +570,22 @@ public struct AssistantToolRegistry: Sendable {
         tools.map { $0.wireDefinition() }
     }
 
-    /// Führt ein Tool aus. Unbekannter/nicht erlaubter Name → Deny-Ergebnis, ohne etwas auszuführen.
-    /// `projektID` wird als `_projektID` in den Input injiziert — kein Protokollbruch,
-    /// da `_`-Präfix-Keys von Claude nicht als echte Parameter gesendet werden.
-    public func run(name: String, inputJSON: Data, projektID: String? = nil) async -> ToolRunResult {
+    /// Nur `schaetze_projekt` — für den Schätzchat-Modus (kein Mail/Kalender/Drive-Leak).
+    public func schaetzDefinitions() -> [ClaudeToolDefinition] {
+        tools.filter { $0.name == "schaetze_projekt" }.map { $0.wireDefinition() }
+    }
+
+    /// Führt ein Tool aus. Unbekannter/nicht erlaubter Name → Deny-Ergebnis.
+    /// `projektID` → `_projektID`, `driveFolderID` → `_driveFolderID` (injiziert,
+    /// kein Protokollbruch: `_`-Präfix-Keys sendet Claude nicht selbst).
+    public func run(name: String, inputJSON: Data, projektID: String? = nil, driveFolderID: String? = nil, clickUpListID: String? = nil) async -> ToolRunResult {
         guard let tool = tools.first(where: { $0.name == name }) else {
             return ToolRunResult(text: "Tool nicht erlaubt oder unbekannt: \(name)", isError: true)
         }
         var input = Self.stringDict(from: inputJSON)
-        if let id = projektID { input["_projektID"] = id }
+        if let id  = projektID     { input["_projektID"]      = id }
+        if let fid = driveFolderID { input["_driveFolderID"]  = fid }
+        if let lid = clickUpListID { input["_clickUpListID"]  = lid }
         return await tool.run(input: input)
     }
 
